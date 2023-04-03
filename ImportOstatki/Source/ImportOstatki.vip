@@ -446,6 +446,7 @@ Procedure InsertAkts;
          insert spsopr set
             spsopr.NPP     := 1
           , spsopr.PRMC    := 2
+          , spsopr.cSopr   := katsopr.nrec
           , spsopr.CMCUSL  := Usl_akt.nrec
           , spsopr.COTPED  := KatOtpEd_usl.nrec
           , spsopr.KOL     := 1

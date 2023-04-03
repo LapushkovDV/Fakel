@@ -1,0 +1,27 @@
+/*************************************************************************************************\
+* Наименование: Функции для целевого учета                                                        *
+* Контур/Модуль: МТО                                                                              *
+* Примечание:                                                                                     *
+*                                                                                                 *
+* Вид работы  |Номер         |Дата    |Исполнитель              |Проект                           *
+* ----------------------------------------------------------------------------------------------- *
+* Разработка  |              |23/10/15|Кузьмин П.Ю.             |ТОАЗ МТО                         *
+\*************************************************************************************************/
+
+#ifndef __GP_MTRFuncs_VIH__
+#define __GP_MTRFuncs_VIH__
+
+#component ""
+
+ObjInterface GP_IMTRFuncs;
+  //Заполняет буфер SpecMTR по позиции заявки
+  procedure FiilSpecMTR(var bSpecMTR:type$SpecMTR;Src:type$Claim;Ind:type$Indent;Rewrite:boolean=true);
+  //Генерирует ЦУ для позиции заявки
+  procedure GenClaimSpecMTR(cSaldTune:comp;Src:type$Claim;Ind:type$Indent);
+  //Копирует ЦУ из одной позиции заявки в другую
+  procedure CopyClaimSpecMTR(cSrc:comp;Dst:type$Claim;Ind:type$Indent);
+end;
+
+VipInterface GP_MTRFuncs implements GP_IMTRFuncs;
+
+#endif
