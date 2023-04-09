@@ -90,9 +90,19 @@ end;
 #include StatLog.var          // oStatLog       работа со статусами документов
 #include Notes.var            // oNotes         пояснения к статусу
 #include marker.vih
+#include MkParty.vih
+#include ModifOrd.vih
+var oModifOrds : ModifOrds;
+#include IGK_Dog.vih
+var oIGK_Dog: iIGK_Dog;
+#include MakeOrder.vih
+var oMakeOrder: MakeOrder;
+#include SchFactFunctions.vih
+var iSF : viSchFunc;
+
+#include vih\GP_MakeMove.vih
 
 #component "FAKEL"
-
 
 
 #make "Source\ImportOstatki.vip"

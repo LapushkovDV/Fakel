@@ -22,7 +22,6 @@ Function SearchCellsByName(_name: string; _nrow: word): word;
       break;
     }
   }
- MyLog( '***********************************************************************');
   result := _result
 } // Functio SearchCellsByName(_name, _log : string) : byte;
 
