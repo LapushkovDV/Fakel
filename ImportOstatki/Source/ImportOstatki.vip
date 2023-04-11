@@ -1331,6 +1331,8 @@ procedure InsertPrihNaklOrderDoocenka;
             if spsopr.cparty <> 0h
                then {
                    coSetAttr(cokatparty, spsopr.cparty,'.Счет МЦ', tInsertDocs4110.cSchet, tInsertDocs4110.SchetBU) ;
+                   coSetAttr(cokatparty, spsopr.cparty,'.Приходный документ партии (ЭМ)', katsopr.nrec, 'Приходная накладная '+katsopr.nsopr + ' от ' + katsopr.dsopr) ;
+                   coSetAttr(cokatparty, spsopr.cparty,'.Счет-фактура партии (ЭМ)', SCHFACT.nrec, 'СФ '+SCHFACT.num + ' от ' +SCHFACT.DFACT) ;
 
                    var _igk : string = oIGK_Dog.GetIGK(katsopr.cdogovor) ;
                    if _igk <> '' {
