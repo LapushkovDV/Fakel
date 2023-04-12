@@ -1115,7 +1115,7 @@ procedure InsertPrihNaklOrderDoocenka;
 //        and (tInsertDocs4110.schetBU = '60.02' or tInsertDocs4110.schetBU = '62.02')
         and tInsertDocs4110.FlagErr = 0
        {
-         if getfirst katsopr where ((111 == katsopr.vidsopr
+         if getfirst katsopr where ((101 == katsopr.vidsopr
            and tInsertDocs4110.soprdSopr == katsopr.dSopr
            and tInsertDocs4110.soprnSopr == katsopr.nSopr
                 and tInsertDocs4110.cDog == KatSopr.CDOGOVOR (noindex)
