@@ -1279,53 +1279,57 @@ procedure InsertPrihNaklOrderDoocenka;
                  mylog('Накладная ' + katsopr.nsopr + ' от ' + katsopr.dsopr + ' НЕ УДАЛОСЬ СФОРМИРОВАТЬ ОРДЕРА ');
              }
 
-             if not iSf.DoInit(2) {
-               mylog('Накладная ' + katsopr.nsopr + ' от ' + katsopr.dsopr + ' не удалось инициализировать объект по работе с СФ');
-             }
-             else {
-               if iSF.CreateSFbyKatSopr(KatSopr.NRec) {
-                   rereadrecord;
-                   mylog('Накладная ' + katsopr.nsopr + ' от ' + katsopr.dsopr + ' Сформирована СФ ' + katsopr.CSCHFACT);
-                   if getfirst schfact where ((katsopr.CSCHFACT == schfact.nrec)) = tsOK {
-                      SCHFACT.DFACT := tInsertDocs4110.SchFact_date;
-                      SCHFACT.DPOST := tInsertDocs4110.SchFact_dateIn;
-                      SCHFACT.NUM   := tInsertDocs4110.SchFact_NoDoc;
+            if tInsertDocs4110.SchFact_NoDoc <> '' {
 
-                      case tInsertDocs4110.VAT of
-                      '18%','20%':  {//18%20%
-                                      SCHFACT.Sum[1] := tInsertDocs4110.SchFact_SumWOVat;
-                                      SCHFACT.SUM[2] := tInsertDocs4110.SchFact_SumVat;
-                                      SCHFACT.SUM[3] := tInsertDocs4110.SchFact_SumWithVAT;
-                                    }
-                      '10%':        {//10
-                                      SCHFACT.SUM[4] := tInsertDocs4110. SchFact_SumWOVat;
-                                      SCHFACT.SUM[5] := tInsertDocs4110. SchFact_SumVat;
-                                      SCHFACT.SUM[5] := tInsertDocs4110. SchFact_SumWithVAT;
-                                    }
-                      '0%' :        {//0
-                                      SCHFACT.SUM[23] := tInsertDocs4110.SchFact_SumWOVat;
-                                      //---              SchFact_SumVat;
-                                      SCHFACT.SUM[9]  := tInsertDocs4110.SchFact_SumWithVAT;
-                                    }
-                      'Без НДС':    {//without
-                                      SCHFACT.SUM[9]  := tInsertDocs4110.SchFact_SumWOVat;
-                                      //--               SchFact_SumVat;
-                                      //--               SchFact_SumWithVAT;
-                                    }
-                       else         {
-                                      SCHFACT.Sum[1] := tInsertDocs4110.SchFact_SumWOVat;
-                                      SCHFACT.SUM[2] := tInsertDocs4110.SchFact_SumVat;
-                                      SCHFACT.SUM[3] := tInsertDocs4110.SchFact_SumWithVAT;
-                                    }
-                       end;
-                     update current SCHFACT;
+                 if not iSf.DoInit(2) {
+                   mylog('Накладная ' + katsopr.nsopr + ' от ' + katsopr.dsopr + ' не удалось инициализировать объект по работе с СФ');
+                 }
+                 else {
+                   if iSF.CreateSFbyKatSopr(KatSopr.NRec) {
+                       rereadrecord;
+                       mylog('Накладная ' + katsopr.nsopr + ' от ' + katsopr.dsopr + ' Сформирована СФ ' + katsopr.CSCHFACT);
+                       if getfirst schfact where ((katsopr.CSCHFACT == schfact.nrec)) = tsOK {
+                          SCHFACT.DFACT := tInsertDocs4110.SchFact_date;
+                          SCHFACT.DPOST := tInsertDocs4110.SchFact_dateIn;
+                          SCHFACT.NUM   := tInsertDocs4110.SchFact_NoDoc;
+
+                          case tInsertDocs4110.VAT of
+                          '18%','20%':  {//18%20%
+                                          SCHFACT.Sum[1] := tInsertDocs4110.SchFact_SumWOVat;
+                                          SCHFACT.SUM[2] := tInsertDocs4110.SchFact_SumVat;
+                                          SCHFACT.SUM[3] := tInsertDocs4110.SchFact_SumWithVAT;
+                                        }
+                          '10%':        {//10
+                                          SCHFACT.SUM[4] := tInsertDocs4110. SchFact_SumWOVat;
+                                          SCHFACT.SUM[5] := tInsertDocs4110. SchFact_SumVat;
+                                          SCHFACT.SUM[5] := tInsertDocs4110. SchFact_SumWithVAT;
+                                        }
+                          '0%' :        {//0
+                                          SCHFACT.SUM[23] := tInsertDocs4110.SchFact_SumWOVat;
+                                          //---              SchFact_SumVat;
+                                          SCHFACT.SUM[9]  := tInsertDocs4110.SchFact_SumWithVAT;
+                                        }
+                          'Без НДС':    {//without
+                                          SCHFACT.SUM[9]  := tInsertDocs4110.SchFact_SumWOVat;
+                                          //--               SchFact_SumVat;
+                                          //--               SchFact_SumWithVAT;
+                                        }
+                           else         {
+                                          SCHFACT.Sum[1] := tInsertDocs4110.SchFact_SumWOVat;
+                                          SCHFACT.SUM[2] := tInsertDocs4110.SchFact_SumVat;
+                                          SCHFACT.SUM[3] := tInsertDocs4110.SchFact_SumWithVAT;
+                                        }
+                           end;
+                         update current SCHFACT;
+                       }
                    }
-               }
-               else{
-                   mylog('Накладная ' + katsopr.nsopr + ' от ' + katsopr.dsopr + ' НЕ УДАЛОСЬ сформировать СФ');
-               }
-             }
+                   else{
+                       mylog('Накладная ' + katsopr.nsopr + ' от ' + katsopr.dsopr + ' НЕ УДАЛОСЬ сформировать СФ');
+                   }
+                 }
+           }
         }
+
 
         if getfirst spsopr where ((tInsertDocs4110.cspsopr == spsopr.nrec)) = tsOK {
             if spsopr.cparty <> 0h
