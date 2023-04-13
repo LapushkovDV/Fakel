@@ -84,7 +84,7 @@
 		</DatabaseConfiguration>
 		<FileList>
 			<File Name="ImportOstatki.prj" PosX="21" PosY="97" OpenEditor="True"/>
-			<File Name="Source\ImportOstatki.vip" PosX="94" PosY="1123" OpenEditor="True" Active="True"/>
+			<File Name="Source\ImportOstatki.vip" PosX="97" PosY="1298" OpenEditor="True" Active="True"/>
 			<File Name="Source\OpenFileExcelSearchCells.vpp" PosX="17" PosY="140" OpenEditor="True"/>
 			<File Name="..\..\..\GAL\Frm\CompSrc\L\L_KatParty\vip\MakeParty\MkParty.vih" PosX="1" PosY="1" OpenEditor="True"/>
 			<File Name="..\..\..\..\Users\Дмитрий\YandexDisk\Work\!Gal_Source\Z_M_L_F_C_20230112\CompSrc\L\L_SoprDoc\vip\soprdb02.vpp" PosX="27" PosY="1053" OpenEditor="True"/>
@@ -130,8 +130,8 @@
 			<Marker FileName="Source\SHK_Base.vip" Caption="Нумерованная закладка 1" Line="120" NumIndex="1" MarkerType="mtNumBookmark" Comment="Procedure Fill_fieldArray(_viddoc: word; var _fieldArray : string);//array[1..24] of string);"/>
 			<Marker FileName="Source\SHK_InOut.vip" Caption="Нумерованная закладка 1" Line="1122" NumIndex="1" MarkerType="mtNumBookmark" Comment="_JSONfile : string = _SHK_InOut.MakeAction_FromJSONFILE(_login: string; _IMEI : string; _FilePath: string);"/>
 			<Marker FileName="Source\SHK_InOut.vip" Caption="Нумерованная закладка 2" Line="1083" NumIndex="2" MarkerType="mtNumBookmark" Comment="if _pIdent = co_BatchMode and"/>
-			<Marker FileName="Source\ImportOstatki.vip" Caption="Нумерованная закладка 2" Line="1570" NumIndex="2" MarkerType="mtNumBookmark"/>
-			<Marker FileName="Source\ImportOstatki.vip" Caption="Нумерованная закладка 1" Line="1335" NumIndex="1" MarkerType="mtNumBookmark" Comment="coSetAttr(cokatparty, spsopr.cparty,'.Счет МЦ', tInsertDocs4110.cSchet, tInsertDocs4110.SchetBU) ;"/>
+			<Marker FileName="Source\ImportOstatki.vip" Caption="Нумерованная закладка 2" Line="1586" NumIndex="2" MarkerType="mtNumBookmark"/>
+			<Marker FileName="Source\ImportOstatki.vip" Caption="Нумерованная закладка 1" Line="1298" NumIndex="1" MarkerType="mtNumBookmark" Comment="if tInsertDocs4110.SchFact_NoDoc &lt;&gt; '' and  {"/>
 		</MarkerList>
 		<BreakPointList>
 			<BreakPoint FileName="Vip.prj" Line="90"/>
@@ -139,7 +139,7 @@
 			<BreakPoint FileName="Source\shk_barcodeFunc.vip" Line="212"/>
 		</BreakPointList>
 		<CompileMessengerList>
-			<CompileMessenger Name="C:\Galaktika\_git\Fakel\ImportOstatki\ImportOstatki.prj" DateTimeStart="45028,6167432523" DateTimeCompile="0,000293784723908175" StateHistory="False">
+			<CompileMessenger Name="C:\Galaktika\_git\Fakel\ImportOstatki\ImportOstatki.prj" DateTimeStart="45029,6574178588" DateTimeCompile="5,89930568821728E-5" StateHistory="False">
 				<CompileMessageList>
 					<CompileMessage MessageType="mtInfo" MessageText="Компиляция ведется без файла контроля лицензий!" SourceFileName="C:\GALAKTIKA\_GIT\FAKEL\IMPORTOSTATKI\SOURCE\VarsTypes.var" SourceLine="1" SourceColumn="1">
 						<StackIncludeList>
@@ -147,17 +147,17 @@
 						</StackIncludeList>
 					</CompileMessage>
 					<CompileMessage MessageType="mtWarning" MessageText="Не найден объект" SourceLine="-1" SourceColumn="-1"/>
-					<CompileMessage MessageType="mtWarning" MessageText="и еще" SourceFileName="C:\G" SourceLine="1662" SourceColumn="91"/>
+					<CompileMessage MessageType="mtWarning" MessageText="и еще" SourceFileName="C:\G" SourceLine="1682" SourceColumn="91"/>
 					<CompileMessage MessageType="mtWarning" MessageText="Не найден объект" SourceLine="-1" SourceColumn="-1"/>
 					<CompileMessage MessageType="mtWarning" MessageText="Не найден объект" SourceLine="-1" SourceColumn="-1"/>
-					<CompileMessage MessageType="mtWarning" MessageText="и еще" SourceFileName="C:\G" SourceLine="1676" SourceColumn="54"/>
-					<CompileMessage MessageType="mtWarning" MessageText="и еще" SourceFileName="C:\G" SourceLine="1677" SourceColumn="54"/>
-					<CompileMessage MessageType="mtWarning" MessageText="и еще" SourceFileName="C:\G" SourceLine="1678" SourceColumn="54"/>
-					<CompileMessage MessageType="mtWarning" MessageText="и еще" SourceFileName="C:\G" SourceLine="1679" SourceColumn="54"/>
-					<CompileMessage MessageType="mtWarning" MessageText="и еще" SourceFileName="C:\G" SourceLine="1680" SourceColumn="54"/>
+					<CompileMessage MessageType="mtWarning" MessageText="и еще" SourceFileName="C:\G" SourceLine="1696" SourceColumn="54"/>
+					<CompileMessage MessageType="mtWarning" MessageText="и еще" SourceFileName="C:\G" SourceLine="1697" SourceColumn="54"/>
+					<CompileMessage MessageType="mtWarning" MessageText="и еще" SourceFileName="C:\G" SourceLine="1698" SourceColumn="54"/>
+					<CompileMessage MessageType="mtWarning" MessageText="и еще" SourceFileName="C:\G" SourceLine="1699" SourceColumn="54"/>
+					<CompileMessage MessageType="mtWarning" MessageText="и еще" SourceFileName="C:\G" SourceLine="1700" SourceColumn="54"/>
 					<CompileMessage MessageType="mtWarning" MessageText="Не найден объект" SourceLine="-1" SourceColumn="-1"/>
-					<CompileMessage MessageType="mtWarning" MessageText="и еще" SourceFileName="C:\G" SourceLine="1688" SourceColumn="65"/>
-					<CompileMessage MessageType="mtEndCompile" MessageText="12.04.2023 14:48:32"/>
+					<CompileMessage MessageType="mtWarning" MessageText="и еще" SourceFileName="C:\G" SourceLine="1708" SourceColumn="65"/>
+					<CompileMessage MessageType="mtEndCompile" MessageText="13.04.2023 15:46:46"/>
 				</CompileMessageList>
 			</CompileMessenger>
 		</CompileMessengerList>

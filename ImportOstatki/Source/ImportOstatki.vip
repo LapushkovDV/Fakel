@@ -104,6 +104,7 @@ Table Struct tInsertDocs4110
   , kau1podrinitiator : comp
   , kau2shifrzakaza   : comp
   , dognodoc : string
+  , isAktIzlishki : string
 )
 with index
 (
@@ -318,16 +319,17 @@ PROCEdURE fillrecArrayByTypeTable(_type: byte);
         _recArray[_npp].def := 'Сумма руб. без НДС'              ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
         _recArray[_npp].def := 'Сумма руб. НДС'                  ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
         _recArray[_npp].def := 'Сумма руб. с НДС'                ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
-        _recArray[_npp].def := 'Отпускная Единица (из выгрузки 1С)'; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
-        _recArray[_npp].def := 'Коэффициент перевода к учетной единице'; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
-        _recArray[_npp].def := 'Количество в отпускных единицах для загрузки в Галактику'; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
+        _recArray[_npp].def := 'Отпускная Единица (из выгрузки 1С)';                               SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
+        _recArray[_npp].def := 'Коэффициент перевода к учетной единице';                           SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
+        _recArray[_npp].def := 'Количество в отпускных единицах для загрузки в Галактику';         SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
         _recArray[_npp].def := 'NREC_katmc ( служебный номер записи МЦ в каталоге Галактика ERP)'; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
         _recArray[_npp].def := 'Сумма в руб. без НДС включая ТЗР'; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
-        _recArray[_npp].def := 'Код заказа'; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
-        _recArray[_npp].def := 'СФ Сумма руб. без НДС'; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
-        _recArray[_npp].def := 'СФ Сумма руб. НДС'; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
-        _recArray[_npp].def := 'СФ Сумма руб. с НДС'; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
-        _recArray[_npp].def := 'Номер договора'; SetLimit(_recArray, GetLimit(_recArray) + 1);
+        _recArray[_npp].def := 'Код заказа';                       SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
+        _recArray[_npp].def := 'СФ Сумма руб. без НДС';            SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
+        _recArray[_npp].def := 'СФ Сумма руб. НДС';                SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
+        _recArray[_npp].def := 'СФ Сумма руб. с НДС';              SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
+        _recArray[_npp].def := 'Номер договора';                   SetLimit(_recArray, GetLimit(_recArray) + 1);
+        _recArray[_npp].def := 'Акт об излишках';                  SetLimit(_recArray, GetLimit(_recArray) + 1);
 
      }
    end;
@@ -471,7 +473,7 @@ update tInsertDocs4110 set tInsertDocs4110.FlagErr := 0, tInsertDocs4110.Descr :
       if tInsertDocs4110.cSkl = 0h{
        #seterror4110('| не найден склад');
       }
-      if tInsertDocs4110.cDog = 0h{
+      if tInsertDocs4110.cDog = 0h and tInsertDocs4110.isAktIzlishki <> 'TRUE'{
        #seterror4110('| не найден договор');
       }
       if tInsertDocs4110.PriceWithoutVat = 0{
@@ -786,6 +788,7 @@ Procedure prtInsertDocs4110(_nrow : longint; _file : string);
       Upcase( 'СФ Сумма руб. НДС'     )            : tInsertDocs4110.SchFact_SumVat        := Double(replace(replace(Trim(_recArray[_i].value),',','.'),' ',''));
       Upcase( 'СФ Сумма руб. с НДС'   )            : tInsertDocs4110.SchFact_SumWithVAT    := Double(replace(replace(Trim(_recArray[_i].value),',','.'),' ',''));
       Upcase( 'Номер договора'        )            : tInsertDocs4110.dognodoc    := Trim(_recArray[_i].value);
+      Upcase( 'Акт об излишках'       )            : tInsertDocs4110.isAktIzlishki := Trim(_recArray[_i].value);
     end;
   }
 //   if tInsertBaseDocSP.cMc <> 0h
@@ -816,6 +819,7 @@ Procedure prtInsertDocs4110(_nrow : longint; _file : string);
 
       if tInsertDocs4110.shifrzakaza = '' {
        tInsertDocs4110.kau1podrinitiator := podrokbfakel.nrec;
+       tInsertDocs4110.kau2shifrzakaza   := getshifrzakaza('Свободный остаток');
       }
       else {
         tInsertDocs4110.kau1podrinitiator := podr100.nrec;
@@ -1115,30 +1119,40 @@ procedure InsertPrihNaklOrderDoocenka;
 //        and (tInsertDocs4110.schetBU = '60.02' or tInsertDocs4110.schetBU = '62.02')
         and tInsertDocs4110.FlagErr = 0
        {
-         if getfirst katsopr where ((101 == katsopr.vidsopr
-           and tInsertDocs4110.soprdSopr == katsopr.dSopr
-           and tInsertDocs4110.soprnSopr == katsopr.nSopr
-                and tInsertDocs4110.cDog == KatSopr.CDOGOVOR (noindex)
-                               )) <> tsOK {
-                                 if getfirst dogovor where ((tInsertDocs4110.cDog == dogovor.nrec)) = tsOK
+         if(getfirst katsopr where ((if(tInsertDocs4110.isAktIzlishki <> 'TRUE',101,611) == katsopr.vidsopr
+                                                           and tInsertDocs4110.soprdSopr == katsopr.dSopr
+                                                           and tInsertDocs4110.soprnSopr == katsopr.nSopr
+                                    ))
+                and KatSopr.CDOGOVOR = if(tInsertDocs4110.isAktIzlishki <> 'TRUE',tInsertDocs4110.cDog,0h)
+                and KatSopr.cpodrto  = if(tInsertDocs4110.isAktIzlishki <> 'TRUE',0h, tInsertDocs4110.cskl)
+                and KatSopr.cmolto   = if(tInsertDocs4110.isAktIzlishki <> 'TRUE',0h, tInsertDocs4110.cmol)
+            ) <> tsOK {
+                                 var _cOrg, _cDog : comp = 0h;
+                                 if tInsertDocs4110.isAktIzlishki <> 'TRUE'
+                                     if getfirst dogovor where ((tInsertDocs4110.cDog == dogovor.nrec)) = tsOK {
+                                       _cOrg := dogovor.corg;
+                                       _cDog := dogovor.nrec;
+                                     }
                                    insert KATSOPR set
                                      KatSopr.NAME     := 'Импорт остатков ' + tInsertDocs4110.SchetBU
                                     ,KatSopr.DESCR    := sgettune('user.descr')
                                     ,KatSopr.CORG     := sgettune('user.desgr')
-                                    ,KatSopr.VHODNAL  := 2
+                                    ,KatSopr.VHODNAL  := if(tInsertDocs4110.isAktIzlishki <> 'TRUE',2,1)
                                     ,KatSopr.STATUS   := 1
 //                                    ,KatSopr.CNOTE   :=
 //                                    ,katsopr.summa    := tInsertDocs6062.summa
-                                    ,KatSopr.TIPSOPR  := 1
+                                    ,KatSopr.TIPSOPR  := if(tInsertDocs4110.isAktIzlishki <> 'TRUE',1,0)
                                     ,KatSopr.DSOPR    := tInsertDocs4110.soprdsopr
                                     ,KatSopr.DPRICE   := tInsertDocs4110.soprdsopr
                                     ,KatSopr.YEARSOPR := year(tInsertDocs4110.soprdsopr)
                                     ,KatSopr.NSOPR    := tInsertDocs4110.soprnsopr
-                                    ,KatSopr.VIDSOPR  := 101
-                                    ,KatSopr.CGRUZFROM:= dogovor.corg
-                                    ,KatSopr.CORGBASE := dogovor.corg
-                                    ,KatSopr.CORG     := dogovor.corg
-                                    ,KatSopr.CDOGOVOR := dogovor.nrec
+                                    ,KatSopr.VIDSOPR  := if(tInsertDocs4110.isAktIzlishki <> 'TRUE',101,611)
+                                    ,KatSopr.CDOGOVOR := _cDog
+                                    ,KatSopr.CGRUZFROM:= _cOrg
+                                    ,KatSopr.CORGBASE := _cOrg
+                                    ,KatSopr.CORG     := _cOrg
+                                    ,KatSopr.cpodrto  := if(tInsertDocs4110.isAktIzlishki <> 'TRUE',0h, tInsertDocs4110.cskl)
+                                    ,KatSopr.cmolto   := if(tInsertDocs4110.isAktIzlishki <> 'TRUE',0h, tInsertDocs4110.cmol)
 //                                    ,KatSopr.CCALPLAN := tInsertDocs4110.ccalplan
                                   ;
                                    Insert soprhoz set
@@ -1172,10 +1186,10 @@ procedure InsertPrihNaklOrderDoocenka;
                , spsopr.PRICE     := tInsertDocs4110.SumWithoutVat/tInsertDocs4110.kolfordoc
                , spsopr.RPRICE    := tInsertDocs4110.SumWithoutVat/tInsertDocs4110.kolfordoc
                , spsopr.PRICEN    := tInsertDocs4110.SumWithoutVat/tInsertDocs4110.kolfordoc
-               , spsopr.CGRNAL    := getcgrnal(tInsertDocs4110.Vat)
+               , spsopr.CGRNAL    := if(tInsertDocs4110.isAktIzlishki <> 'TRUE',getcgrnal(tInsertDocs4110.Vat),0h)
                , spsopr.VIDSOPR   := katsopr.vidsopr
-               , spsopr.MANUALTAX := 1
-               , spsopr.SUMNDS    := tInsertDocs4110.SumVat
+               , spsopr.MANUALTAX := if(tInsertDocs4110.isAktIzlishki <> 'TRUE', 1,0)
+               , spsopr.SUMNDS    := if(tInsertDocs4110.isAktIzlishki <> 'TRUE',tInsertDocs4110.SumVat,0)
               ;
 
               update current tInsertDocs4110 set
@@ -1193,29 +1207,31 @@ procedure InsertPrihNaklOrderDoocenka;
                ;
 
               //sSetAttr('.Счет МЦ')
-              insert spdocnal set
-                  spdocnal.CSPDOC   := spsopr.nrec
-                , spdocnal.CDOC     := katsopr.nrec
-                , spdocnal.corg     := katsopr.corg
-                , spdocnal.TIPDOC   := spsopr.vidsopr
-                , spdocnal.CGRNAL   := spsopr.CGRNAL
-                , spdocnal.CNALOG   := cogettune('NALOG.CNALOGNDS')
-                , spdocnal.NALOG    := getnalog(tInsertDocs4110.Vat)
-                , spdocnal.SUMNAL   := spsopr.SUMNDS
-                , spdocnal.SUMMA    := spsopr.SUMNDS
-                , spdocnal.ISCUSTOM := getiscustom(tInsertDocs4110.Vat)
-               ;
-              insert soprordb set
-                 soprordb.CSPSOPR  := spsopr.nrec
-               , soprordb.CPODR    := tInsertDocs4110.cskl
-               , soprordb.CMOL     := tInsertDocs4110.cmol
-               , soprordb.CMC      := spsopr.cmcusl
-               , soprordb.CSOPRDOC := katsopr.nrec
-               , soprordb.COTPED   := spsopr.cotped
-                // ? soprordb.CPARTY
-               , soprordb.PRICE    := spsopr.price
-               , soprordb.KOL      := spsopr.kol
-              ;
+              if tInsertDocs4110.isAktIzlishki <> 'TRUE' {
+                insert spdocnal set
+                    spdocnal.CSPDOC   := spsopr.nrec
+                  , spdocnal.CDOC     := katsopr.nrec
+                  , spdocnal.corg     := katsopr.corg
+                  , spdocnal.TIPDOC   := spsopr.vidsopr
+                  , spdocnal.CGRNAL   := spsopr.CGRNAL
+                  , spdocnal.CNALOG   := cogettune('NALOG.CNALOGNDS')
+                  , spdocnal.NALOG    := getnalog(tInsertDocs4110.Vat)
+                  , spdocnal.SUMNAL   := spsopr.SUMNDS
+                  , spdocnal.SUMMA    := spsopr.SUMNDS
+                  , spdocnal.ISCUSTOM := getiscustom(tInsertDocs4110.Vat)
+                 ;
+                insert soprordb set
+                   soprordb.CSPSOPR  := spsopr.nrec
+                 , soprordb.CPODR    := tInsertDocs4110.cskl
+                 , soprordb.CMOL     := tInsertDocs4110.cmol
+                 , soprordb.CMC      := spsopr.cmcusl
+                 , soprordb.CSOPRDOC := katsopr.nrec
+                 , soprordb.COTPED   := spsopr.cotped
+                  // ? soprordb.CPARTY
+                 , soprordb.PRICE    := spsopr.price
+                 , soprordb.KOL      := spsopr.kol
+                ;
+              }
        }
 
 
@@ -1279,7 +1295,7 @@ procedure InsertPrihNaklOrderDoocenka;
                  mylog('Накладная ' + katsopr.nsopr + ' от ' + katsopr.dsopr + ' НЕ УДАЛОСЬ СФОРМИРОВАТЬ ОРДЕРА ');
              }
 
-            if tInsertDocs4110.SchFact_NoDoc <> '' {
+            if tInsertDocs4110.SchFact_NoDoc <> '' and  tInsertDocs4110.isAktIzlishki <> 'TRUE'{
 
                  if not iSf.DoInit(2) {
                    mylog('Накладная ' + katsopr.nsopr + ' от ' + katsopr.dsopr + ' не удалось инициализировать объект по работе с СФ');
