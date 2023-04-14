@@ -66,6 +66,7 @@ Table Struct tInsertDocs4110
   , MC_nrec         : comp
   , Sklad_kod       : string //'Код склад'
   , MOL_TN          : string //'Табельный номер МОЛ'
+  , MOL_FIO          : string // МОЛ
   , SchetBU         : string // 'Счет/субсчет бухгалтерский учет'
   , edIzm           : string // 'Единица измерения'
   , kol             : double // 'Количество'
@@ -301,6 +302,7 @@ PROCEdURE fillrecArrayByTypeTable(_type: byte);
         _recArray[_npp].def := 'Наименование'                    ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
         _recArray[_npp].def := 'Код склад'                       ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
         _recArray[_npp].def := 'Табельный номер МОЛ'             ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
+        _recArray[_npp].def := 'МОЛ'                             ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
         _recArray[_npp].def := 'Счет/субсчет бухгалтерский учет' ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
         _recArray[_npp].def := 'Единица измерения'               ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
         _recArray[_npp].def := 'Количество'                      ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
@@ -725,11 +727,12 @@ function getCreateOtpEd(_cMc :comp; _edIzm1C : string; _edIzm_koeff : double): c
                  }
 }
 
-function getmol(_MOL_TN : string) : comp;
+function getmol(_CSKL: comp; _name: string) : comp;
 {
 result := 0h;
-  if _MOL_TN = '' then exit;
-  if getfirst katmol where ((_MOL_TN == katmol.kod)) = tsOK
+  if _CSKL = 0h then exit;
+  if getfirst katmol where ((_CSKL == katmol.CSKL
+                         and _name == katmol.Name)) = tsOK
      then result := katmol.nrec
 }
 
@@ -789,6 +792,7 @@ Procedure prtInsertDocs4110(_nrow : longint; _file : string);
       Upcase( 'СФ Сумма руб. с НДС'   )            : tInsertDocs4110.SchFact_SumWithVAT    := Double(replace(replace(Trim(_recArray[_i].value),',','.'),' ',''));
       Upcase( 'Номер договора'        )            : tInsertDocs4110.dognodoc    := Trim(_recArray[_i].value);
       Upcase( 'Акт об излишках'       )            : tInsertDocs4110.isAktIzlishki := Trim(_recArray[_i].value);
+      Upcase( 'МОЛ'                   )            : tInsertDocs4110.MOL_FIO        := Trim(_recArray[_i].value);
     end;
   }
 //   if tInsertBaseDocSP.cMc <> 0h
@@ -827,7 +831,7 @@ Procedure prtInsertDocs4110(_nrow : longint; _file : string);
       }
 
       tInsertDocs4110.cschet := getschet(tInsertDocs4110.SchetBU);
-      tInsertDocs4110.cMOL := getmol(tInsertDocs4110.MOL_TN);
+      tInsertDocs4110.cMOL   := getmol(getsklad(tInsertDocs4110.Sklad_kod), tInsertDocs4110.MOL_FIO);
 
       if instr('41.',tInsertDocs4110.SchetBU) <> 0
       {
