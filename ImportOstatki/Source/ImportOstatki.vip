@@ -662,10 +662,13 @@ function getmc(_MC_nrec : comp; _MC_Uid1C, _MC_name : string) : comp;
 }
 function getsklad(_Sklad_kod : string) : comp;
 {
+  mylog('getsklad _Sklad_kod  = '+_Sklad_kod );
+
  result := 0h;
  if getfirst katpodr where ((_Sklad_kod == katpodr.kod)) = tsOK {
    result := katpodr.nrec;
  }
+  mylog('getsklad result  = '+result);
 }
 
 function getOtpEdEqUchet(_cmc : comp) : comp;
@@ -730,10 +733,14 @@ function getCreateOtpEd(_cMc :comp; _edIzm1C : string; _edIzm_koeff : double): c
 function getmol(_CSKL: comp; _name: string) : comp;
 {
 result := 0h;
+MyLog('getmol _CSKL = ' + _CSKL);
+MyLog('getmol _name = ' + _name);
+
   if _CSKL = 0h then exit;
   if getfirst katmol where ((_CSKL == katmol.CSKL
                          and _name == katmol.Name)) = tsOK
      then result := katmol.nrec
+  MyLog('getmol result = ' + result);
 }
 
 function getshifrzakaza(_shifrzakaza: string) : comp;
@@ -810,14 +817,12 @@ Procedure prtInsertDocs4110(_nrow : longint; _file : string);
         if tInsertDocs4110.cmc <> 0h {
            if tInsertDocs4110.MC_nrec <> 0h {
              tInsertDocs4110.cOtpEd := getCreateOtpEd(tInsertDocs4110.cmc, tInsertDocs4110.edIzm1C, tInsertDocs4110.edIzm_koeff);
+             tInsertDocs4110.kolfordoc := tInsertDocs4110.kol1C;
             }
             else {
-              tInsertDocs4110.cOtpEd := getOtpEdbyName(tInsertDocs4110.cmc,tInsertDocs4110.edIzm)
+              tInsertDocs4110.cOtpEd := getOtpEdbyName(tInsertDocs4110.cmc,tInsertDocs4110.edIzm);
+              tInsertDocs4110.kolfordoc := tInsertDocs4110.kol;
             }
-          tInsertDocs4110.kolfordoc := tInsertDocs4110.kol1C
-        }
-        else {
-         tInsertDocs4110.kolfordoc := tInsertDocs4110.kol
         }
       }
 
