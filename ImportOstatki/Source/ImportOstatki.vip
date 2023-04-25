@@ -739,7 +739,7 @@ MyLog('getmol _name = ' + _name);
   if _CSKL = 0h then exit;
   if getfirst katmol where ((_CSKL == katmol.CSKL
                          and _name == katmol.Name)) = tsOK
-     then result := katmol.nrec
+     then result := katmol.nrec ;
   MyLog('getmol result = ' + result);
 }
 
@@ -1373,6 +1373,10 @@ procedure InsertPrihNaklOrderDoocenka;
                    }
                  }
 
+
+               mylog('sumTZR = '+tInsertDocs4110.sumTZR);
+               mylog('SumWithoutVat = '+tInsertDocs4110.SumWithoutVat);
+
               if tInsertDocs4110.sumTZR <> 0 and tInsertDocs4110.sumTZR - tInsertDocs4110.SumWithoutVat > 0 { // дооценочные ордера делать надо
                 if getfirst sklorder where ((      0 == sklorder.sp
                             and tInsertDocs4110.cskl == sklorder.CPODR
@@ -1397,6 +1401,7 @@ procedure InsertPrihNaklOrderDoocenka;
                      mylog('           - Склад "' + if(getfirst katpodr where ((sklorder.cPOdr == katpodr.nrec)) = tsok, katpodr.kod + ' ' + katpodr.name,'')+'"');
                      mylog('           -   МОЛ "' + if(getfirst katmol where ((sklorder.cmol == katmol.nrec)) = tsok, katmol.kod + ' ' + katmol.name,'')+'"');
                 }
+                mylog('В дооценочный ордер ' + sklorder.NORDER + ' от ' + sklorder.DORD + ' добавлена позиция на сумму ' + (tInsertDocs4110.sumTZR - tInsertDocs4110.SumWithoutVat));
                 insert sporder set
                    sporder.descr     := sklorder.descr
                  , sporder.desgr     := sklorder.desgr
@@ -1413,7 +1418,14 @@ procedure InsertPrihNaklOrderDoocenka;
                  , sporder.EMPTY     := 4
                  , sporder.CPARTY    := spsopr.cparty
                 ;
-                oModifOrds.AnySpOrder_UpDate(TypeSpOrder(SpOrder.buffer));
+               insert specmtr set
+                  specmtr.cSaldTune := SaldTune.nrec
+                , specmtr.cobj      := tInsertDocs4110.kau1podrinitiator
+                , specmtr.CKAU[1]   := tInsertDocs4110.kau2shifrzakaza
+                , specmtr.COTABLE   := 1112
+                , specmtr.CSPEC     := sporder.nrec
+                ;
+                 oModifOrds.AnySpOrder_UpDate(TypeSpOrder(SpOrder.buffer));
               }
         }
 
