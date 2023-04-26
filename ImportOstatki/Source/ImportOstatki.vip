@@ -1281,11 +1281,13 @@ procedure InsertPrihNaklOrderDoocenka;
           DoneMarker(tmpMarkParty, 'SpSoprParty');
           oMakeParty.CheckPartys(KatSopr.nRec, 0, 1);
           mylog('Накладная ' + katsopr.nsopr + ' от ' + katsopr.dsopr + ' сформированы партии');
+/*
             var iGP_MakeMove : GP_MakeMove;
             var _skPr, _wOrder : word;
             GetParamSkPr_wOrder(katSopr.vidsopr, _skPr, _wOrder);
             setvisualheader('Формирование ордеров'+
             ''#13''+'Накладная ' + katsopr.nsopr + ' от ' + katsopr.dsopr);
+
             if iGP_MakeMove.MakeMoveForESB(  katSopr.nrec
                            , if(katSopr.vidsopr = 501,168,28) // 28  для НОП - 168
                            , _skPr // склад -производствр
@@ -1303,7 +1305,7 @@ procedure InsertPrihNaklOrderDoocenka;
              else {
                  mylog('Накладная ' + katsopr.nsopr + ' от ' + katsopr.dsopr + ' НЕ УДАЛОСЬ СФОРМИРОВАТЬ ОРДЕРА ');
              }
-
+*/
             if tInsertDocs4110.SchFact_NoDoc <> '' and  tInsertDocs4110.isAktIzlishki <> 'TRUE'{
 
                  if not iSf.DoInit(2) {
