@@ -114,6 +114,40 @@ with index
 )
 ;
 
+Table Struct tInsertDocs019
+(
+    nrec       : comp
+  , ctFiles    : comp
+  , MC_Uid1C   : string //'UID ТМЦ из 1С'
+  , MC_name    : string // 'Наименование'
+  , MC_nrec    : comp
+  , katmbp_nrec : comp
+  , sklad_kod  : string
+  , sklad_nrec : comp
+  , MOL_kod    : string
+  , MOL_name   : string
+  , MOL_nrec   : comp
+  , kol        : double
+  , price      : double
+  , summa      : double
+  , Party_kod  : string
+  , Party_name : string
+  , Party_nrec : comp
+  , date_In    : date
+  , srok       : double
+  , date_end   : date
+  , isSFOstr   : string
+  , isSFO      : boolean
+  , FlagErr    : byte
+  , filerow    : word
+  , descr      : string
+)
+with index
+(
+   Index1 = nrec (surrogate, unique)
+  ,Index2 = ctFiles
+)
+;
 procedure MyLog(_log : string); forward;
 create view
 var
@@ -191,17 +225,24 @@ from
     , groupparty
     , SCHFACT
 
+    , KatMbp
+    , mbpmove
+    , mbpin
+
     , tFiles
-    , tInsertDocs6062
     , tFiles tFiles_br
+    , tInsertDocs6062
     , tInsertDocs6062 tInsertDocs6062_br
     , tInsertDocs4110
     , tInsertDocs4110 tInsertDocs4110_br
+    , tInsertDocs019
+    , tInsertDocs019 tInsertDocs019_br
 
 
  where ((
                    tFiles_br.nrec == tInsertDocs6062_br.ctFiles
       and          tFiles_br.nrec == tInsertDocs4110_br.ctFiles
+      and          tFiles_br.nrec == tInsertDocs019_br.ctFiles
 
       and tInsertDocs6062_br.cOrg     == KatOrg.nrec
       and tInsertDocs6062_br.cDogovor == Dogovor.nrec
@@ -332,7 +373,22 @@ PROCEdURE fillrecArrayByTypeTable(_type: byte);
         _recArray[_npp].def := 'СФ Сумма руб. с НДС';              SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
         _recArray[_npp].def := 'Номер договора';                   SetLimit(_recArray, GetLimit(_recArray) + 1);
         _recArray[_npp].def := 'Акт об излишках';                  SetLimit(_recArray, GetLimit(_recArray) + 1);
-
+     }
+     2 : {
+        _recArray[_npp].def := 'Наименование'                                ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
+        _recArray[_npp].def := 'UID ТМЦ из 1С'                               ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
+        _recArray[_npp].def := 'Код склада или подразделения (из Галактики)' ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
+        _recArray[_npp].def := 'Табельный номер МОЛ'                         ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
+        _recArray[_npp].def := 'МОЛ'                                         ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
+        _recArray[_npp].def := 'Количество'                                  ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
+        _recArray[_npp].def := 'Цена руб.'                                   ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
+        _recArray[_npp].def := 'Сумма руб.'                                  ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
+        _recArray[_npp].def := 'Код партии'                                  ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
+        _recArray[_npp].def := 'Наименование партии'                         ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
+        _recArray[_npp].def := 'дата ввода в эксплуатацию'                   ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
+        _recArray[_npp].def := 'срок службы в месяцах'                       ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
+        _recArray[_npp].def := 'дата окончания эксплуатации'                 ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
+        _recArray[_npp].def := 'Спецодежда'                                  ; SetLimit(_recArray, GetLimit(_recArray) + 1);
      }
    end;
 }
@@ -420,6 +476,13 @@ Function getColor(_FlagErr: byte) : word;
   tInsertDocs4110.Descr   := tInsertDocs4110.Descr + #_str;
   mylog(#_str);
 #end
+
+#declare seterror019(_str)
+  tInsertDocs019.FlagErr := 2 ;
+  tInsertDocs019.Descr   := tInsertDocs019.Descr + #_str;
+  mylog(#_str);
+#end
+
 Procedure CheckErrors4110;
 {
     setvisualheader('определение ошибок -_- ');
@@ -507,6 +570,56 @@ update tInsertDocs4110 set tInsertDocs4110.FlagErr := 0, tInsertDocs4110.Descr :
           }
          end;
      update current tInsertDocs4110;
+   }
+}
+Procedure CheckErrors019;
+{
+    setvisualheader('определение ошибок -_- ');
+
+update tInsertDocs019 set tInsertDocs019.FlagErr := 0, tInsertDocs019.Descr := '';
+  _loop tInsertDocs019
+   {
+
+      if tInsertDocs019.date_In = to_date(0,0,0) {
+         #seterror019('|пустая дата ввода в эксплуатацию')
+      }
+      if tInsertDocs019.date_end = to_date(0,0,0) {
+         #seterror019('|пустая дата окончания эксплуатации')
+      }
+
+      if tInsertDocs019.kol = 0 {
+         #seterror019('|нулевое количество')
+      }
+
+      if tInsertDocs019.srok = 0 {
+         #seterror019('|нулевое срок эксплуатации')
+      }
+
+      if tInsertDocs019.sklad_nrec = 0h{
+       #seterror019('| не найден склад');
+      }
+
+      if tInsertDocs019.MOL_nrec= 0 {
+        #seterror019('| не найден МОЛ');
+      }
+
+         case tInsertDocs019.flagErr of
+           0 : tInsertDocs019.Descr := 'OK';
+           1 :  {
+                  if tFiles.FlagErr <> 2 then
+                    update current tFiles set
+                       tFiles.FlagErr := 1
+                     , tFiles.Descr   := 'Предупреждение'
+                    ;
+               }
+          else {
+            update current tFiles set
+               tFiles.FlagErr := 2
+             , tFiles.Descr   := 'Есть ошибки в файле';
+            ;
+          }
+         end;
+     update current tInsertDocs019;
    }
 }
 Procedure CheckErrors6062;
@@ -645,6 +758,18 @@ Procedure prtInsertDocs6062(_nrow : longint; _file : string);
       Insert Current tInsertDocs6062;
      }
 }  // tInsertSaldoMC
+function getkatmbp(_MC_nrec : comp; _isSFO : boolean) : comp;
+{
+  result := 0h;
+  if _MC_nrec = 0h then exit;
+
+ var _mbp_kind :word = 0;  // спецоснастка
+  if _isSFO then _mbp_kind := 1; // спецодежда
+
+  if(getfirst KatMbp where ((_MC_nrec == KatMbp.cMc)) and KatMbp.mbpkind = _mbp_kind ) = tsOK
+   then result := KatMbp.nrec
+}
+
 function getmc(_MC_nrec : comp; _MC_Uid1C, _MC_name : string) : comp;
 {
   result := 0h;
@@ -730,16 +855,28 @@ function getCreateOtpEd(_cMc :comp; _edIzm1C : string; _edIzm_koeff : double): c
                  }
 }
 
-function getmol(_CSKL: comp; _name: string) : comp;
+function getmol(_CSKL: comp; _name, _kod: string) : comp;
 {
 result := 0h;
 MyLog('getmol _CSKL = ' + _CSKL);
 MyLog('getmol _name = ' + _name);
+MyLog('getmol _kod = ' + _kod);
 
   if _CSKL = 0h then exit;
-  if getfirst katmol where ((_CSKL == katmol.CSKL
-                         and _name == katmol.Name)) = tsOK
-     then result := katmol.nrec ;
+  if _name <> 0h {
+    if getfirst katmol where ((_CSKL == katmol.CSKL
+                           and _name == katmol.Name)) = tsOK
+       then result := katmol.nrec ;
+   }
+
+  if result <> 0h then exit;
+
+  if _kod <> '' {
+    if getfirst katmol where ((_CSKL == katmol.CSKL
+                           and _kod == katmol.KOD)) = tsOK
+       then result := katmol.nrec ;
+   }
+
   MyLog('getmol result = ' + result);
 }
 
@@ -751,6 +888,55 @@ function getshifrzakaza(_shifrzakaza: string) : comp;
                      result := mnplan.nrec;
                    }
   }
+
+Procedure prtInsertDocs019(_nrow : longint; _file : string);
+{
+  var _i: byte;
+  if getfirst tFiles where ((_file == tFiles.cFile)) <> tsOK {
+    insert tFiles set
+      tFiles.cFile   := _file
+    , tFiles.FlagErr := 0
+    , tFiles.descr   := 'OK'
+    ;
+  }
+
+  clearBuffer(tntInsertDocs019);
+  tInsertDocs019.FileRow         := _nrow;
+  tInsertDocs019.ctFiles := tFiles.nrec;
+  for(_i := 1; _I <= getLimit(_recArray); _i++)
+  {
+    case upcase(_recArray[_i].def) of
+      Upcase( 'UID ТМЦ из 1С'                               ) : tInsertDocs019.MC_Uid1C   := Trim(_recArray[_i].value); //'UID ТМЦ из 1С'
+      Upcase( 'Наименование'                                ) : tInsertDocs019.MC_name    := Trim(_recArray[_i].value);
+      Upcase( 'Код склада или подразделения (из Галактики)' ) : tInsertDocs019.sklad_kod  := Trim(_recArray[_i].value);
+      Upcase( 'Табельный номер МОЛ'                         ) : tInsertDocs019.MOL_kod    := Trim(_recArray[_i].value);
+      Upcase( 'МОЛ'                                         ) : tInsertDocs019.MOL_name   := Trim(_recArray[_i].value);
+      Upcase( 'Количество'                                  ) : tInsertDocs019.kol        := Double(replace(replace(Trim(_recArray[_i].value),',','.'),' ','')); // 'Количество'
+      Upcase( 'Цена руб.'                                   ) : tInsertDocs019.price      := Double(replace(replace(Trim(_recArray[_i].value),',','.'),' ','')); // 'Количество'
+      Upcase( 'Сумма руб.'                                  ) : tInsertDocs019.summa      := Double(replace(replace(Trim(_recArray[_i].value),',','.'),' ','')); // 'Количество'
+      Upcase( 'Код партии'                                  ) : tInsertDocs019.Party_kod  := Trim(_recArray[_i].value);
+      Upcase( 'Наименование партии'                         ) : tInsertDocs019.Party_name := Trim(_recArray[_i].value);
+      Upcase( 'дата ввода в эксплуатацию'                   ) : tInsertDocs019.date_In    := StrToDate(Trim(_recArray[_i].value),dateformat);  // 'Дата получения счета-фактуры'
+      Upcase( 'срок службы в месяцах'                       ) : tInsertDocs019.srok       := Double(replace(replace(Trim(_recArray[_i].value),',','.'),' ','')); // 'Количество'
+      Upcase( 'дата окончания эксплуатации'                 ) : tInsertDocs019.date_end   := StrToDate(Trim(_recArray[_i].value),dateformat);  // 'Дата получения счета-фактуры'
+      Upcase( 'Спецодежда'                                  ) : tInsertDocs019.isSFOstr   := Trim(_recArray[_i].value);
+
+    end;
+  }
+//   if tInsertBaseDocSP.cMc <> 0h
+   if tInsertDocs019.MC_name <> ''
+    then
+     {
+      tInsertDocs019.isSFO := false;
+      if upcase(tInsertDocs019.isSFOstr) = 'TRUE' then tInsertDocs019.isSFO := true;
+
+      tInsertDocs019.MC_nrec    := getmc(0h, tInsertDocs019.MC_Uid1C,tInsertDocs019.MC_name);
+      tInsertDocs019.Sklad_nrec := getsklad(tInsertDocs019.Sklad_kod) ;
+      tInsertDocs019.MOL_nrec   := getmol(tInsertDocs019.Sklad_nrec, tInsertDocs019.MOL_name, tInsertDocs019.MOL_kod);
+      tInsertDocs019.katmbp_nrec := getkatmbp(tInsertDocs019.MC_nrec, tInsertDocs019.isSFO);
+      Insert Current tInsertDocs019;
+     }
+}  // tInsertSaldoMC
 
 Procedure prtInsertDocs4110(_nrow : longint; _file : string);
 {
@@ -836,7 +1022,7 @@ Procedure prtInsertDocs4110(_nrow : longint; _file : string);
       }
 
       tInsertDocs4110.cschet := getschet(tInsertDocs4110.SchetBU);
-      tInsertDocs4110.cMOL   := getmol(getsklad(tInsertDocs4110.Sklad_kod), tInsertDocs4110.MOL_FIO);
+      tInsertDocs4110.cMOL   := getmol(getsklad(tInsertDocs4110.Sklad_kod), tInsertDocs4110.MOL_FIO, '');
 
       if instr('41.',tInsertDocs4110.SchetBU) <> 0
       {
@@ -862,6 +1048,7 @@ PROCEdURE FillInsertTables(_nrow : longint; _file : string);
   Case typeTable of
    0: prtInsertDocs6062(_nrow, _file)
    1: prtInsertDocs4110(_nrow, _file)
+   2: prtInsertDocs019(_nrow, _file)
   end;
 } // PROCEdURE FillInsertTableeNaklSFO(_log: string);
 
@@ -1120,6 +1307,81 @@ procedure GetParamSkPr_wOrder(_vidsopr : word; var _skPr : word; var _wOrder : w
    }
    end;
 }
+
+function getcreateparty(_Party_kod, _Party_name : string): comp;
+{
+ if getfirst katparty where (( _Party_name == katparty.name
+                           and _Party_kod  == katparty.kod (noindex)
+                           )) <> tsOK {
+                             insert katparty set
+                                katparty.name := _Party_name
+                              , katparty.kod  := _Party_kod
+                             ;
+                           }
+   result := katparty.nrec
+}
+procedure Insert_prihodSFO;
+{
+   _loop tFiles where tFiles.FlagErr <> 2
+    if SearchMarker(MyMarkerDocs, tFiles.nrec, mid)
+      _loop tInsertDocs019 where ((tFiles.nrec == tInsertDocs019.ctFiles))
+//        and (tInsertDocs4110.schetBU = '60.02' or tInsertDocs4110.schetBU = '62.02')
+        and tInsertDocs019.FlagErr = 0
+       {
+        IF getfirst mbpmove where ((          1 == mbpmove.STATUS
+                                   and _dateOpr == mbpmove.DMOVE
+                          and 'Импорт остатков' == mbpmove.NOM
+                  and tInsertDocs019.sklad_nrec == mbpmove.CPODRT (noindex)
+                    and tInsertDocs019.MOL_nrec == mbpmove.CMOLT (noindex)
+               and if(tInsertDocs019.isSFO,1,0) == mbpmove.MBPKIND (noindex))) <> tsOK
+               {
+                 insert mbpmove set
+                    mbpmove.STATUS  := 1
+                  , mbpmove.DMOVE   := _dateOpr
+                  , mbpmove.NOM     := 'Импорт остатков'
+                  , mbpmove.CPODRT  := tInsertDocs019.sklad_nrec
+                  , mbpmove.CMOLT   := tInsertDocs019.MOL_nrec
+                  , mbpmove.MBPKIND := if(tInsertDocs019.isSFO,1,0)
+                  , mbpmove.DESCR   := sgettune('user.descr')
+                  , mbpmove.DESGR   := sgettune('user.desgr')
+                 ;
+                 mylog(if(mbpmove.MBPKIND = 1,'Спецодежда','Спецоснастка')+'| Создан документ "Приход, поступление" № "' +mbpmove.NOM+ '" от ' + _dateOpr);
+                 mylog('           - Склад "' + if(getfirst katpodr where ((mbpmove.CPODRT == katpodr.nrec)) = tsok, katpodr.kod + ' ' + katpodr.name,'')+'"');
+                 mylog('           -   МОЛ "' + if(getfirst katmol where ((mbpmove.CMOLT == katmol.nrec)) = tsok, katmol.kod + ' ' + katmol.name,'')+'"');
+               }
+           insert mbpin set
+                mbpin.NOM      := mbpmove.NOM
+              , mbpin.DIN      := mbpmove.DMOVE
+              , mbpin.CPARTYF  := getcreateparty(tInsertDocs019.Party_kod, tInsertDocs019.Party_name)
+              , mbpin.KOLDOC   := tInsertDocs019.kol
+              , mbpin.KOLFACT  := tInsertDocs019.kol
+              , mbpin.PRICE    := tInsertDocs019.price
+              , mbpin.SUMMA    := tInsertDocs019.Summa
+              , mbpin.SUMFACT  := tInsertDocs019.Summa
+              , mbpin.INSTATE  := 1
+              , mbpin.STATUS   := 1
+              , mbpin.CMBP     := tInsertDocs019.katmbp_nrec
+              , mbpin.CPODR    := mbpmove.CPODRT
+              , mbpin.CMOL     := mbpmove.CMOLT
+              , mbpin.CSOPR    := mbpmove.nrec
+              , mbpin.STATUS   := 1
+              , mbpin.DATEZERO := to_date(31,12,2050)
+              , mbpin.INEKSPL  := 1
+              , mbpin.DATEEKSP := tInsertDocs019.date_In
+              , mbpin.DEXPLBEG := tInsertDocs019.date_In
+              , mbpin.SROKBEG  := tInsertDocs019.srok
+              , mbpin.DATEEND  := tInsertDocs019.date_end
+              , mbpin.STATAVTO := 1
+              , mbpin.EXTMOD   := 1
+            ;
+            mylog(if(mbpmove.MBPKIND = 1,'Спецодежда','Спецоснастка')+'| в документ "Приход, поступление" № "' +mbpmove.NOM+ '" от ' + _dateOpr);
+            mylog('           - Склад "' + if(getfirst katpodr where ((mbpmove.CPODRT == katpodr.nrec)) = tsok, katpodr.kod + ' ' + katpodr.name,'')+'"');
+            mylog('           -   МОЛ "' + if(getfirst katmol where ((mbpmove.CMOLT == katmol.nrec)) = tsok, katmol.kod + ' ' + katmol.name,'')+'"');
+            mylog('           -   добавлена позиция "' + if(getfirst katmbp where ((mbpin.CMBP == katmbp.nrec)) = tsok, katmbp.name,'')+'", кол-во '+mbpin.KOLFACT+', цена ' + mbpin.price);
+          update current mbpmove set mbpmove.summa := mbpmove.summa + mbpin.summa;
+       }
+}
+
 procedure InsertPrihNaklOrderDoocenka;
 {
    _loop tFiles where tFiles.FlagErr <> 2
@@ -1455,6 +1717,14 @@ Procedure CreateDocs4110;
  if visualizationactive  StopVisual('The End',vfTimer);
 } // Procedure InsertAktIzlishki(_log: string);
 
+Procedure CreateDocs019;
+{
+   StartNewVisual(vtIndicatorVisual,vfTimer,'Формирование документов',getmarkercount(MyMarkerDocs));
+
+   Insert_prihodSFO;
+
+ if visualizationactive  StopVisual('The End',vfTimer);
+}
 
 Screen scrImportOstatki ;
   show at (,,, 4);
@@ -1462,7 +1732,7 @@ Screen scrImportOstatki ;
     dateformat   : NoProtect,{Font = {backcolor = if(dateformat = '', colorneed,0);}};
     ListName     : NoProtect,{Font = {backcolor = if(ListName = '', colorneed,0);}};
     Folder_input :  Protect, PickButton,{Font = {backcolor = if(Folder_input = '', colorneed,0);}};
-    typeTable : [list 0 'Счет 60 62', 1 'счет 41 10'];
+    typeTable : [list 0 'Счет 60 62', 1 'счет 41 10',2 'Счет 019'];
   buttons
     cmOK,,,;
     cmCreateDocs,,,;
@@ -1482,7 +1752,7 @@ Screen scrImportOstatki6062;
     Usl_akt.name       : Protect, pickbutton, {Font = {backcolor = if(not isvalidall(tnUsl_akt), colorneed,0);}};
     Usersdoc_own.name  : Protect, pickbutton, {Font = {backcolor = if(not isvalidall(tnUsersdoc_own), colorneed,0);}};
     Usersdoc_ext.name  : Protect, pickbutton, {Font = {backcolor = if(not isvalidall(tnUsersdoc_ext), colorneed,0);}};
-<<'Импорт заказов от покупателей 60 62'
+<<'Импорт накладных, актов, СФ 60 62 счет'
     `Услуга для спецификации актов (60.01):`.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 `Расчетный счет для собственных ПП (60.02):`.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
   `Расчетный счет для сторонних ПП (62.02):`.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -1501,7 +1771,7 @@ Screen scrImportOstatki41;
    podr100.name      : Protect, pickbutton, {Font = {backcolor = if(not isvalidall(tnpodr100), colorneed,0);}};
    podrokbfakel.name : Protect, pickbutton, {Font = {backcolor = if(not isvalidall(tnpodrokbfakel), colorneed,0);}};
 
-<<'Импорт заказов от покупателей 41'
+<<'Импорт ТМЦ 41 счет'
 Дата формирования ордеров .@@@@@@@@@@@
             Поле ставка НДС - ставим группу налогов:
                          20%.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@     18%.@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -1512,6 +1782,18 @@ Screen scrImportOstatki41;
               Подразделение "01 ОКБ <Факел>".@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 >>
 end;
+Screen scrImportOstatki019;
+  show at (,5,, 9);
+  Fields
+   _dateOpr     : NoProtect,{Font = {backcolor = if(_dateOpr = 0, colorneed,0);}};
+<<'Импорт спецодежды и спецоснастки 019 счет'
+Формирование документов "Приход, поступление" в модулях спецодежда и спецоснастка
+
+  Дата формирования документов .@@@@@@@@@@@
+
+>>
+end;
+
 
 browse brow1('',,sci1EscIns);
  show at(,10, ,12);
@@ -1574,6 +1856,33 @@ fields
   tInsertDocs4110_br.Descr      'Описание' headerAlign = centered:protect,[4];
 
 end;
+
+browse brow019('',,sci1Esc);
+ show at(,13,,);
+table tInsertDocs019_br;
+fields
+ {Font = {
+          backcolor = getColor(tInsertDocs019_br.FlagErr);
+         }
+ };
+  tInsertDocs019_br.FileRow    'Строка','в файле' headerAlign = centered:protect,[4];
+  tInsertDocs019_br.MC_Uid1C   'UID ТМЦ из 1С' headerAlign = centered:protect,[4];
+  tInsertDocs019_br.MC_name    'Наименование' headerAlign = centered:protect,[4];
+  tInsertDocs019_br.sklad_kod  'Код склада или','подразделения (из Галактики)' headerAlign = centered:protect,[4];
+  tInsertDocs019_br.MOL_kod    'Табельный','номер МОЛ' headerAlign = centered:protect,[4];
+  tInsertDocs019_br.MOL_name   'МОЛ' headerAlign = centered:protect,[4];
+  tInsertDocs019_br.kol        'Количество' headerAlign = centered:protect,[4];
+  tInsertDocs019_br.price      'Цена руб.' headerAlign = centered:protect,[4];
+  tInsertDocs019_br.summa      'Сумма руб.' headerAlign = centered:protect,[4];
+  tInsertDocs019_br.Party_kod  'Код партии' headerAlign = centered:protect,[4];
+  tInsertDocs019_br.Party_name 'Наименование','партии' headerAlign = centered:protect,[4];
+  tInsertDocs019_br.date_In    'дата ввода','в эксплуатацию' headerAlign = centered:protect,[4];
+  tInsertDocs019_br.srok       'срок службы','в месяцах' headerAlign = centered:protect,[4];
+  tInsertDocs019_br.date_end   'дата окончания','эксплуатации' headerAlign = centered:protect,[4];
+  tInsertDocs019_br.isSFO      'Спецодежда' headerAlign = centered:protect,[4];
+  tInsertDocs019_br.descr      'Описание' headerAlign = centered:protect,[4];
+end;
+
 
 handleevent
 cminit:{
@@ -1676,10 +1985,17 @@ cmCheckField: {
       setformat(scrImportOstatki41);
       setformat(brow4110);
     }
+    2 : {
+      ClearAll;
+      setformat(scrImportOstatki019);
+      setformat(brow019);
+    }
+
   end;
   if getfirst tFiles = tsOK{}
   if getfirst tInsertDocs6062_br = tsOK{}
   if getfirst tInsertDocs4110_br = tsOK{}
+  if getfirst tInsertDocs019_br = tsOK{}
   rereadrecord;
 }
 cmpick:{
@@ -1798,6 +2114,7 @@ cmOK: {
     }
   CheckErrors6062;
   CheckErrors4110;
+  CheckErrors019;
  if visualizationactive  StopVisual('The End',vfTimer);
 
   rereadrecord(tntFiles_br);
@@ -1819,6 +2136,11 @@ cmCreateDocs: {
                message('не указан РС для сторонних ПП',error);
                stop;abort;exit;
               }
+            if getfirst KatOtpEd_usl <> tsOK {
+              Message('Учетная единица не найдена среди отпускных для выбранной услуги',error);
+              stop; abort; exit;
+            }
+
       }
       1 : {
            if not isvalidall(tnGrNal20){
@@ -1858,12 +2180,14 @@ cmCreateDocs: {
                stop;abort;exit;
               }
        }
+      2 : {
+            if _dateOpr = to_date(0,0,0){
+               message('не указана дата формирования документов"',error);
+               stop;abort;exit;
+              }
+      }
     end;
 
-  if getfirst KatOtpEd_usl <> tsOK {
-    Message('Учетная единица не найдена среди отпускных для выбранной услуги',error);
-    stop; abort; exit;
-  }
 
   ClearMarker(MyMarkerDocs);
   pMarker.ExportTo(MyMarkerDocs);
@@ -1896,6 +2220,7 @@ cmCreateDocs: {
       CASE typeTable of
        0 : CreateDocs6062
        1 : CreateDocs4110
+       2 : CreateDocs019
        //  CopyMoveFile(_fileFrom,_fileto, true,ecmfClientFrom  + ecmfClientTo )
       end;
     } ;
