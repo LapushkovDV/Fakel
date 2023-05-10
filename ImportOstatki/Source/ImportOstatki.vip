@@ -603,6 +603,14 @@ update tInsertDocs019 set tInsertDocs019.FlagErr := 0, tInsertDocs019.Descr := '
         #seterror019('| не найден МОЛ');
       }
 
+      if tInsertDocs019.katmbp_nrec = 0 {
+        #seterror019('| не найден карточка СФО/спецоснастки');
+      }
+
+      if tInsertDocs019.MC_nrec = 0 {
+        #seterror019('| не найдена МЦ');
+      }
+
          case tInsertDocs019.flagErr of
            0 : tInsertDocs019.Descr := 'OK';
            1 :  {
