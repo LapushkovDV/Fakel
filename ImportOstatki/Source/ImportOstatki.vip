@@ -798,7 +798,7 @@ function getsklad(_Sklad_kod : string) : comp;
   mylog('getsklad _Sklad_kod  = '+_Sklad_kod );
 
  result := 0h;
- if getfirst katpodr where ((_Sklad_kod == katpodr.kod)) = tsOK {
+ if(getfirst katpodr where ((_Sklad_kod == katpodr.kod)) and katpodr.isArch = 0 )= tsOK {
    result := katpodr.nrec;
  }
   mylog('getsklad result  = '+result);
