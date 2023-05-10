@@ -863,7 +863,7 @@ MyLog('getmol _name = ' + _name);
 MyLog('getmol _kod = ' + _kod);
 
   if _CSKL = 0h then exit;
-  if _name <> 0h {
+  if _name <> '' {
     if getfirst katmol where ((_CSKL == katmol.CSKL
                            and _name == katmol.Name)) = tsOK
        then result := katmol.nrec ;

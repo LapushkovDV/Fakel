@@ -84,7 +84,7 @@
 		</DatabaseConfiguration>
 		<FileList>
 			<File Name="ImportOstatki.prj" PosX="21" PosY="97" OpenEditor="True"/>
-			<File Name="Source\ImportOstatki.vip" PosX="91" PosY="1370" OpenEditor="True" Active="True"/>
+			<File Name="Source\ImportOstatki.vip" PosX="42" PosY="933" OpenEditor="True" Active="True"/>
 			<File Name="Source\OpenFileExcelSearchCells.vpp" PosX="1" PosY="1" OpenEditor="True"/>
 			<File Name="..\..\..\GAL\Frm\CompSrc\L\L_KatParty\vip\MakeParty\MkParty.vih" PosX="1" PosY="1" OpenEditor="True"/>
 			<File Name="..\..\..\..\Users\Дмитрий\YandexDisk\Work\!Gal_Source\Z_M_L_F_C_20230112\CompSrc\L\L_SoprDoc\vip\soprdb02.vpp" PosX="27" PosY="1053" OpenEditor="True"/>
@@ -139,7 +139,7 @@
 			<BreakPoint FileName="Source\shk_barcodeFunc.vip" Line="212"/>
 		</BreakPointList>
 		<CompileMessengerList>
-			<CompileMessenger Name="C:\Galaktika\_git\Fakel\ImportOstatki\ImportOstatki.prj" DateTimeStart="45055,527246169" DateTimeCompile="4,54976834589615E-5" StateHistory="False">
+			<CompileMessenger Name="C:\Galaktika\_git\Fakel\ImportOstatki\ImportOstatki.prj" DateTimeStart="45056,5763487268" DateTimeCompile="0,000317939819069579" StateHistory="False">
 				<CompileMessageList>
 					<CompileMessage MessageType="mtInfo" MessageText="Компиляция ведется без файла контроля лицензий!" SourceFileName="C:\GALAKTIKA\_GIT\FAKEL\IMPORTOSTATKI\SOURCE\VarsTypes.var" SourceLine="1" SourceColumn="1">
 						<StackIncludeList>
@@ -158,7 +158,7 @@
 					<CompileMessage MessageType="mtWarning" MessageText="и еще" SourceFileName="C:\G" SourceLine="2039" SourceColumn="54"/>
 					<CompileMessage MessageType="mtWarning" MessageText="Не найден объект" SourceLine="-1" SourceColumn="-1"/>
 					<CompileMessage MessageType="mtWarning" MessageText="и еще" SourceFileName="C:\G" SourceLine="2047" SourceColumn="65"/>
-					<CompileMessage MessageType="mtEndCompile" MessageText="09.05.2023 12:39:18"/>
+					<CompileMessage MessageType="mtEndCompile" MessageText="10.05.2023 13:50:24"/>
 				</CompileMessageList>
 			</CompileMessenger>
 		</CompileMessengerList>
