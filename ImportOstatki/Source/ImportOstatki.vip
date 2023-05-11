@@ -2148,8 +2148,7 @@ cmCreateDocs: {
               Message('Учетная единица не найдена среди отпускных для выбранной услуги',error);
               stop; abort; exit;
             }
-
-      }
+        }
       1 : {
            if not isvalidall(tnGrNal20){
                message('не указана группа налогов для 20%',error);
