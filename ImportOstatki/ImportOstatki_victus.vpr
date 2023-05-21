@@ -76,6 +76,10 @@
 					<DatabaseDriver>1</DatabaseDriver>
 					<DatabaseID>RUSSIA</DatabaseID>
 					<SqlServerParameters>ncacn_ip_tcp:localhost[32777]</SqlServerParameters>
+					<FullLoginName>True</FullLoginName>
+					<LogPas>True</LogPas>
+					<UserName>supervisor</UserName>
+					<Password>Zraeqw123</Password>
 					<HwKeyTransport>1</HwKeyTransport>
 					<HwKeyDirectory>localhost:55555</HwKeyDirectory>
 					<LicFileName>..\..\..\sup\exe\License.lic</LicFileName>
@@ -84,7 +88,7 @@
 		</DatabaseConfiguration>
 		<FileList>
 			<File Name="ImportOstatki.prj" PosX="21" PosY="97" OpenEditor="True"/>
-			<File Name="Source\ImportOstatki.vip" PosX="10" PosY="2151" OpenEditor="True" Active="True"/>
+			<File Name="Source\ImportOstatki.vip" PosX="30" PosY="1548" OpenEditor="True" Active="True"/>
 			<File Name="Source\OpenFileExcelSearchCells.vpp" PosX="1" PosY="1" OpenEditor="True"/>
 			<File Name="..\..\..\GAL\Frm\CompSrc\L\L_KatParty\vip\MakeParty\MkParty.vih" PosX="1" PosY="1" OpenEditor="True"/>
 			<File Name="..\..\..\..\Users\Дмитрий\YandexDisk\Work\!Gal_Source\Z_M_L_F_C_20230112\CompSrc\L\L_SoprDoc\vip\soprdb02.vpp" PosX="27" PosY="1053" OpenEditor="True"/>
@@ -130,35 +134,36 @@
 			<Marker FileName="Source\SHK_Base.vip" Caption="Нумерованная закладка 1" Line="120" NumIndex="1" MarkerType="mtNumBookmark" Comment="Procedure Fill_fieldArray(_viddoc: word; var _fieldArray : string);//array[1..24] of string);"/>
 			<Marker FileName="Source\SHK_InOut.vip" Caption="Нумерованная закладка 1" Line="1122" NumIndex="1" MarkerType="mtNumBookmark" Comment="_JSONfile : string = _SHK_InOut.MakeAction_FromJSONFILE(_login: string; _IMEI : string; _FilePath: string);"/>
 			<Marker FileName="Source\SHK_InOut.vip" Caption="Нумерованная закладка 2" Line="1083" NumIndex="2" MarkerType="mtNumBookmark" Comment="if _pIdent = co_BatchMode and"/>
-			<Marker FileName="Source\ImportOstatki.vip" Caption="Нумерованная закладка 1" Line="1359" NumIndex="1" MarkerType="mtNumBookmark" Comment="mylog(if()"/>
-			<Marker FileName="Source\ImportOstatki.vip" Caption="Нумерованная закладка 2" Line="614" NumIndex="2" MarkerType="mtNumBookmark"/>
+			<Marker FileName="Source\ImportOstatki.vip" Caption="Нумерованная закладка 2" Line="625" NumIndex="2" MarkerType="mtNumBookmark"/>
+			<Marker FileName="Source\ImportOstatki.vip" Caption="Нумерованная закладка 1" Line="1025" NumIndex="1" MarkerType="mtNumBookmark" Comment="tInsertDocs4110.cOrg := getOrgbyINN(tInsertDocs4110.OrgInn);"/>
 		</MarkerList>
 		<BreakPointList>
 			<BreakPoint FileName="Vip.prj" Line="90"/>
 			<BreakPoint FileName="SOURCE\MR_RolesAndUsers.vip" Line="13"/>
 			<BreakPoint FileName="Source\shk_barcodeFunc.vip" Line="212"/>
+			<BreakPoint FileName="Source\ImportOstatki.vip" Line="1781"/>
 		</BreakPointList>
 		<CompileMessengerList>
-			<CompileMessenger Name="C:\Galaktika\_git\Fakel\ImportOstatki\ImportOstatki.prj" DateTimeStart="45056,6847692361" DateTimeCompile="0,000311782408971339" StateHistory="False">
+			<CompileMessenger Name="C:\Galaktika\_git\Fakel\ImportOstatki\ImportOstatki.prj" DateTimeStart="45067,5823019792" DateTimeCompile="4,75578708574176E-5" StateHistory="False">
 				<CompileMessageList>
 					<CompileMessage MessageType="mtInfo" MessageText="Компиляция ведется без файла контроля лицензий!" SourceFileName="C:\GALAKTIKA\_GIT\FAKEL\IMPORTOSTATKI\SOURCE\VarsTypes.var" SourceLine="1" SourceColumn="1">
 						<StackIncludeList>
 							<StackInclude FileName="C:\Galaktika\_git\Fakel\ImportOstatki\SOURCE\ImportOstatki.vip" Line="17" Column="1"/>
 						</StackIncludeList>
 					</CompileMessage>
-					<CompileMessage MessageType="mtInfo" MessageText="Метод интерфейса &quot;IMPORTOSTATKI.GetParamSkPr_wOrder&quot;, объявленный в C:\Galaktika\_git\Fakel\ImportOstatki\SOURCE\ImportOstatki.vip(1296), не был использован" SourceFileName="C:\Galaktika\_git\Fakel\ImportOstatki\SOURCE\ImportOstatki.vip" SourceLine="2240" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Метод интерфейса &quot;IMPORTOSTATKI.GetParamSkPr_wOrder&quot;, объявленный в C:\Galaktika\_git\Fakel\ImportOstatki\SOURCE\ImportOstatki.vip(1313), не был использован" SourceFileName="C:\Galaktika\_git\Fakel\ImportOstatki\SOURCE\ImportOstatki.vip" SourceLine="2256" SourceColumn="5"/>
 					<CompileMessage MessageType="mtWarning" MessageText="Не найден объект" SourceLine="-1" SourceColumn="-1"/>
-					<CompileMessage MessageType="mtWarning" MessageText="и еще" SourceFileName="C:\G" SourceLine="2029" SourceColumn="91"/>
+					<CompileMessage MessageType="mtWarning" MessageText="и еще" SourceFileName="C:\G" SourceLine="2046" SourceColumn="91"/>
 					<CompileMessage MessageType="mtWarning" MessageText="Не найден объект" SourceLine="-1" SourceColumn="-1"/>
 					<CompileMessage MessageType="mtWarning" MessageText="Не найден объект" SourceLine="-1" SourceColumn="-1"/>
-					<CompileMessage MessageType="mtWarning" MessageText="и еще" SourceFileName="C:\G" SourceLine="2043" SourceColumn="54"/>
-					<CompileMessage MessageType="mtWarning" MessageText="и еще" SourceFileName="C:\G" SourceLine="2044" SourceColumn="54"/>
-					<CompileMessage MessageType="mtWarning" MessageText="и еще" SourceFileName="C:\G" SourceLine="2045" SourceColumn="54"/>
-					<CompileMessage MessageType="mtWarning" MessageText="и еще" SourceFileName="C:\G" SourceLine="2046" SourceColumn="54"/>
-					<CompileMessage MessageType="mtWarning" MessageText="и еще" SourceFileName="C:\G" SourceLine="2047" SourceColumn="54"/>
+					<CompileMessage MessageType="mtWarning" MessageText="и еще" SourceFileName="C:\G" SourceLine="2060" SourceColumn="54"/>
+					<CompileMessage MessageType="mtWarning" MessageText="и еще" SourceFileName="C:\G" SourceLine="2061" SourceColumn="54"/>
+					<CompileMessage MessageType="mtWarning" MessageText="и еще" SourceFileName="C:\G" SourceLine="2062" SourceColumn="54"/>
+					<CompileMessage MessageType="mtWarning" MessageText="и еще" SourceFileName="C:\G" SourceLine="2063" SourceColumn="54"/>
+					<CompileMessage MessageType="mtWarning" MessageText="и еще" SourceFileName="C:\G" SourceLine="2064" SourceColumn="54"/>
 					<CompileMessage MessageType="mtWarning" MessageText="Не найден объект" SourceLine="-1" SourceColumn="-1"/>
-					<CompileMessage MessageType="mtWarning" MessageText="и еще" SourceFileName="C:\G" SourceLine="2055" SourceColumn="65"/>
-					<CompileMessage MessageType="mtEndCompile" MessageText="10.05.2023 16:26:31"/>
+					<CompileMessage MessageType="mtWarning" MessageText="и еще" SourceFileName="C:\G" SourceLine="2072" SourceColumn="65"/>
+					<CompileMessage MessageType="mtEndCompile" MessageText="21.05.2023 13:58:35"/>
 				</CompileMessageList>
 			</CompileMessenger>
 		</CompileMessengerList>

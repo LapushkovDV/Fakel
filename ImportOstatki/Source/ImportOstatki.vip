@@ -13,7 +13,7 @@
 //************************************************************
 const
 end;
-Interface ImportOstatki 'Шаблоны объектов штрихкодирования. Просмотр/редактирование';
+Interface ImportOstatki 'Импорт остатков. Факел';
 #include VarsTypes.var
 Table Struct tFiles
 (
@@ -78,6 +78,7 @@ Table Struct tInsertDocs4110
   , SumVat          : double // 'Сумма руб. НДС'
   , SumWithVAT      : double // 'Сумма руб. с НДС'
   , Dog_UID1C       : string // 'UID договора из 1С'
+  , orgInn          : string // 'ИНН контрагента'
   , soprdSopr       : date // 'Дата накладной'
   , soprnSopr       : string  // 'Номер накладной'
   , SchFact_uid1C   : string // 'UID счета-фактуры из 1С'
@@ -97,6 +98,7 @@ Table Struct tInsertDocs4110
   , cmc        : comp
   , cSkl       : comp
   , cDog       : comp
+  , cOrg       : comp
   , cOtpEd     : comp
   , cmol       : comp
   , csopr      : comp
@@ -355,6 +357,7 @@ PROCEdURE fillrecArrayByTypeTable(_type: byte);
         _recArray[_npp].def := 'Дата накладной'                  ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
         _recArray[_npp].def := 'Номер накладной'                 ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
         _recArray[_npp].def := 'UID счета-фактуры из 1С'         ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
+        _recArray[_npp].def := 'ИНН контрагента'                 ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
         _recArray[_npp].def := 'Дата счет-фактуры'               ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
         _recArray[_npp].def := 'Дата получения счета-фактуры'    ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
         _recArray[_npp].def := 'Номер счет-фактуры'              ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
@@ -414,18 +417,22 @@ Function getKatOrg ( _dogovor : comp) : comp;
   result := _result
 }
 
-Function getDogovor(_UIDdogovor, _dognodoc: string) : comp;
+Function getDogovor(_UIDdogovor, _dognodoc: string; _corg : comp = 0h) : comp;
 {
   var _result : comp = 0h;
-  if(getfirst dogovor where ((_UIDdogovor == DOGOVOR.SHEMANOTE(noindex)))) <> tsOK
+  if(getfirst dogovor where ((_UIDdogovor == DOGOVOR.SHEMANOTE(noindex)))
+                              and DOGOVOR.CORG = if(_corg <> 0h,_corg,DOGOVOR.CORG)
+  ) <> tsOK
   {
-    if(getfirst dogovor where ((_dognodoc == DOGOVOR.NODOC_EXT (noindex)
+    if(getfirst dogovor where ((_dognodoc == DOGOVOR.NODOC_EXT (noindex) ))
+                              and DOGOVOR.CORG = if(_corg <> 0h,_corg,DOGOVOR.CORG)
 //                             and _dogdate == DOGOVOR.dDoc (noindex)
-      ))) <> tsOK
+      ) <> tsOK
      {
-      if(getfirst dogovor where ((_dognodoc == DOGOVOR.NODOC (noindex)
+      if(getfirst dogovor where ((_dognodoc == DOGOVOR.NODOC (noindex) ))
+                              and DOGOVOR.CORG = if(_corg <> 0h,_corg,DOGOVOR.CORG)
 //                               and _dogdate == DOGOVOR.dDoc (noindex)
-        ))) = tsOK       {
+        ) = tsOK       {
          _result := dogovor.nrec;
        }
      }
@@ -538,7 +545,11 @@ update tInsertDocs4110 set tInsertDocs4110.FlagErr := 0, tInsertDocs4110.Descr :
       if tInsertDocs4110.cSkl = 0h{
        #seterror4110('| не найден склад');
       }
-      if tInsertDocs4110.cDog = 0h and tInsertDocs4110.isAktIzlishki <> 'TRUE'{
+      if tInsertDocs4110.cOrg = 0h{
+       #seterror4110('| не найден контрагент');
+        }
+      if tInsertDocs4110.cDog = 0h and tInsertDocs4110.isAktIzlishki <> 'TRUE'
+      and tInsertDocs4110.cOrg = 0h{
        #seterror4110('| не найден договор');
       }
       if tInsertDocs4110.PriceWithoutVat = 0{
@@ -946,6 +957,12 @@ Procedure prtInsertDocs019(_nrow : longint; _file : string);
      }
 }  // tInsertSaldoMC
 
+function getOrgbyINN(_OrgInn : string) : comp;
+{
+  result := 0h;
+  if getfirst KatOrg where (( _OrgInn == katorg.unn )) = tsOK
+   result := KatOrg.nrec;
+}
 Procedure prtInsertDocs4110(_nrow : longint; _file : string);
 {
   var _i: byte;
@@ -975,6 +992,7 @@ Procedure prtInsertDocs4110(_nrow : longint; _file : string);
       Upcase( 'Сумма руб. НДС'                   ) : tInsertDocs4110.SumVat           := Double(replace(replace(Trim(_recArray[_i].value),',','.'),' ','')); // 'Сумма руб. НДС'
       Upcase( 'Сумма руб. с НДС'                 ) : tInsertDocs4110.SumWithVAT       := Double(replace(replace(Trim(_recArray[_i].value),',','.'),' ','')); // 'Сумма руб. с НДС'
       Upcase( 'UID договора из 1С'               ) : tInsertDocs4110.Dog_UID1C        := Trim(_recArray[_i].value); // 'UID договора из 1С'
+      Upcase( 'ИНН контрагента'                  ) : tInsertDocs4110.orgInn           := Trim(_recArray[_i].value); // 'UID договора из 1С'
       Upcase( 'Дата накладной'                   ) : tInsertDocs4110.soprdSopr        := StrToDate(Trim(_recArray[_i].value),dateformat);  // 'Дата накладной'
       Upcase( 'Номер накладной'                  ) : tInsertDocs4110.soprnSopr        := Trim(_recArray[_i].value); // 'Номер накладной'
       Upcase( 'UID счета-фактуры из 1С'          ) : tInsertDocs4110.SchFact_uid1C    := Trim(_recArray[_i].value); // 'UID счета-фактуры из 1С'
@@ -1002,9 +1020,8 @@ Procedure prtInsertDocs4110(_nrow : longint; _file : string);
      {
       tInsertDocs4110.cmc  := getmc(tInsertDocs4110.MC_nrec,tInsertDocs4110.MC_Uid1C,tInsertDocs4110.MC_name);
       tInsertDocs4110.cSkl := getsklad(tInsertDocs4110.Sklad_kod) ;
-      tInsertDocs4110.cDog := getDogovor(tInsertDocs4110.Dog_UID1C, tInsertDocs4110.dognodoc);
-
-
+      tInsertDocs4110.cOrg := getOrgbyINN(tInsertDocs4110.OrgInn);
+      tInsertDocs4110.cDog := getDogovor(tInsertDocs4110.Dog_UID1C, tInsertDocs4110.dognodoc, getOrgbyINN(tInsertDocs4110.OrgInn));
 
       if instr('10.',tInsertDocs4110.SchetBU) <> 0
       {
@@ -1077,7 +1094,7 @@ Procedure InsertAkts;
          insert KATSOPR set
              KatSopr.NAME     := 'Импорт остатков 60.01'
             ,KatSopr.DESCR    := sgettune('user.descr')
-            ,KatSopr.CORG     := sgettune('user.desgr')
+            ,KatSopr.DESGR    := sgettune('user.desgr')
             ,KatSopr.VHODNAL  := 1
             ,KatSopr.STATUS   := 1
 //            ,KatSopr.CNOTE   :=
@@ -1406,16 +1423,15 @@ procedure InsertPrihNaklOrderDoocenka;
                 and KatSopr.cpodrto  = if(tInsertDocs4110.isAktIzlishki <> 'TRUE',0h, tInsertDocs4110.cskl)
                 and KatSopr.cmolto   = if(tInsertDocs4110.isAktIzlishki <> 'TRUE',0h, tInsertDocs4110.cmol)
             ) <> tsOK {
-                                 var _cOrg, _cDog : comp = 0h;
+                                 var _cDog : comp = 0h;
                                  if tInsertDocs4110.isAktIzlishki <> 'TRUE'
                                      if getfirst dogovor where ((tInsertDocs4110.cDog == dogovor.nrec)) = tsOK {
-                                       _cOrg := dogovor.corg;
                                        _cDog := dogovor.nrec;
                                      }
                                    insert KATSOPR set
                                      KatSopr.NAME     := 'Импорт остатков ' + tInsertDocs4110.SchetBU
                                     ,KatSopr.DESCR    := sgettune('user.descr')
-                                    ,KatSopr.CORG     := sgettune('user.desgr')
+                                    ,KatSopr.DESGR    := sgettune('user.desgr')
                                     ,KatSopr.VHODNAL  := if(tInsertDocs4110.isAktIzlishki <> 'TRUE',2,1)
                                     ,KatSopr.STATUS   := 1
 //                                    ,KatSopr.CNOTE   :=
@@ -1427,9 +1443,9 @@ procedure InsertPrihNaklOrderDoocenka;
                                     ,KatSopr.NSOPR    := tInsertDocs4110.soprnsopr
                                     ,KatSopr.VIDSOPR  := if(tInsertDocs4110.isAktIzlishki <> 'TRUE',101,611)
                                     ,KatSopr.CDOGOVOR := _cDog
-                                    ,KatSopr.CGRUZFROM:= _cOrg
-                                    ,KatSopr.CORGBASE := _cOrg
-                                    ,KatSopr.CORG     := _cOrg
+                                    ,KatSopr.CGRUZFROM:= tInsertDocs4110.cOrg
+                                    ,KatSopr.CORGBASE := tInsertDocs4110.cOrg
+                                    ,KatSopr.CORG     := tInsertDocs4110.cOrg
                                     ,KatSopr.cpodrto  := if(tInsertDocs4110.isAktIzlishki <> 'TRUE',0h, tInsertDocs4110.cskl)
                                     ,KatSopr.cmolto   := if(tInsertDocs4110.isAktIzlishki <> 'TRUE',0h, tInsertDocs4110.cmol)
 //                                    ,KatSopr.CCALPLAN := tInsertDocs4110.ccalplan
@@ -1634,6 +1650,9 @@ procedure InsertPrihNaklOrderDoocenka;
                    coSetAttr(cokatparty, spsopr.cparty,'.Счет МЦ', tInsertDocs4110.cSchet, tInsertDocs4110.SchetBU) ;
                    coSetAttr(cokatparty, spsopr.cparty,'.Приходный документ партии (ЭМ)', katsopr.nrec, 'Приходная накладная '+katsopr.nsopr + ' от ' + katsopr.dsopr) ;
                    coSetAttr(cokatparty, spsopr.cparty,'.Счет-фактура партии (ЭМ)', SCHFACT.nrec, 'СФ '+SCHFACT.num + ' от ' +SCHFACT.DFACT) ;
+                   if spsopr.prmc = 1
+                   if getfirst katMC where ((spsopr.cmcusl == katmc.nrec)) = tsOK
+                    then coSetAttr(cokatparty, spsopr.cparty,'.Наименование МЦ из 1С', katmc.nrec, katmc.name) ;
 
                    var _igk : string = oIGK_Dog.GetIGK(katsopr.cdogovor) ;
                    if _igk <> '' {
@@ -1854,6 +1873,7 @@ fields
   tInsertDocs4110_br.SumVat          'Сумма руб.','НДС'      headerAlign = centered:protect,[4];
   tInsertDocs4110_br.SumWithVAT      'Сумма руб.','с НДС'    headerAlign = centered:protect,[4];
   tInsertDocs4110_br.Dog_UID1C       'UID договора','из 1С'  headerAlign = centered:protect,[4];
+  tInsertDocs4110_br.orgInn          'ИНН контрагента'       headerAlign = centered:protect,[4];
   tInsertDocs4110_br.soprdSopr       'Дата','накладной'      headerAlign = centered:protect,[4];
   tInsertDocs4110_br.soprnSopr       'Номер','накладной'     headerAlign = centered:protect,[4];
   tInsertDocs4110_br.SchFact_uid1C   'UID СФ','из 1С'        headerAlign = centered:protect,[4];
