@@ -1652,7 +1652,7 @@ procedure InsertPrihNaklOrderDoocenka;
                    coSetAttr(cokatparty, spsopr.cparty,'.Счет-фактура партии (ЭМ)', SCHFACT.nrec, 'СФ '+SCHFACT.num + ' от ' +SCHFACT.DFACT) ;
                    if spsopr.prmc = 1
                    if getfirst katMC where ((spsopr.cmcusl == katmc.nrec)) = tsOK
-                    then coSetAttr(cokatparty, spsopr.cparty,'.Наименование МЦ из 1С', katmc.nrec, katmc.name) ;
+                    then sSetAttr(cokatparty, spsopr.cparty,'.Наименование МЦ из 1С', tInsertDocs4110.MC_name) ;
 
                    var _igk : string = oIGK_Dog.GetIGK(katsopr.cdogovor) ;
                    if _igk <> '' {

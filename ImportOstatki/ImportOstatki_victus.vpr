@@ -88,7 +88,7 @@
 		</DatabaseConfiguration>
 		<FileList>
 			<File Name="ImportOstatki.prj" PosX="21" PosY="97" OpenEditor="True"/>
-			<File Name="Source\ImportOstatki.vip" PosX="30" PosY="1548" OpenEditor="True" Active="True"/>
+			<File Name="Source\ImportOstatki.vip" PosX="31" PosY="1546" OpenEditor="True" Active="True"/>
 			<File Name="Source\OpenFileExcelSearchCells.vpp" PosX="1" PosY="1" OpenEditor="True"/>
 			<File Name="..\..\..\GAL\Frm\CompSrc\L\L_KatParty\vip\MakeParty\MkParty.vih" PosX="1" PosY="1" OpenEditor="True"/>
 			<File Name="..\..\..\..\Users\ִלטענטי\YandexDisk\Work\!Gal_Source\Z_M_L_F_C_20230112\CompSrc\L\L_SoprDoc\vip\soprdb02.vpp" PosX="27" PosY="1053" OpenEditor="True"/>
