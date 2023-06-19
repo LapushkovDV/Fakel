@@ -85,6 +85,9 @@ end;
 #include Notes.vih
 #include Notes.var
 
+#include PlPorSimple.vih
+#include ChkSoprHoz.vih
+
 #include F_GetP.vih
 #include statlog.vih
 #include StatLog.var          // oStatLog       работа со статусами документов
