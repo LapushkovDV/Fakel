@@ -434,7 +434,7 @@ PROCEdURE fillrecArrayByTypeTable(_type: byte);
         _recArray[_npp].def := 'СФ Сумма руб. без НДС';            SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
         _recArray[_npp].def := 'СФ Сумма руб. НДС';                SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
         _recArray[_npp].def := 'СФ Сумма руб. с НДС';              SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
-        _recArray[_npp].def := 'Номер договора';                   SetLimit(_recArray, GetLimit(_recArray) + 1);
+        _recArray[_npp].def := 'Номер договора';                   SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
         _recArray[_npp].def := 'Акт об излишках';                  SetLimit(_recArray, GetLimit(_recArray) + 1);
      }
      2 : {
@@ -451,21 +451,20 @@ PROCEdURE fillrecArrayByTypeTable(_type: byte);
         _recArray[_npp].def := 'дата ввода в эксплуатацию'                   ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
         _recArray[_npp].def := 'срок службы в месяцах'                       ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
         _recArray[_npp].def := 'дата окончания эксплуатации'                 ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
-        _recArray[_npp].def := 'Спецодежда'                                  ; SetLimit(_recArray, GetLimit(_recArray) + 1);
+        _recArray[_npp].def := 'Спецодежда'                                  ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
      }
      3: {
-        _recArray[_npp].def := 'Сумма руб.'                            ; SetLimit(_recArray, GetLimit(_recArray) + 1);
-        _recArray[_npp].def := 'код Подразделения'                     ; SetLimit(_recArray, GetLimit(_recArray) + 1);
-        _recArray[_npp].def := 'Наименование подразделения'            ; SetLimit(_recArray, GetLimit(_recArray) + 1);
-        _recArray[_npp].def := 'код статьи расходов/доходов'           ; SetLimit(_recArray, GetLimit(_recArray) + 1);
-        _recArray[_npp].def := 'наименование статьи расходов/доходов'  ; SetLimit(_recArray, GetLimit(_recArray) + 1);
-        _recArray[_npp].def := 'код производственного заказа'          ; SetLimit(_recArray, GetLimit(_recArray) + 1);
-        _recArray[_npp].def := 'наименование производственного заказа' ; SetLimit(_recArray, GetLimit(_recArray) + 1);
-        _recArray[_npp].def := 'счет.субсчет НУ'                       ; SetLimit(_recArray, GetLimit(_recArray) + 1);
-        _recArray[_npp].def := 'сумма НУ НУ'                           ; SetLimit(_recArray, GetLimit(_recArray) + 1);
-        _recArray[_npp].def := 'сумма НУ ПР'                           ; SetLimit(_recArray, GetLimit(_recArray) + 1);
-        _recArray[_npp].def := 'сумма НУ ВР'                           ; SetLimit(_recArray, GetLimit(_recArray) + 1);
-
+        _recArray[_npp].def := 'Сумма руб.'                            ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
+        _recArray[_npp].def := 'код Подразделения'                     ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
+        _recArray[_npp].def := 'Наименование подразделения'            ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
+        _recArray[_npp].def := 'код статьи расходов/доходов'           ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
+        _recArray[_npp].def := 'наименование статьи расходов/доходов'  ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
+        _recArray[_npp].def := 'код производственного заказа'          ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
+        _recArray[_npp].def := 'наименование производственного заказа' ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
+        _recArray[_npp].def := 'счет.субсчет НУ'                       ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
+        _recArray[_npp].def := 'сумма НУ НУ'                           ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
+        _recArray[_npp].def := 'сумма НУ ПР'                           ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
+        _recArray[_npp].def := 'сумма НУ ВР'                           ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
      }
    end;
 }
@@ -1587,6 +1586,7 @@ procedure Insert_BS020;
                  var   _chkSoprHoz : ChkSoprHoz;
                  var   _plporSimple: PlporSimple;
                _chkSoprHoz.CheckDoc(_plporSimple.GetDocBuff(PlPor.Buffer), cgSilentMakeSH);
+              mylog('Создана бухсправка "'+PlPorNew.NoDok+'" от ' + PlPorNew.DatOb);
              }
              set _cSoprHoz := 0h;
             if getfirst soprhozNew = tsOK {
@@ -1614,7 +1614,7 @@ procedure Insert_BS020;
           , oborot.kauos[3]  := tInsertDocs020.zakaz_nrec
           , oborot.KODSPO    := getsklad('01') //подразделение с кодом <01> ОКБ <Факел>.
         ;
-
+        mylog('Создана проводка "Д'+oborot.SchetO+if(oborot.SUBOSSCH<> '' ,'.'+oborot.SUBOSSCH,'')+'" от ' + oborot.DatOb + ' на сумму ' + oborot.sumob);
         if getfirst buhschet where ((tInsertDocs020.cSchetNU == buhschet.nrec)) = tsOK {
             if tInsertDocs020.sum_NU_NU <> 0 {
                oborot.nrec      := 0h;
@@ -1625,6 +1625,7 @@ procedure Insert_BS020;
                oborot.kauos[6]  := _cKauNU;
                oborot.sumob     := tInsertDocs020.sum_NU_NU;
              insert current oborot;
+             mylog('Создана проводка "Д'+oborot.SchetO+if(oborot.SUBOSSCH<> '' ,'.'+oborot.SUBOSSCH,'')+'" от ' + oborot.DatOb + ' на сумму ' + oborot.sumob);
             }
             if tInsertDocs020.sum_NU_PR <> 0 {
                oborot.nrec      := 0h;
@@ -1635,6 +1636,7 @@ procedure Insert_BS020;
                oborot.kauos[6]  := _cKauPR;
                oborot.sumob     := tInsertDocs020.sum_NU_PR;
              insert current oborot;
+             mylog('Создана проводка "Д'+oborot.SchetO+if(oborot.SUBOSSCH<> '' ,'.'+oborot.SUBOSSCH,'')+'" от ' + oborot.DatOb + ' на сумму ' + oborot.sumob);
             }
             if tInsertDocs020.sum_NU_VR <> 0 {
                oborot.nrec      := 0h;
@@ -1645,6 +1647,7 @@ procedure Insert_BS020;
                oborot.kauos[6]  := _cKauVR;
                oborot.sumob     := tInsertDocs020.sum_NU_VR;
              insert current oborot;
+             mylog('Создана проводка "Д'+oborot.SchetO+if(oborot.SUBOSSCH<> '' ,'.'+oborot.SUBOSSCH,'')+'" от ' + oborot.DatOb + ' на сумму ' + oborot.sumob);
             }
         }
        }
