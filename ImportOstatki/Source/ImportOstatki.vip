@@ -1585,7 +1585,7 @@ procedure Insert_BS020;
                   PlPorNew.YearDoc  := Year(_dateOpr);
                   PlPorNew.NamePl1  := 'Сальдо по счету 20 - Подразделение ' +katpodr.name +  ' ' +katpodr.kod;
                   PlPorNew.Direct   := 0;
-                  PlPorNew.ModeDoc  := 2048;
+                  PlPorNew.ModeDoc  := 2050;
                   PlPorNew.cPlat    := cogettune('MYORG');
                   PlPorNew.cVal     := 0h;
                   PlPorNew.SumPlat  := 0;
