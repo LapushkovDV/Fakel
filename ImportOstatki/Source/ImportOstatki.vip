@@ -226,7 +226,9 @@ var
   , _cSoprHoz
   , _cKauVR
   , _cKauPR
-  , _cKauNU  : comp = 0h;
+  , _cKauNU     : comp = 0;
+    _Schet000NU
+  , _Schet000BU  : String = '';
 
 from
       dogovor
@@ -346,10 +348,14 @@ PROCEdURE ClearAll;
  delete all tFiles;
  delete all tInsertDocs6062;
  delete all tInsertDocs4110;
+ delete all tInsertDocs019;
+ delete all tInsertDocs020;
  clearmarker(MyMarkerDocs);
  if getfirst tFiles = tsOK {}
  if getfirst tInsertDocs6062 = tsOK {}
  if getfirst tInsertDocs4110 = tsOK {}
+ if getfirst tInsertDocs019 = tsOK {}
+ if getfirst tInsertDocs020 = tsOK {}
  rereadrecord;
 } // PROCEdURE ClearAll;
 
@@ -521,6 +527,7 @@ Function getDogovor(_UIDdogovor, _dognodoc: string; _corg : comp = 0h) : comp;
 
 function getschet(_SchetBU : string; _CPLANSSCH : comp) : comp;
 {
+  mylog('getschet _SchetBU  = ' + _SchetBU +'   _CPLANSSCH = ' + _CPLANSSCH);
   result := 0h;
 //   var _CPLANSSCH : comp = cogettune('FIN.USER.CPLANSSCH') ;
    if getfirst buhschet where (( _CPLANSSCH == buhschet.CPLANSSCH
@@ -528,6 +535,7 @@ function getschet(_SchetBU : string; _CPLANSSCH : comp) : comp;
    {
       result := buhschet.nrec;
    }
+   mylog('result = '  + result);
 }
 Function getcalplan(_cDogovor : comp): comp;
 {
@@ -929,7 +937,7 @@ function getmc(_MC_nrec : comp; _MC_Uid1C, _MC_name : string) : comp;
 }
 function getsklad(_Sklad_kod : string; _Sklad_name : string = '' ) : comp;
 {
-  mylog('getsklad _Sklad_kod  = '+_Sklad_kod );
+//  mylog('getsklad _Sklad_kod  = '+_Sklad_kod );
 
  result := 0h;
  if(getfirst katpodr where ((_Sklad_kod == katpodr.kod)) and katpodr.isArch = 0 )= tsOK {
@@ -943,7 +951,7 @@ function getsklad(_Sklad_kod : string; _Sklad_name : string = '' ) : comp;
        }
     }
    }
-  mylog('getsklad result  = '+result);
+//  mylog('getsklad result  = '+result);
 }
 
 function getOtpEdEqUchet(_cmc : comp) : comp;
@@ -1267,7 +1275,7 @@ procedure MyLog(_log : string);
 {
   if _logFile = '' then _logFile := GetStringParameter('Files', 'OutputFilesDirectory', 0) + 'ImportOstatki_'+DateToStr(Cur_date, 'YYYYMMDD') + '_' + timetostr(Cur_time, 'HH.MM.SS') + '_' + UserName + '.log';
 //  logstrtofile(_logFile,ShortStrToWin(_log));
-  logstrtofile(_logFile,_log);
+  logstrtofile(_logFile,shortstrtowin(_log));
 }
 
 PROCEdURE FillInsertTables(_nrow : longint; _file : string);
@@ -1551,6 +1559,7 @@ function getcreateparty(_Party_kod, _Party_name : string): comp;
 
 procedure Insert_BS020;
 {
+  mylog('Procedure Insert_BS020 start ');
    _loop tFiles where tFiles.FlagErr <> 2
     if SearchMarker(MyMarkerDocs, tFiles.nrec, mid)
       _loop tInsertDocs020 where ((tFiles.nrec == tInsertDocs020.ctFiles))
@@ -1558,14 +1567,15 @@ procedure Insert_BS020;
         and tInsertDocs020.FlagErr = 0
        if getfirst katpodr where ((tInsertDocs020.podr_nrec == katpodr.nrec)) = tsOK
        {
+        mylog('_loop tInsertDocs020 ');
          if getfirst plporNew where ((_wTiDkBS == plporNew.TiDk
                              and _dateOpr == plporNew.DatVip
-            and 'ИМПОРТ ОСТАТКОВ 20 СЧЕТ' == plporNew.NoDok (noindex)
+            and '20 СЧЕТ' == plporNew.NoDok (noindex)
                          and katpodr.name == plporNew.NamePl1 (noindex)
                )) <> tsOK
                {
-                  ClearBuffer(#PlPor);
-                  PlPorNew.NoDok    := 'ИМПОРТ ОСТАТКОВ 20 СЧЕТ';
+                  ClearBuffer(#PlPorNew);
+                  PlPorNew.NoDok    := '20 СЧЕТ';
                   PlPorNew.TiDkGal  := cgDoc_0010;
                   PlPorNew.TiDk     := _wTiDkBS;
                   PlPorNew.Descr    := sGetTune('User.Descr');
@@ -1582,16 +1592,16 @@ procedure Insert_BS020;
                   // PlPorNew.cClassBuh:= _cKatNotes;
                   PlPorNew.Pri      := 1;
                  insert current PlPorNew;
-                 set _cPLpor := PlPorNew.nrec;
+
                  var   _chkSoprHoz : ChkSoprHoz;
                  var   _plporSimple: PlporSimple;
-               _chkSoprHoz.CheckDoc(_plporSimple.GetDocBuff(PlPor.Buffer), cgSilentMakeSH);
+               _chkSoprHoz.CheckDoc(_plporSimple.GetDocBuff(PlPorNew.Buffer), cgSilentMakeSH);
               mylog('Создана бухсправка "'+PlPorNew.NoDok+'" от ' + PlPorNew.DatOb);
              }
-             set _cSoprHoz := 0h;
+            set _cPLpor := PlPorNew.nrec;
             if getfirst soprhozNew = tsOK {
-              set _cSoprHoz := soprhozNew.nrec
-            }
+                 set _cSoprHoz := soprhozNew.nrec
+               }
          insert oborot set
             oborot.Descr     := sGetTune('User.Descr')
           , oborot.DesGr     := sGetTune('User.DesGr')
@@ -1613,6 +1623,8 @@ procedure Insert_BS020;
           , oborot.TBLOS[3]  := 7
           , oborot.kauos[3]  := tInsertDocs020.zakaz_nrec
           , oborot.KODSPO    := getsklad('01') //подразделение с кодом <01> ОКБ <Факел>.
+          , Oborot.SCHETK    := _Schet000BU
+          , Oborot.KRSCHETK  := substr(_Schet000BU,2,100) ;
         ;
         mylog('Создана проводка "Д'+oborot.SchetO+if(oborot.SUBOSSCH<> '' ,'.'+oborot.SUBOSSCH,'')+'" от ' + oborot.DatOb + ' на сумму ' + oborot.sumob);
         if getfirst buhschet where ((tInsertDocs020.cSchetNU == buhschet.nrec)) = tsOK {
@@ -1621,9 +1633,12 @@ procedure Insert_BS020;
                oborot.SchetO    := buhschet.schet;
                oborot.SUBOSSCH  := buhschet.subsch;
                oborot.DBSCHETO  := substr(buhschet.schet,2,100);
+               oborot.CPLANSSCH := planschetNU.nrec
                oborot.tblos[6]  := 10174;
                oborot.kauos[6]  := _cKauNU;
                oborot.sumob     := tInsertDocs020.sum_NU_NU;
+               Oborot.SCHETK    := _Schet000NU ;
+               Oborot.KRSCHETK  := substr(_Schet000NU,2,100) ;
              insert current oborot;
              mylog('Создана проводка "Д'+oborot.SchetO+if(oborot.SUBOSSCH<> '' ,'.'+oborot.SUBOSSCH,'')+'" от ' + oborot.DatOb + ' на сумму ' + oborot.sumob);
             }
@@ -1632,9 +1647,12 @@ procedure Insert_BS020;
                oborot.SchetO    := buhschet.schet;
                oborot.SUBOSSCH  := buhschet.subsch;
                oborot.DBSCHETO  := substr(buhschet.schet,2,100);
+               oborot.CPLANSSCH := planschetNU.nrec
                oborot.tblos[6]  := 10174;
                oborot.kauos[6]  := _cKauPR;
                oborot.sumob     := tInsertDocs020.sum_NU_PR;
+               Oborot.SCHETK    := _Schet000NU ;
+               Oborot.KRSCHETK  := substr(_Schet000NU,2,100) ;
              insert current oborot;
              mylog('Создана проводка "Д'+oborot.SchetO+if(oborot.SUBOSSCH<> '' ,'.'+oborot.SUBOSSCH,'')+'" от ' + oborot.DatOb + ' на сумму ' + oborot.sumob);
             }
@@ -1643,9 +1661,12 @@ procedure Insert_BS020;
                oborot.SchetO    := buhschet.schet;
                oborot.SUBOSSCH  := buhschet.subsch;
                oborot.DBSCHETO  := substr(buhschet.schet,2,100);
+               oborot.CPLANSSCH := planschetNU.nrec
                oborot.tblos[6]  := 10174;
                oborot.kauos[6]  := _cKauVR;
                oborot.sumob     := tInsertDocs020.sum_NU_VR;
+               Oborot.SCHETK    := _Schet000NU ;
+               Oborot.KRSCHETK  := substr(_Schet000NU,2,100) ;
              insert current oborot;
              mylog('Создана проводка "Д'+oborot.SchetO+if(oborot.SUBOSSCH<> '' ,'.'+oborot.SUBOSSCH,'')+'" от ' + oborot.DatOb + ' на сумму ' + oborot.sumob);
             }
@@ -2063,6 +2084,7 @@ Procedure CreateDocs019;
 }
 Procedure CreateDocs020;
 {
+  mylog('procedure CreateDocs020')
    StartNewVisual(vtIndicatorVisual,vfTimer,'Формирование документов',getmarkercount(MyMarkerDocs));
 
    Insert_BS020;
@@ -2265,7 +2287,7 @@ fields
   tInsertDocs020_br.sum_NU_NU    'сумма НУ','НУ' headerAlign = centered:protect,[4];
   tInsertDocs020_br.sum_NU_PR    'сумма НУ','ПР' headerAlign = centered:protect,[4];
   tInsertDocs020_br.sum_NU_VR    'сумма НУ','ВР' headerAlign = centered:protect,[4];
-  tInsertDocs019_br.descr      'Описание' headerAlign = centered:protect,[4];
+  tInsertDocs020_br.descr      'Описание' headerAlign = centered:protect,[4];
 end;
 
 
@@ -2395,6 +2417,7 @@ cmCheckField: {
   if getfirst tInsertDocs6062_br = tsOK{}
   if getfirst tInsertDocs4110_br = tsOK{}
   if getfirst tInsertDocs019_br = tsOK{}
+  if getfirst tInsertDocs020_br = tsOK{}
   rereadrecord;
 }
 cmpick:{
@@ -2636,6 +2659,30 @@ cmCreateDocs: {
                message('в бухгалтерском плане счетов не найден 20 счет');
                stop;abort;exit;
          }
+
+         _Schet000BU  := '';
+         var _ctmp : comp = 0h;
+         _ctmp := getschet('000', _cplanschetBU)
+         if getfirst BuhSchet where ((_ctmp == BuhSchet.nrec)) = tsOK {
+          mylog('getfirst BuhSchet where ((_ctmp == BuhSchet.nrec)) = tsok')
+          set _Schet000BU := buhschet.schet
+         }
+         mylog('after if getfirst BuhSchet: _Schet000BU = ' + _Schet000BU)
+         if _Schet000BU = '' {
+               message('в бухгалтерском плане счетов не найден 000 счет');
+               stop;abort;exit;
+         }
+
+         _Schet000NU  := '';
+         _ctmp := getschet('000', _cplanschetNU) ;
+         if getfirst BuhSchet where ((_ctmp == BuhSchet.nrec)) = tsOK {
+          _Schet000NU := buhschet.schet
+         }
+           mylog('after if getfirst BuhSchet: _Schet000NU = ' + _Schet000BU)
+         if _Schet000NU = '' {
+               message('в налоговом плане счетов не найден 000 счет');
+               stop;abort;exit;
+         }
          if getfirst spkau where ((10174 == spkau.kodgrkau and 'НУ' == spkau.name)) = tsOK
              then _cKauNU   := spkau.nrec ;
          if _cKauNU = 0h {
@@ -2674,10 +2721,12 @@ cmCreateDocs: {
  _loop tFiles
    if SearchMarker(MyMarkerDocs, tFiles.nrec, mid)
    {
-      if tFiles.FlagErr = 2
-       {
-         Mylog('Файл ' +tFiles.cFile + ' содержит ошибки. Работа прекращена');
+      if tFiles.FlagErr = 2 {
+         Mylog('Файл ' +tFiles.cFile + ' содержит ошибки. Пропускаем');
         _isError := true;
+       }
+       else {
+         Mylog('Файл ' +tFiles.cFile + ' OK. Будет обработан');
        }
    }
 
@@ -2700,6 +2749,9 @@ cmCreateDocs: {
     ProcessText(_logFile, vfEscable or vfNewTitle or vfMacroSize, 'Протокол работы');
     rereadrecord(tntFiles_br);
     rereadrecord(tntInsertDocs6062_br);
+    rereadrecord(tntInsertDocs4110_br);
+    rereadrecord(tntInsertDocs019_br);
+    rereadrecord(tntInsertDocs020_br);
 }
 end;
 end.
