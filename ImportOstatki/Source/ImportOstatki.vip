@@ -1568,14 +1568,14 @@ procedure Insert_BS020;
        if getfirst katpodr where ((tInsertDocs020.podr_nrec == katpodr.nrec)) = tsOK
        {
         mylog('_loop tInsertDocs020 ');
+        var _NoDok : string = substr('сальдо 20 - ' + katpodr.kod,1,19);
          if getfirst plporNew where ((_wTiDkBS == plporNew.TiDk
                              and _dateOpr == plporNew.DatVip
-            and '20 СЧЕТ' == plporNew.NoDok (noindex)
-                         and katpodr.name == plporNew.NamePl1 (noindex)
+            and _NoDok == plporNew.NoDok (noindex)
                )) <> tsOK
                {
                   ClearBuffer(#PlPorNew);
-                  PlPorNew.NoDok    := '20 СЧЕТ';
+                  PlPorNew.NoDok    := _NoDok;
                   PlPorNew.TiDkGal  := cgDoc_0010;
                   PlPorNew.TiDk     := _wTiDkBS;
                   PlPorNew.Descr    := sGetTune('User.Descr');
@@ -1583,9 +1583,9 @@ procedure Insert_BS020;
                   PlPorNew.DatOb    := _dateOpr;
                   PlPorNew.DatVip   := _dateOpr;
                   PlPorNew.YearDoc  := Year(_dateOpr);
-                  PlPorNew.NamePl1  := katpodr.name;
+                  PlPorNew.NamePl1  := 'Сальдо по счету 20 - Подразделение ' +katpodr.name +  ' ' +katpodr.kod;
                   PlPorNew.Direct   := 0;
-                  PlPorNew.ModeDoc  := 1024;
+                  PlPorNew.ModeDoc  := 2048;
                   PlPorNew.cPlat    := cogettune('MYORG');
                   PlPorNew.cVal     := 0h;
                   PlPorNew.SumPlat  := 0;
@@ -1605,8 +1605,8 @@ procedure Insert_BS020;
          insert oborot set
             oborot.Descr     := sGetTune('User.Descr')
           , oborot.DesGr     := sGetTune('User.DesGr')
-          , oborot.TIDKGAL   := PlPor.TiDkGal
-          , oborot.TiDk      := PlPor.TiDk
+          , oborot.TIDKGAL   := PlPornew.TiDkGal
+          , oborot.TiDk      := PlPornew.TiDk
           , oborot.CSOPRDOC  := _cPLpor
           , oborot.CSOPRHOZ  := _cSoprHoz
           , oborot.CPLANSSCH := planschetBU.nrec
