@@ -1749,9 +1749,10 @@ procedure InsertPrihNaklOrderDoocenka;
                                                            and tInsertDocs4110.soprdSopr == katsopr.dSopr
                                                            and tInsertDocs4110.soprnSopr == katsopr.nSopr
                                     ))
-                and KatSopr.CDOGOVOR = if(tInsertDocs4110.isAktIzlishki <> 'TRUE',tInsertDocs4110.cDog,0h)
-                and KatSopr.cpodrto  = if(tInsertDocs4110.isAktIzlishki <> 'TRUE',0h, tInsertDocs4110.cskl)
-                and KatSopr.cmolto   = if(tInsertDocs4110.isAktIzlishki <> 'TRUE',0h, tInsertDocs4110.cmol)
+               and KatSopr.CDOGOVOR = if(tInsertDocs4110.isAktIzlishki <> 'TRUE',tInsertDocs4110.cDog,0h)
+// 20230621 Тоненькова сказала убрать склад и МОЛ
+//               and KatSopr.cpodrto  = if(tInsertDocs4110.isAktIzlishki <> 'TRUE',0h, tInsertDocs4110.cskl)
+//               and KatSopr.cmolto   = if(tInsertDocs4110.isAktIzlishki <> 'TRUE',0h, tInsertDocs4110.cmol)
             ) <> tsOK {
                                  var _cDog : comp = 0h;
                                  if tInsertDocs4110.isAktIzlishki <> 'TRUE'
