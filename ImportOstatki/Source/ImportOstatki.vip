@@ -1041,21 +1041,21 @@ MyLog('getmol _kod = ' + _kod);
 function getshifrzakaza(_shifrzakaza: string; _shifrzakaza_name : string = '') : comp;
 {
  result := 0h;
- if getfirst mnplan where ((     17 == mnplan.TYPEPLAN
+ if _shifrzakaza <> ''
+   if getfirst mnplan where ((     17 == mnplan.TYPEPLAN
                    and _shifrzakaza == mnplan.NUMBER (noindex) )) = tsOK {
                      result := mnplan.nrec;
+                     exit;
                    }
-   else
-     {
-       if _shifrzakaza_name <> ''
-       {
-         if getfirst mnplan where ((     17 == mnplan.TYPEPLAN
-                           and _shifrzakaza_name == mnplan.name (noindex) )) = tsOK {
-                              result := mnplan.nrec;
-                         }
-       }
-     }
-  }
+
+ if _shifrzakaza_name <> '' and result = 0h
+   {
+     if getfirst mnplan where ((     17 == mnplan.TYPEPLAN
+                       and _shifrzakaza_name == mnplan.name (noindex) )) = tsOK {
+                          result := mnplan.nrec;
+                     }
+   }
+}
 
 Procedure prtInsertDocs019(_nrow : longint; _file : string);
 {
