@@ -1652,8 +1652,6 @@ procedure Insert_BS020;
           oborot.kauKs[2]  := tInsertDocs020.statya_nrec;
           oborot.TBLKS[3]  := 7;
           oborot.kauKs[3]  := tInsertDocs020.zakaz_nrec;
-
-
         }
         var _log : string = '';
         _log := string(tInsertDocs020.filerow) + '|' + string(oborot.nrec, 0,0)+'|'+oborot.sumob;
@@ -1669,6 +1667,12 @@ procedure Insert_BS020;
                oborot.sumob     := tInsertDocs020.sum_NU_NU;
                Oborot.SCHETK    := _Schet000NU ;
                Oborot.KRSCHETK  := substr(_Schet000NU,2,100) ;
+               oborot.TBLKS[1]  := 0;
+               oborot.kauKs[1]  := 0h;
+               oborot.TBLKS[2]  := 0;
+               oborot.kauKs[2]  := 0h;
+               oborot.TBLKS[3]  := 0;
+               oborot.kauKs[3]  := 0h;
              insert current oborot;
              _log := _log + '|'+ string(oborot.nrec, 0,0)+'|'+oborot.sumob;
             }
@@ -1686,6 +1690,13 @@ procedure Insert_BS020;
                oborot.sumob     := tInsertDocs020.sum_NU_PR;
                Oborot.SCHETK    := _Schet000NU ;
                Oborot.KRSCHETK  := substr(_Schet000NU,2,100) ;
+               oborot.TBLKS[1]  := 0;
+               oborot.kauKs[1]  := 0h;
+               oborot.TBLKS[2]  := 0;
+               oborot.kauKs[2]  := 0h;
+               oborot.TBLKS[3]  := 0;
+               oborot.kauKs[3]  := 0h;
+
              insert current oborot;
              _log := _log + '|'+ string(oborot.nrec, 0,0)+'|'+oborot.sumob;
             }
@@ -1704,6 +1715,12 @@ procedure Insert_BS020;
                oborot.sumob     := tInsertDocs020.sum_NU_VR;
                Oborot.SCHETK    := _Schet000NU ;
                Oborot.KRSCHETK  := substr(_Schet000NU,2,100) ;
+               oborot.TBLKS[1]  := 0;
+               oborot.kauKs[1]  := 0h;
+               oborot.TBLKS[2]  := 0;
+               oborot.kauKs[2]  := 0h;
+               oborot.TBLKS[3]  := 0;
+               oborot.kauKs[3]  := 0h;
              insert current oborot;
              _log := _log + '|'+ string(oborot.nrec, 0,0)+'|'+oborot.sumob;
             }
