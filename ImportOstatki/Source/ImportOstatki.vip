@@ -12,6 +12,7 @@
 
 //************************************************************
 const
+ co_statya_calc = 'Общепроизводственные расходы';
 end;
 Interface ImportOstatki 'Импорт остатков. Факел';
 #include VarsTypes.var
@@ -175,6 +176,7 @@ Table Struct tInsertDocs020
   , sum_NU_NU   : double     //  сумма НУ НУ'
   , sum_NU_PR   : double   //  сумма НУ ПР'
   , sum_NU_VR   : double   //  сумма НУ ВР'
+  , Statya_calc  : string
 )
 with index
 (
@@ -471,6 +473,7 @@ PROCEdURE fillrecArrayByTypeTable(_type: byte);
         _recArray[_npp].def := 'сумма НУ НУ'                           ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
         _recArray[_npp].def := 'сумма НУ ПР'                           ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
         _recArray[_npp].def := 'сумма НУ ВР'                           ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
+        _recArray[_npp].def := 'Статья калькуляции'                    ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
      }
    end;
 }
@@ -1112,19 +1115,28 @@ function getOrgbyINN(_OrgInn : string) : comp;
   if getfirst KatOrg where (( _OrgInn == katorg.unn )) = tsOK
    result := KatOrg.nrec;
 }
+function getstatyaZatrat_obshcheproizv(_Statya_calc : string) : comp;
+{
+  result := 0h;
+  if (getfirst stzatr where upcase(_statya_calc) = upcase(stzatr.name)) = tsok
+     then result := stzatr.nrec
+
+}
+
 function getstatyaZatrat(_statya_kod, _statya_name : string) : comp;
 {
   result := 0h;
-  if getfirst stzatr where ((_statya_kod == stzatr.kod)) = tsOK
-   {
-     result := stzatr.nrec
-   }
-  else {
-    if getfirst stzatr where ((_statya_name == stzatr.name)) = tsOK
-     {
-       result := stzatr.nrec
-     }
-  }
+
+      if getfirst stzatr where ((_statya_kod == stzatr.kod)) = tsOK
+       {
+         result := stzatr.nrec
+       }
+      else {
+        if getfirst stzatr where ((_statya_name == stzatr.name)) = tsOK
+         {
+           result := stzatr.nrec
+         }
+      }
 }
 
 Procedure prtInsertDocs020(_nrow : longint; _file : string);
@@ -1155,6 +1167,7 @@ Procedure prtInsertDocs020(_nrow : longint; _file : string);
       Upcase( 'сумма НУ НУ'                           ) : tInsertDocs020.sum_NU_NU         := Double(replace(replace(Trim(_recArray[_i].value),',','.'),' ','')); //
       Upcase( 'сумма НУ ПР'                           ) : tInsertDocs020.sum_NU_PR         := Double(replace(replace(Trim(_recArray[_i].value),',','.'),' ','')); //
       Upcase( 'сумма НУ ВР'                           ) : tInsertDocs020.sum_NU_VR         := Double(replace(replace(Trim(_recArray[_i].value),',','.'),' ','')); //
+      Upcase( 'Статья калькуляции'                    ) : tInsertDocs020.Statya_calc       := Trim(_recArray[_i].value);
     end;
   }
 //   if tInsertBaseDocSP.cMc <> 0h
@@ -1560,6 +1573,7 @@ function getcreateparty(_Party_kod, _Party_name : string): comp;
 procedure Insert_BS020;
 {
   mylog('Procedure Insert_BS020 start ');
+  mylog('ROW|NREC Oborot BU| sum BU|NREC Oborot NU_NU| sum NU_NU|NREC Oborot NU_PR| sum NU_PR|NREC Oborot NU_VR| sum NU_VR');
    _loop tFiles where tFiles.FlagErr <> 2
     if SearchMarker(MyMarkerDocs, tFiles.nrec, mid)
       _loop tInsertDocs020 where ((tFiles.nrec == tInsertDocs020.ctFiles))
@@ -1619,57 +1633,84 @@ procedure Insert_BS020;
           , oborot.TBLOS[1]  := 2
           , oborot.kauos[1]  := tInsertDocs020.podr_nrec
           , oborot.TBLOS[2]  := 13
-          , oborot.kauos[2]  := tInsertDocs020.statya_nrec
+          , oborot.kauos[2]  := if(tInsertDocs020.statya_calc = co_statya_calc, getstatyaZatrat_obshcheproizv(tInsertDocs020.Statya_calc), tInsertDocs020.statya_nrec)
+
           , oborot.TBLOS[3]  := 7
           , oborot.kauos[3]  := tInsertDocs020.zakaz_nrec
+          , oborot.TBLOS[4]  := 10
+          , oborot.kauos[4]  :=  000B000000045D67h // значение по умолчанию 000B000000045D67h _001075 ЗНП_Нет партии
           , oborot.KODSPO    := getsklad('01') //подразделение с кодом <01> ОКБ <Факел>.
           , Oborot.SCHETK    := _Schet000BU
           , Oborot.KRSCHETK  := substr(_Schet000BU,2,100) ;
         ;
-        mylog('Создана проводка "Д'+oborot.SchetO+if(oborot.SUBOSSCH<> '' ,'.'+oborot.SUBOSSCH,'')+'" от ' + oborot.DatOb + ' на сумму ' + oborot.sumob);
+        if tInsertDocs020.statya_calc = co_statya_calc {
+          Oborot.SCHETK := planschetBU.kod+ '25';
+          Oborot.KRSCHETK := '25';
+          oborot.TBLKS[1]  := 2;
+          oborot.kauKs[1]  := tInsertDocs020.podr_nrec;
+          oborot.TBLKS[2]  := 13;
+          oborot.kauKs[2]  := tInsertDocs020.statya_nrec;
+          oborot.TBLKS[3]  := 7;
+          oborot.kauKs[3]  := tInsertDocs020.zakaz_nrec;
+
+
+        }
+        var _log : string = '';
+        _log := string(tInsertDocs020.filerow) + '|' + string(oborot.nrec, 0,0)+'|'+oborot.sumob;
         if getfirst buhschet where ((tInsertDocs020.cSchetNU == buhschet.nrec)) = tsOK {
             if tInsertDocs020.sum_NU_NU <> 0 {
                oborot.nrec      := 0h;
                oborot.SchetO    := buhschet.schet;
                oborot.SUBOSSCH  := buhschet.subsch;
                oborot.DBSCHETO  := substr(buhschet.schet,2,100);
-               oborot.CPLANSSCH := planschetNU.nrec
+               oborot.CPLANSSCH := planschetNU.nrec ;
                oborot.tblos[6]  := 10174;
                oborot.kauos[6]  := _cKauNU;
                oborot.sumob     := tInsertDocs020.sum_NU_NU;
                Oborot.SCHETK    := _Schet000NU ;
                Oborot.KRSCHETK  := substr(_Schet000NU,2,100) ;
              insert current oborot;
-             mylog('Создана проводка "Д'+oborot.SchetO+if(oborot.SUBOSSCH<> '' ,'.'+oborot.SUBOSSCH,'')+'" от ' + oborot.DatOb + ' на сумму ' + oborot.sumob);
+             _log := _log + '|'+ string(oborot.nrec, 0,0)+'|'+oborot.sumob;
+            }
+            else {
+             _log := _log + '| |';
             }
             if tInsertDocs020.sum_NU_PR <> 0 {
                oborot.nrec      := 0h;
                oborot.SchetO    := buhschet.schet;
                oborot.SUBOSSCH  := buhschet.subsch;
                oborot.DBSCHETO  := substr(buhschet.schet,2,100);
-               oborot.CPLANSSCH := planschetNU.nrec
+               oborot.CPLANSSCH := planschetNU.nrec ;
                oborot.tblos[6]  := 10174;
                oborot.kauos[6]  := _cKauPR;
                oborot.sumob     := tInsertDocs020.sum_NU_PR;
                Oborot.SCHETK    := _Schet000NU ;
                Oborot.KRSCHETK  := substr(_Schet000NU,2,100) ;
              insert current oborot;
-             mylog('Создана проводка "Д'+oborot.SchetO+if(oborot.SUBOSSCH<> '' ,'.'+oborot.SUBOSSCH,'')+'" от ' + oborot.DatOb + ' на сумму ' + oborot.sumob);
+             _log := _log + '|'+ string(oborot.nrec, 0,0)+'|'+oborot.sumob;
             }
+            else {
+             _log := _log + '| |';
+            }
+
             if tInsertDocs020.sum_NU_VR <> 0 {
                oborot.nrec      := 0h;
                oborot.SchetO    := buhschet.schet;
                oborot.SUBOSSCH  := buhschet.subsch;
                oborot.DBSCHETO  := substr(buhschet.schet,2,100);
-               oborot.CPLANSSCH := planschetNU.nrec
+               oborot.CPLANSSCH := planschetNU.nrec ;
                oborot.tblos[6]  := 10174;
                oborot.kauos[6]  := _cKauVR;
                oborot.sumob     := tInsertDocs020.sum_NU_VR;
                Oborot.SCHETK    := _Schet000NU ;
                Oborot.KRSCHETK  := substr(_Schet000NU,2,100) ;
              insert current oborot;
-             mylog('Создана проводка "Д'+oborot.SchetO+if(oborot.SUBOSSCH<> '' ,'.'+oborot.SUBOSSCH,'')+'" от ' + oborot.DatOb + ' на сумму ' + oborot.sumob);
+             _log := _log + '|'+ string(oborot.nrec, 0,0)+'|'+oborot.sumob;
             }
+            else {
+             _log := _log + '| |';
+            }
+
         }
        }
 }
@@ -2085,7 +2126,7 @@ Procedure CreateDocs019;
 }
 Procedure CreateDocs020;
 {
-  mylog('procedure CreateDocs020')
+  mylog('procedure CreateDocs020') ;
    StartNewVisual(vtIndicatorVisual,vfTimer,'Формирование документов',getmarkercount(MyMarkerDocs));
 
    Insert_BS020;
@@ -2288,6 +2329,7 @@ fields
   tInsertDocs020_br.sum_NU_NU    'сумма НУ','НУ' headerAlign = centered:protect,[4];
   tInsertDocs020_br.sum_NU_PR    'сумма НУ','ПР' headerAlign = centered:protect,[4];
   tInsertDocs020_br.sum_NU_VR    'сумма НУ','ВР' headerAlign = centered:protect,[4];
+  tInsertDocs020_br.Statya_calc  'Статья','калькуляции' headerAlign = centered:protect,[4];
   tInsertDocs020_br.descr      'Описание' headerAlign = centered:protect,[4];
 end;
 
@@ -2663,12 +2705,12 @@ cmCreateDocs: {
 
          _Schet000BU  := '';
          var _ctmp : comp = 0h;
-         _ctmp := getschet('000', _cplanschetBU)
+         _ctmp := getschet('000', _cplanschetBU) ;
          if getfirst BuhSchet where ((_ctmp == BuhSchet.nrec)) = tsOK {
-          mylog('getfirst BuhSchet where ((_ctmp == BuhSchet.nrec)) = tsok')
+          mylog('getfirst BuhSchet where ((_ctmp == BuhSchet.nrec)) = tsok') ;
           set _Schet000BU := buhschet.schet
          }
-         mylog('after if getfirst BuhSchet: _Schet000BU = ' + _Schet000BU)
+         mylog('after if getfirst BuhSchet: _Schet000BU = ' + _Schet000BU);
          if _Schet000BU = '' {
                message('в бухгалтерском плане счетов не найден 000 счет');
                stop;abort;exit;
@@ -2679,7 +2721,7 @@ cmCreateDocs: {
          if getfirst BuhSchet where ((_ctmp == BuhSchet.nrec)) = tsOK {
           _Schet000NU := buhschet.schet
          }
-           mylog('after if getfirst BuhSchet: _Schet000NU = ' + _Schet000BU)
+           mylog('after if getfirst BuhSchet: _Schet000NU = ' + _Schet000BU) ;
          if _Schet000NU = '' {
                message('в налоговом плане счетов не найден 000 счет');
                stop;abort;exit;
