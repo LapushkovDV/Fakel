@@ -1727,11 +1727,9 @@ procedure Insert_BS020;
             else {
              _log := _log + '| |';
             }
-
         }
        }
 }
-
 
 procedure Insert_prihodSFO;
 {
