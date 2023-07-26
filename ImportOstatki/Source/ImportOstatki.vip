@@ -2060,7 +2060,7 @@ procedure InsertPrihNaklOrderDoocenka;
                mylog('sumTZR = '+tInsertDocs4110.sumTZR);
                mylog('SumWithoutVat = '+tInsertDocs4110.SumWithoutVat);
 
-              if tInsertDocs4110.sumTZR <> 0 and tInsertDocs4110.sumTZR - tInsertDocs4110.SumWithoutVat > 0 { // дооценочные ордера делать надо
+              if tInsertDocs4110.sumTZR <> 0 and tInsertDocs4110.sumTZR - tInsertDocs4110.SumWithoutVat <> 0 { // окаывается что на факеле сумма с ТЗР может быть меньше суммы без НДС дооценочные ордера делать надо
                 if getfirst sklorder where ((      0 == sklorder.sp
                             and tInsertDocs4110.cskl == sklorder.CPODR
                             and tInsertDocs4110.cmol == sklorder.CMOL
