@@ -1,0 +1,512 @@
+//********************************************************************************
+//                                                        (c) корпорация Галактика
+// Галактика 7.12 - Настройка
+// Замена КАУ(Объединение счетов)
+//********************************************************************************
+
+#include Getkau.vih
+#include ShowKau.vpp
+#include Contexts.vih  // Контексты
+
+#doc
+<brief>
+  Интерфейс реализует замену аналитик.
+</brief><br>
+  Используется в объединении счетов.
+#end
+
+Interface ZamTab 'Замена аналитики' ('Замена аналитики', hcNastrIAdmServLinkBuhSchZamKAU, sci1Esc) EscClose, Cyan;
+show at (,,,);
+
+#include ServKau.vih   // Регистрация контекста
+
+  table struct TmpZamTab (nRec : comp, KodTable : word, cItem : comp, KodTable2 : word, cItem2 : comp)
+  with index
+  ( TmpZamTab00 = nRec (Unique, Surrogate, Journal),
+    TmpZamTab01 = KodTable + cItem,
+    TmpZamTab02 = KodTable2 + cItem2,
+    TmpZamTab03 = KodTable,
+    TmpZamTab04 = KodTable2,
+    TmpZamTab05 = KodTable + KodTable2 + cItem,
+    TmpZamTab06 = KodTable2+nRec
+     );
+
+  Table Struct TmpKauOld (nRec : comp, Level : word, KodGroup : word)
+  with index
+  ( TmpKauOld00 = nRec (Unique, Surrogate, Journal),
+    TmpKauOld01 = KodGroup,
+    TmpKauOld02 = nRec + KodGroup,
+    TmpKauOld03 = Level
+  );
+
+  Table Struct TmpKauNew (nRec : comp, Level : word, KodGroup : word, cKauOld : comp, cKaudef : comp, cOper : comp)
+  with index
+  ( TmpKauNew00 = nRec (Unique, Surrogate, Journal),
+    TmpKauNew01 = KodGroup,
+    TmpKauNew02 = cKauOld,
+    TmpKauNew03 = Level,
+    TmpKauNew04 = cKaudef
+  );
+
+  Table Struct TmpOper (nRec : comp, KodOper : word, Name : string[30])
+  with index
+  (
+    TmpOper00 = nRec (Unique, Surrogate, Journal),
+    TmpOper01 = KodOper
+  );
+
+#include GetKau.var
+
+Create View vwZamKau
+var
+   tmpnRec : comp;
+   nMarkers : string[30];
+   i:integer;
+as select
+      *
+from
+      JoiHead,
+      SpJoi,
+      BuhSchet,
+      KatKau,
+      ZamTab,
+      ZamKau,
+      ReplKau,
+      SReplKau,
+      RazdSch,
+      TmpZamTab(memory),
+      TmpKauNew,
+      TmpKauOld(memory),
+      tmpOper(memory),
+      synonym BuhSchet SpBuhSchet,
+      synonym KatKau KatKau1,
+      synonym KatKau KatKau2,
+      synonym KatKau KatKau3,
+      synonym KatKau SpKatKau1,
+      synonym KatKau SpKatKau2,
+      synonym KatKau SpKatKau3,
+      synonym KatKau KatKau4,
+      synonym KatKau KatKau5,
+      synonym KatKau KatKau6,
+      synonym KatKau SpKatKau4,
+      synonym KatKau SpKatKau5,
+      synonym KatKau SpKatKau6,
+      synonym KatKau KatKauOld,
+      synonym KatKau KatKauOld2,
+      synonym KatKau KatKauNew,
+      synonym TmpKauOld TmpKauOld2,
+      synonym TmpOper TmpOper2,
+      synonym TmpOper TmpOper3,
+      synonym TmpKauNew TmpKauNew2,
+      synonym TmpZamTab TmpZamTab2
+where
+      ((
+         tmpnRec                  ==             SpJoi.nRec and
+         SpJoi.cJoiHead           ==           JoiHead.nRec and
+         JoiHead.cRec             ==          BuhSchet.nRec and
+         SpJoi.cRec               ==        SpBuhSchet.nRec and
+         BuhSchet.KodTable[1]     ==       KatKau1.KodGroup and   //
+         BuhSchet.KodTable[2]     ==       KatKau2.KodGroup and   //
+         BuhSchet.KodTable[3]     ==       KatKau3.KodGroup and   // Аналитика для заголовка объединения
+         BuhSchet.KodTable[4]     ==       KatKau4.KodGroup and   //
+         BuhSchet.KodTable[5]     ==       KatKau5.KodGroup and   //
+         BuhSchet.KodTable[6]     ==       KatKau6.KodGroup and   // Аналитика для заголовка объединения
+
+         SpBuhSchet.KodTable[1]   ==     SpKatKau1.KodGroup and   //
+         SpBuhSchet.KodTable[2]   ==     SpKatKau2.KodGroup and   //
+         SpBuhSchet.KodTable[3]   ==     SpKatKau3.KodGroup and   // Аналитика для спецификации объединения
+         SpBuhSchet.KodTable[4]   ==     SpKatKau4.KodGroup and   //
+         SpBuhSchet.KodTable[5]   ==     SpKatKau5.KodGroup and   //
+         SpBuhSchet.KodTable[6]   ==     SpKatKau6.KodGroup and   // Аналитика для спецификации объединения
+
+         TmpKauNew.cKauOld        ==         TmpKauOld.nRec and
+         TmpKauNew.kodGroup       ==     KatKauNew.KodGroup and
+         TmpKauOld.KodGroup       ==     KatKauOld.KodGroup and
+         TmpKauOld2.KodGroup      ==     KatKauOld2.KodGroup and
+         TmpKauOld.KodGroup       ==     TmpZamTab.KodTable and
+         TmpKauNew.KodGroup       ==     TmpZamTab.KodTable2 and
+         TmpKauNew.cOper          ==           TmpOper.nRec and
+         SpJoi.CRec               ==     RazdSch.cSch
+      ))
+Bounds OpOperAllToOne = OPER_ALLTOONE == TmpOper2.KodOper
+bounds OpAll = OPER_NOOPER << TmpOper2.KodOper
+bounds OpZam = OPER_NOOPER << TmpOper2.KodOper and OPER_DELETE >> TmpOper2.KodOper;
+parameters
+   tmpnRec;
+
+browse brKau;
+show at (,,,5);
+table TmpKauNew;
+fields
+     KatKauNew.Name 'Новая аналитика' : [30],protect;
+     KatKauOld.Name 'Старая аналитика' ('Старый КАУ',hcNastrIAdmServLinkBuhSchZamKAU
+                                  ,sci13Esc): [30],Protect;
+     TmpOper.Name 'Операция' ('Старый КАУ',hcNastrIAdmServLinkBuhSchZamKAU,sci13Esc): [30],Protect;
+     [fKauOther] #ShowKau(TmpKauNew.KodGroup,tmpKauNew.cKaudef)
+                 'Значение аналитики по умолчанию' ('Значение по умолчанию',,sci13Esc):[20],protect;
+end;//browse brKau
+
+browse brZam;
+show at (,6,,19);
+Table TmpZamTab;
+fields
+      [fKauNew] #ShowKau(tmpZamTab.KodTable2,TmpZamTab.cItem2) 'Новый элемент' ('Новый элемент',,sci13Esc):[45],protect;
+      [fKauOld] #ShowKau(tmpZamTab.KodTable,TmpZamTab.cItem) 'Старый элемент' ('Старый элемент',,sci1Esc):[45],protect;
+end;//browse brZam
+
+screen scrButtons;
+show at (,20,,);
+buttons
+  cmOk;
+  cmCancel;
+  cmValue2;
+  cmValue1;
+<<
+  <. ~П~ринять .> <. ~О~тмена .> <.Шаблон замены Аналитик.> <. Настройка разделения.>
+>>
+end;//screen scrButtons
+
+#include ZamTab.vpp
+TableEvent Table TmpZamTab;
+cmSetDefault :
+{
+  TmpZamTab.KodTable2 := TmpKauNew.KodGroup;
+  TmpZamTab.KodTable := TmpKauOld.KodGroup;
+}
+
+cmUpdateRecord :
+{
+  update current TmpZamTab;
+}
+end;
+
+TableEvent Table TmpKauNew;
+cmCheckRecord :
+{
+  if (   (TmpOper.KodOper = OPER_ALLTOONE)
+      and (TmpKauNew.cKaudef = 0))
+  {
+    Message('Не указано значение аналитики по умолчанию.');
+    SelectField(#fKauOther);
+    abort;
+  }
+
+  if (    (TmpOper.KodOper >= OPER_DELETE)
+      and (TmpOper.KodOper <= OPER_PERENOS)
+      and (TmpKauNew.cKaudef <> 0))
+  {
+    Message('Для данных операций не должно быть задано значение аналитики по умолчанию.');
+    SelectField(#fKauOther);
+    abort;
+  }
+
+  if (   (    (TmpKauNew.cKauOld = 0)
+          and (TmpKauNew.cOper = 0)
+          and (TmpKauNew.cKaudef <> 0))
+      or (    (TmpKauNew.cKauOld <> 0)
+          and (TmpKauNew.cOper = 0)))
+  {
+    Message('Не указана операция.');
+    SelectField(#TmpOper.Name);
+    abort;
+  }
+
+}
+
+cmUpdateRecord :
+{
+  update current TmpKauNew;
+  SetStLine(tmpKauNew.Nrec);
+  ReDrawPanel(#TmpKauNew);
+  ReReadRecord(#TmpZamTab);
+}
+
+cmPositionChanged:
+{
+  SetStLine(tmpKauNew.Nrec);
+  ReReadRecord(#TmpZamTab);
+}
+end;
+
+HandleEvent//interface ZamTab
+cmValue1:
+{
+  RunInterface('RazdKau',SpJoi.nRec);
+}
+
+cmValue2:
+{
+  RunInterface('ReplaceKau',TmpKauOld.KodGroup,TmpKauNew.KodGroup,0);
+}
+
+cmOk:
+{
+  StoreLinkFromTmpToDb;
+  CloseInterface(cmDefault);
+}
+
+cmCancel:
+{
+  if (Message('По умолчанию аналитики объединяемого счета будут удалены.'+
+               chr(13)+'Выйти без сохранения?',warning+YesNo+mfSwapButtons)<>Yes)
+               {
+                 abort;
+               }
+}
+
+cmInit:
+{
+  if not(isValid(tnSpJoi))
+  {
+    abort;
+    exit;
+  }
+
+  if (IsValid(tnRazdSch)) ShowButton(scrButtons,cmValue1,true)
+  else                    ShowButton(scrButtons,cmValue1,false);
+
+  // добавление списка возможных старых аналитики, новых аналитик объединяемых счетов
+  // и списка операция
+  AddListOldKauNewKauOperation;
+  // восстановление связей соответствия
+  if (GetFirst ZamTab where ((SpJoi.nRec == ZamTab.cSpJoi)) = tsOk) StoreLinkFromDBToTmp;
+  else
+  {
+    // код в момент cmInsert нового соответствия в объединение иначе будет браться настроенное ранее из БД
+    _loop TmpKauNew2
+    {
+      if (GetFirst TmpKauOld2 where ((TmpKauNew2.KodGroup == TmpKauOld2.KodGroup)) = tsOk)
+      {
+        TmpKauNew2.cKauOld := TmpKauOld2.Nrec;
+        if (TmpKauOld2.Level = TmpKauNew2.Level)
+        {
+          if (GetFirst TmpOper where ((OPER_PERENOS == TmpOper.KodOper)) = tsOk)
+            TmpKauNew2.cOper := TmpOper.Nrec;
+        }
+        else
+        {
+          if (GetFirst TmpOper where ((OPER_CHLEVEL == TmpOper.KodOper)) = tsOk)
+            TmpKauNew2.cOper := TmpOper.Nrec;
+        }
+        update current TmpKauNew2;
+      }
+    }
+  }
+}
+
+cmDelOnProtect:
+{
+  case CurField of
+  #KatKauOld.Name :
+  {
+    if (TmpKauNew.cKauOld = 0) exit; // не надо ничего не делать, если не была указана аналитика
+
+    delete all tmpZamTab where ((    tmpkauOld.KodGroup == tmpZamTab.KodTable
+                                 and tmpKauNew.KodGroup == tmpZamTab.KodTable2));
+    set TmpKauNew.cKauOld := 0;
+    set TmpKauNew.cKauDef := 0;
+    set TmpKauNew.cOper   := 0;
+  }
+  #fKauOld :
+  {
+    delete current TmpZamTab;
+    ReReadRecord(#TmpZamTab);
+  }
+  #fKauNew      : set TmpZamTab.cItem2 := 0;
+  #TmpOper.Name : set TmpKauNew.cOper   := 0;
+  #fKauOther    : set TmpKauNew.cKauDef   := 0;
+  else abort;
+  end;
+}
+
+cmPick:
+{
+  var tmpnrec : comp;
+  case CurField of
+  #fKauOther:
+  {
+    if (iGetKau.GetCodeKau(cgiPick, TmpKauNew.KodGroup, tmpnrec) <> 0)
+      set TmpKauNew.cKauDef := tmpnrec;
+  }
+  #TmpOper.Name:
+  {
+    if (Not(IsValid(tnTmpKauOld)))
+    {
+      // устанавливаем выбор только одного значения
+      PushBounds(tbOpOperAllToOne);
+      if (RunWindowModal(SelOper) <> cmCancel)
+        set TmpKauNew.cOper := TmpOper2.nRec;
+      PopBounds(tbOpOperAllToOne);
+    }
+    else
+    {
+      if (   ((tmpKauNew.cKauOld = 0) and (TmpOper.KodOper = OPER_ALLTOONE))
+          or (TmpOper.KodOper = OPER_CHLEVEL)
+          or (TmpOper.KodOper = OPER_PERENOS)) exit;
+
+      PushBounds(tbOpZam);
+      if (RunWindowModal(SelOper) <> cmCancel)
+      {
+        if ((TmpOper.KodOper = OPER_ZAMTAB) and (TmpOper2.KodOper = OPER_ALLTOONE))
+          if (Message('Замена операции приведет к потере текущей' +
+                      chr(13) + 'настройки. Хотите продолжить?',
+                      warning + YesNo + mfSwapButtons) = No)
+          {
+            abort;exit;
+          }
+          else
+          {
+            delete all tmpZamTab where ((    tmpkauOld.KodGroup == tmpZamTab.KodTable
+                                         and tmpKauNew.KodGroup == tmpZamTab.KodTable2));
+          }
+        set TmpKauNew.cOper := TmpOper2.nRec;
+        if (TmpOper2.KodOper <> OPER_ALLTOONE) and (TmpOper2.KodOper <> OPER_ZAMTAB)
+          set TmpKauNew.cKaudef := 0;
+      }
+      PopBounds(tbOpZam);
+    }
+  }
+  #KatKauOld.Name:
+  {
+    if (not IsValid(#tmpKauNew)) exit;
+
+    if (RunWindowModal(SelKau) <> cmCancel)
+    {
+      tmpnrec := TmpKauNew.cKauOld;
+      set TmpKauNew.cKauOld := TmpKauOld2.nRec;
+      if (TmpKauNew.KodGroup = TmpKauOld2.KodGroup)
+      {
+        if (    (tmpnrec <> tmpKauOld2.Nrec)
+            and (tmpOper.KodOper = OPER_ZAMTAB))
+          if (Message('Замена операции приведет к потере текущей' +
+                      chr(13)+'настройки. Хотите продолжить?',
+                      warning+YesNo+mfSwapButtons) = No)
+          {
+            abort;exit;
+          }
+          else
+          { // очистили таблицу замен при смене настройки соответствия
+            delete all tmpZamTab where ((    tmpkauOld.KodGroup == tmpZamTab.KodTable
+                                         and tmpKauNew.KodGroup == tmpZamTab.KodTable2))
+          }
+        set tmpKauNew.ckaudef := 0;
+        // присваивание операции смена уровня либо перенос ибо выбраны одинаковые аналитики
+        var wKodOper : word; wKodOper := OPER_CHLEVEL;
+        if (TmpKauNew.Level = TmpKauOld2.Level) wKodOper := OPER_PERENOS;
+        if (GetFirst TmpOper2 where ((wKodOper == TmpOper2.KodOper)) = tsOk)
+          set TmpKauNew.cOper := TmpOper2.nRec;
+      }
+      else
+      {
+        PushBounds(tbOpZam);
+        if(RunWindowModal(SelOper) <> cmCancel)
+        {
+          set TmpKauNew.cOper := TmpOper2.nRec;
+          if (tmpnrec = 0)
+          {
+            ReadShablonKau(tmpkauOld2.KodGroup, tmpKauNew.KodGroup, TmpOper2.KodOper);
+            UpdateTable;
+          }
+          else if (tmpKauNew.cKauOld <> tmpKauOld2.Nrec)
+            delete all tmpZamTab where ((    tmpKauOld2.KodGroup == tmpZamTab.KodTable
+                                         and tmpKauNew.KodGroup  == tmpZamTab.KodTable2))
+        }
+        PopBounds(tbOpZam);
+      }
+      RereadRecord(#TmpZamTab);
+    }
+  }
+  // Новый элемент в таблице замен
+  #fKauNew :
+  {
+    if (isValid(tnTmpZamTab))
+    {
+      if (iGetKau.GetCodeKau(cgiPick,TmpZamTab.KodTable2,tmpnrec) <> 0)
+        set TmpZamTab.cItem2:=tmpnrec;
+    }
+  }
+  end;
+}
+cmInsert:
+{
+  case CurField of
+  #fKauOld:
+  {
+    updatetable;// пр. 102.89664 (не было события, вызывающего insert для пердыдущего выбора)
+    if iGetKau.GetCodeKau(cgiPickMult, tmpKauOld.KodGroup, tmpZamTab.cItem) <> 0
+    {
+      var UnikMarker : TPtr;
+      var cRec : Comp;
+      nMarkers := '';
+      nMarkers := iGetKau.GetMarkerName(tmpKauOld.KodGroup);
+      UnikMarker := InitMarker(nMarkers,8,200,100,false);
+      FOR (i := 0; i <= GetMarkerCount(UnikMarker)-1; i:=i+1)
+      {
+        GetMarker(UnikMarker, i, cRec);
+        If (GetFirst tmpZamTab where ((    tmpKauOld.KodGroup == tmpZamTab.KodTable
+                                       and tmpKauNew.KodGroup == tmpZamTab.KodTable2
+                                       and cRec               == tmpZamTab.cItem)) <> tsOk)
+        {
+          clearbuffer(#tmpZamTab);
+          tmpZamTab.cItem := cRec;
+          tmpZamTab.KodTable := tmpKauOld.KodGroup;
+          tmpZamTab.KodTable2 := tmpKauNew.KodGroup;
+          insert current tmpZamTab;
+        }
+      }
+      clearmarker(unikMarker);
+      donemarker(unikMarker, nMarkers);
+    }
+    rereadRecord(#tmpZamTab);
+    abort;
+  }
+  end;
+}
+cmHotKeys : PutHotCommand(RunMenu('ZamTab_HotKeys_Shablon'));
+
+cmValue3:
+{
+  if (not IsValid(tntmpKauNew))
+  {
+    message('Не задана новая группа аналитики');
+    exit;
+  }
+
+  if (not isValid(tntmpKauOld))
+  {
+    message('Не задана старая группа аналитики');
+    exit;
+  }
+
+  if (tmpKauNew.KodGroup = tmpkauOld.KodGroup)
+  {
+    message('Для одинаковых групп шаблон не создается');
+    exit;
+  }
+
+  ReadShablonKau(tmpkauOld.KodGroup, tmpKauNew.KodGroup,
+                 if (IsValid(tnTmpOper), TmpOper.KodOper, OPER_ALLTOONE));
+  RereadRecord(#tmpKauNew);
+  Rereadrecord(#tmpKauOld);
+  RereadRecord(#tmpZamtab);
+}
+
+cmDelete:
+{
+  if (CurField()=#fKauOld)
+  {
+    delete current TmpZamTab;
+    ReReadRecord(#TmpZamTab);
+  }
+}
+cmDone:
+{
+}
+end;//handleevent interface ZamTab
+end.
+ZamTab_HotKeys_Shablon Menu
+{
+- 'Шаблон замены аналитик', cmValue3, 'Шаблон замены аналитик',
+  hcNastrLocMAdmServLinkBuhSchShabKAU
+ ,,,sci1Esc;
+}

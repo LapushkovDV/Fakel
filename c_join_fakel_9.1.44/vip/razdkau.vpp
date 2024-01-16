@@ -1,0 +1,190 @@
+Function KauToSchet(KodGr : word):comp;
+{
+  var i : integer;
+  i := 0;
+  KauToSchet := 0;
+  _loop tmpSchet 
+  {
+    if tmpSchet.cdefault = 0 
+      if (GetFirst ZamTab where ((tmpSchet.cRecSpJoi == ZamTab.cSpJoi and
+                                  KodGr              == ZamTab.TableOld and
+                                  100                == ZamTab.LevelOld)) = tsOk)
+      {
+        _loop ZamKau where ((ZamTab.NRec == ZamKau.cZamTab)) 
+        {
+          clearbuffer(#tmpZamTab);
+          tmpZamTab.cItem := ZamKau.KodOld;
+          tmpZamTab.KodTable := KodGr;
+          tmpZamTab.cItem2 := tmpSchet.cRec;
+          tmpZamTab.Name := #ShowKau(KodGr,ZamKau.KodOld);
+          insert current tmpZamTab;
+        }
+      }
+  }
+}
+
+procedure InitKAu;
+{
+ if not(isValid(tnSpBuhSchet))
+  {
+    abort;
+    stop;
+    exit;
+  }
+    if isValid(tnSpKatKau1)
+  {
+    ClearBuffer(#TmpKau);
+    TmpKau.KodGroup := SpKatKau1.KodGroup;
+    insert current TmpKau;
+  }
+  if isValid(tnSpKatKau2)
+  {
+    ClearBuffer(#TmpKau);
+    TmpKau.KodGroup := SpKatKau2.KodGroup;
+    insert current TmpKau;
+  }
+  if isValid(tnSpKatKau3)
+  {
+    ClearBuffer(#TmpKau);
+    TmpKau.KodGroup := SpKatKau3.KodGroup;
+    insert current TmpKau;
+  }
+  if isValid(tnSpKatKau4)
+  {
+    ClearBuffer(#TmpKau);
+    TmpKau.KodGroup := SpKatKau4.KodGroup;
+    insert current TmpKau;
+  }
+  if isValid(tnSpKatKau5)
+  {
+    ClearBuffer(#TmpKau);
+    TmpKau.KodGroup := SpKatKau5.KodGroup;
+    insert current TmpKau;
+  }
+  if isValid(tnSpKatKau6)
+  {
+    ClearBuffer(#TmpKau);
+    TmpKau.KodGroup := SpKatKau6.KodGroup;
+    insert current TmpKau;
+  }
+}
+
+function InitSchet(Nrec : Comp) : boolean;
+{ 
+  InitSchet := false;
+  delete all tmpSchet2;
+  If (GetFirst TmpSpJoi where ((Nrec == TmpSpJoi.Nrec)) = tsOk)
+  {
+    var SpSchet : comp;
+    SpSchet := SpJoi.cRec;
+//счет по умолчанию
+    if (GetFirst TmpSpJoi where ((SpSchet  == TmpSpJoi.cRec(noindex) and
+                                  word(22) == TmpSpJoi.rWord(noindex))) = tsOk)
+    {   
+      if (GetFirst tmpJoiHead where ((TmpspJoi.cJoiHead == TmpJoiHead.Nrec)) = tsOk)
+      { 
+        clearbuffer(#tmpSchet);
+        tmpSchet.cRec := tmpJoiHead.cRec;
+        tmpSchet.cRecSpJoi := TmpSpJoi.Nrec;
+        tmpSchet.cdefault := 1
+        insert current TmpSchet;  
+        tmpdefschet:= tmpSchet.nrec;
+        tmpanalitika := tmpSpJoi.rComp;
+      }
+    }
+
+    _loop TmpSpJoi where ((SpSchet  == TmpSpJoi.cRec(noindex) and
+                           word(21) == TmpSpJoi.rWord(noindex)))
+    {
+      if (GetFirst tmpJoiHead where ((TmpspJoi.cJoiHead == TmpJoiHead.Nrec)) = tsOk)
+      {
+        clearbuffer(#tmpSchet);
+        tmpSchet.cRec := tmpJoiHead.cRec;
+        tmpSchet.cdefault := 0;
+        tmpSchet.cRecSpJoi := TmpSpJoi.Nrec;
+        insert current TmpSchet;  
+      }
+    }
+    RereadRecord(#tmpSchet)
+  }
+  if RecordsInTable(#tmpSchet)<=1 
+    message('Счет разделяется на один счет, что означает операцию объединение');
+  else
+    InitSchet := true;
+}
+
+function CheckFull:boolean;
+{
+  CheckFull := true;
+  _loop tmpSchet2
+  {
+    if tmpSchet2.cdefault = 0
+      if (GetFirst tmpZamTab2 where ((tmpSchet2.cRec == tmpZamTab2.cItem2))<>tsOk)
+      {
+        CheckFull := false;
+        if TmpBuhSchet2.SubSch = ''
+          Message('Для счета (субсчета)'+TmpBuhSchet2.Schet+
+                  'не задано соответствие');
+        else
+          Message('Для счета (субсчета)'+TmpBuhSchet2.Schet+'.'+TmpBuhSchet2.SubSch+
+                  'не задано соответствие');
+        Break;
+      }
+  }
+}
+
+procedure SaveAndExit;
+{
+  if CheckFull = false 
+    Exit;
+
+  _loop tmpSchet2 
+  {
+    if (GetFirst tmpSpJoi where ((tmpSchet2.cRecSpJoi == tmpSpJoi.NRec))=tsOk)
+    {
+      delete all ZamTab where ((tmpSchet2.cRecSpJoi == ZamTab.cSpJoi (noindex)and
+                                word(101)           == ZamTab.LevelOld (noindex)))
+//добавили или отредактировали запись ZamTab
+      if (GetFirst ZamTab where ((tmpSchet2.cRecSpJoi == ZamTab.cSpJoi (noindex)and
+                                  100                 == ZamTab.LevelOld (noindex))) = tsOk)
+      {
+        delete all ZamKau where ((ZamTab.NRec == ZamKau.cZamTab))
+        ZamTab.Tableold := tmpKau2.KodGroup;
+      }
+      else 
+      {
+        clearbuffer(#ZamTab);
+        ZamTab.cSpJoi := tmpSpJoi.Nrec;
+        ZamTab.Levelold := 100;
+        ZamTab.LevelNew := 0;
+        ZamTab.Tableold := tmpKau2.KodGroup;
+        ZamTab.TableNew := 0; 
+        insert current ZamTab;
+      }
+//добавили список значений в ZamKau
+      _loop TmpZamTab1 where ((tmpSchet2.cRec == TmpZamTab1.cItem2))
+      {
+        clearbuffer(#ZamKau);
+        ZamKau.cZamTab :=  ZamTab.NRec;
+        ZamKau.KodOld := TmpZamTab1.cItem;
+        ZamKau.KodNew := 0;
+        insert current ZamKau;
+      }
+//добавили запись для определения счета по умолчанию 
+//на это пошли потомучто если я здесь делаю update tmpSpJoi 
+//то происходит перекрытие одной и той же записи в разных интерфейсах
+      if tmpSchet2.cdefault = 1
+      {
+        clearbuffer(#ZamTab);
+        ZamTab.cSpJoi := tmpSchet2.cRecSpJoi;
+        ZamTab.Levelold := 101;
+        ZamTab.LevelNew := 0;
+        ZamTab.Tableold := tmpKau2.KodGroup;
+        ZamTab.TableNew := 0; 
+        insert current ZamTab;
+      }
+    }
+  } 
+  CloseInterface(cmDefault);
+}
+

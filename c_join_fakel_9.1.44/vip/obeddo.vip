@@ -1,0 +1,724 @@
+//******************************************************************************
+//                                                      (c) корпорация Галактика
+// Галактика 7.12 - Сервисные функции
+// Объединение групп ДО
+//******************************************************************************
+#include marker.vih // описание объекта и объявление интерфейса
+                    // marker c реализацией по умолчанию
+
+#include exectime.dic  // таблица  для хранения результатов по времени объединения
+#include filial_macro.vpp// макросы для обработки филиальности
+#include MacOb.vpp //макросы (для таблиц, не содержащих кау, и общие)
+#define UseGetMarkerMy
+
+#doc
+Объединение групп ДО
+#end
+Interface JoinDoGroups 'Объединение групп ДО' ('Объединение групп ДО', hcNastrAdmWOb, sci1Esc) EscClose, Cyan;
+  Show at (, , 110, 25);
+
+const
+  lMsgOdebdifferenceUser = 'Этим объединением занимается другой пользователь.';
+  lFilterByUserOb  = 'FilterByUserObDO';
+  lNeedZarRunOb    = 'NeedZarRunObDO';
+  lCheckTimeObedRepOb = 'CheckTimeObedRepObDO';
+  lNotDefine = 'Удаленная группа ДО';
+  lPickConst = 4;
+end;
+
+
+Create view
+#INCLUDE obed.var //объявление переменных
+//------------------------------------------------------------------------------
+  TuneSumma
+, TuneDate
+, TuneContrAgent
+//------------------------------------------------------------------------------
+, wMode_t
+, wTitl_t
+, wCurFrmt_t
+, WatClInt_t
+                : word;
+As select
+  #Strorka_sObName(GroupSch,lNotDefine,Name)
+//-------------------------------------------------------------------------------
+  #Strorka_sOb1Name(GroupSch1,lNotDefine,Name)
+//-------------------------------------------------------------------------------
+  , if(IsValid(tnKlVal), KlVal.simvolV, '')   ( FieldName = SymVal )
+//-------------------------------------------------------------------------------
+  , if(IsValid(tnKlVal1), KlVal1.simvolV, '') ( FieldName = SymVal1 )
+//-------------------------------------------------------------------------------
+  , if(IsValid(tnKatOrg), KatOrg.Name, '')    ( FieldName = Contr )
+//-------------------------------------------------------------------------------
+  , if(IsValid(tnKatOrg1), KatOrg1.Name, '')  ( FieldName = Contr1 )
+//-------------------------------------------------------------------------------
+  #InternalFieldsForShowFilial
+  , *
+From
+   ExecTime
+ , JoiHead
+ , SpJoi
+ , KatOrg
+ , GroupSch
+  #TableForFilial
+ , KlVal
+ , JoiHead tmpJoiHead
+ , SpJoi tmpSpJoi
+ , KatOrg KatOrg1
+ , GroupSch tmpGroupSch
+ , GroupSch GroupSch1
+ , KlVal KlVal1
+ , Pick, SpGrSch, SpGrSch SpGrSchSyn
+// таблицы перечисленны, чтобы работала функция RecordsInTable
+#include iTable.vpp
+where
+((
+       m_wCgObedValue == JoiHead.TypeEvent  // Группа ДО
+  AND  JoiHead.cRec     == GroupSch.NRec      // Объединение - группа ДО
+  AND  GroupSch.cVal    == KlVal.NRec         // Группа ДО - Валюта
+  AND  GroupSch.cOrg    == KatOrg.NRec        // Группа ДО - контрагент
+  AND  JoiHead.NRec     == SpJoi.cJoiHead     // Объединение - спецификация
+  AND  SpJoi.cRec       == GroupSch1.NRec     // Спецификация - ДО
+  AND  GroupSch1.cVal   == KlVal1.NRec        // Группа ДО - Валюта
+  AND  GroupSch1.cOrg   == KatOrg1.NRec       // Группа ДО - контрагент
+  AND  lPickConst       == Pick.wList         // для множественного выбора ДО в нижнию панель
+  #WhereForFilial
+))
+
+//******************************************************************************
+
+Bounds OnlyUser = m_wCgObedValue == JoiHead.TypeEvent AND UserName() == JoiHead.UserName;
+
+//******************************************************************************
+
+Form frmObedAll('obedGrDO.out' , 'obedAll')   with NoVisual;
+Form ErrObAll  ('ErrObGrDo.OUT', 'ErrObAll')  with NoVisual;
+Form TimeObAll ('TimeObDO.OUT' , 'TimeObAll') with NoVisual;
+
+//******************************************************************************
+var
+  m_pMarkerUp   : IMarker(marker) new;
+
+Procedure ObBreak;  // Прерывание объединения
+var
+  lcount_out : longint;
+{
+  lcount_out := VisualCount();
+  message('Для прекращения объединения придется'
+          + chr(13) + 'подождать до окончания замены на'
+          + chr(13) + '"' + trim (tmpGroupSch.Name) + '".', Information + OkButton);
+
+  ReStartVisual('Идет замещение организации на'#13'' + '"' + trim(tmpGroupSch.Name)
+                +'"' + ''#13'', m_lcount_vis);
+  NNextVisual (lcount_out);
+  m_bBreak := true;
+}
+//******************************************************************************
+#include printrelat.vpp // отчет замен
+#include filial_func.vpp // проверка филиальности
+//******************************************************************************
+Function FindExistObj(cDoGroup: comp): boolean;
+{
+  result := false;
+
+  _LOOP tmpJoiHead where ((m_wCgObedValue == tmpJoiHead.TypeEvent))
+  {
+    if (cDOGroup = tmpJoiHead.cRec)
+      if (GetFirst tmpGroupSch where ((cDOGroup == tmpGroupSch.NRec)) = tsOk)
+      {
+        Message('Группа ' + tmpGroupSch.Name + ' Уже выбрана в качестве поглощающей.', error);
+        result := true;
+        Exit;
+      }
+
+    _LOOP tmpSpJoi where ((tmpJoiHead.NRec == tmpSpJoi.cJoiHead))
+      if (cDOGroup = tmpSpJoi.cRec)
+        if (GetFirst tmpGroupSch where ((cDOGroup == tmpGroupSch.NRec)) = tsOk)
+        {
+          Message('Группа ' + tmpGroupSch.Name + ' Уже выбрана в качестве входящей.', error);
+          result := true;
+          Exit;
+        }
+  }
+}
+//******************************************************************************
+Function CheckDOGroupValut: boolean;
+{
+  result := TRUE;
+  var tmpnRec: comp;  tmpnRec := GroupSch.cVal;
+  _LOOP SpJoi
+    if (GroupSch1.cVal <> tmpNRec)
+    {
+      result := FALSE;
+      Exit;
+    }
+}
+//******************************************************************************
+Function CheckDOGroupContragent: boolean;
+{
+  result := TRUE;
+  var tmpword: word;
+  var dc      : boolean;
+  if not(ReadMyDsk(tmpword, 'TuneObedDOContrAgent', dc))
+    tmpword := 0;
+
+  if (tmpword = 1)
+  {
+    result := TRUE;
+    Exit;
+  }
+
+  var tmpnRec: comp;
+  tmpnRec := GroupSch.cOrg;
+
+  _LOOP SpJoi
+    if (GroupSch1.cOrg <> tmpNRec)
+    {
+      result := FALSE;
+      Exit;
+    }
+}
+//******************************************************************************
+Panel pResGrDo;
+  Show at (, , , 10);
+  Table JoiHead;
+Browse brResGrDo (, , );
+  recMarker = m_pMarkerUp {JoiHead.Nrec};
+Fields
+//------------------------------------------------------------------------------
+  GroupSch.Kod
+                'Код группы'
+                ('Код группы',hcNastrAdmWOb,sci1378EscInsPMBrigadeDuty)
+                : [5], Protect;
+//------------------------------------------------------------------------------
+  sObName
+                'Название поглощающей группы'
+                ('Название поглощающей группы',hcNastrAdmWOb,sci1378EscInsPMBrigadeDuty)
+                : [30], Protect;
+//------------------------------------------------------------------------------
+  strFilial 'филиал','───────'('',hcNastrAdmWOb,sci1Esc) : [7], Protect;
+//------------------------------------------------------------------------------
+  GroupSch.Sum
+                'Сумма'
+                ('Сумма')
+                : [11], Protect;
+//------------------------------------------------------------------------------
+  GroupSch.SumV
+                'Сумма в валюте'
+                ('Сумма в валюте')
+                : [11], Protect;
+//------------------------------------------------------------------------------
+  SymVal
+                'Валюта'
+                ('Валюта')
+                : [3], Protect;
+//------------------------------------------------------------------------------
+  Contr
+                'Контрагент'
+                ('Контрагент')
+                : [15], Protect;
+//------------------------------------------------------------------------------
+end; //Browse Res
+
+//******************************************************************************
+
+TableEvent Table JoiHead;
+cmSetDefault :
+{
+  JoiHead.TypeEvent := m_wCgObedValue;
+  JoiHead.Status    := word(0);
+  JoiHead.UserName  := UserName();
+  JoiHead.dDate     := Cur_Date;
+}
+
+cmInsertRecord : insert current JoiHead;
+cmUpdateRecord : update current JoiHead;
+cmInsert :
+{
+  if ( RunInterface('GetGroupSch', 3, 3, 0, FALSE, m_cChoiceNrec, FALSE) = cmDefault )
+  {
+    if (not FindExistObj(m_cChoiceNrec)) putCommand(cmValue1);
+    else abort;
+  }
+  else abort;
+}
+
+cmMarkDelete :
+{
+  if (curtable = #JoiHead)
+  {
+    m_bDeleteByMarker := false;
+    if (m_pMarkerUp.Count <> 0)
+    {
+      if (message('Удалить помеченные записи?', yesno + mfSwapButtons + confirmation) = cmYes)
+      {
+        m_bDeleteByMarker := true;
+        stop;
+      }
+      else abort;
+    }
+  }
+}
+
+cmDeleteRecord :
+{
+  if not(IsValid(tnJoiHead))
+    Exit;
+  if (not m_bDeleteByMarker) m_bExistDel := false; // инициализация переменной в случае когда пометки нет для случая обычного удаления
+
+  //#5578 >>>>>>>>>>>>>>>>>
+  var _boDiffUser : boolean = (JoiHead.UserName <> UserName());
+  if _boDiffUser
+    if (not m_bDeleteByMarker)
+      if pr_CurUserAdmin
+      { if message(lMsgOdebdifferenceUser
+          +chr(13)+'Продолжить?' , YesNo)=cmYes
+        { _boDiffUser:=false
+
+        }
+      }
+  //#5578 <<<<<<<<<<<<<<<<<<<<<<<<<
+  if _boDiffUser
+  {
+    if (not m_bDeleteByMarker)
+      message(lMsgOdebdifferenceUser
+        +chr(13)+'обратитесь к администратору БД', Warning);
+    if (m_bExistDel and ((not m_bDeleteByMarker) or (m_bDeleteByMarker and m_pMarkerUp.Count = 0)))
+      message('Удаление групп ДО произведено.', Information + OkButton);
+    exit;
+  }
+
+  var bRun : boolean; bRun := true;
+  if (not m_bDeleteByMarker)
+    bRun := message('Удалить запись?', yesno + mfSwapButtons + confirmation) = cmYes;
+
+  if (bRun)
+  {
+    delete SpJoi where ((JoiHead.NRec == SpJoi.cJoiHead));
+    delete current JoiHead;
+    RescanPanel(#JoiHead);
+    RescanPanel(#SpJoi);
+  }
+  else
+    Abort;
+}
+end;
+
+
+HandleEvent
+cmValue1 :
+{
+  set JoiHead.cRec := m_cChoiceNrec;
+  UpdateTable;
+  SetFilialInNastrObed(coJoiHead, GroupSch.Name, GroupSch.Atl_Branch);
+  ReDrawPanel(#JoiHead);
+}
+
+cmPick:
+{
+  #Check_Pick(JoiHead)
+
+ m_cChoiceNrec := JoiHead.cRec;
+ if ( RunInterface('GetGroupSch', 3, 3, 0, FALSE, m_cChoiceNrec, FALSE) = cmDefault )
+   if  not FindExistObj(m_cChoiceNrec)
+   {
+     set JoiHead.cRec := m_cChoiceNrec;
+     UpdateTable;
+     SetFilialInNastrObed(coJoiHead, GroupSch.Name, GroupSch.Atl_Branch);
+     RereadRecord(#JoiHead);
+     RedrawPanel(#JoiHead);
+   }
+}
+end;
+end; //Screen Res
+
+//******************************************************************************
+
+Panel pInGrDo;
+  Show at (, 11, , 21);
+  Table SpJoi;
+
+Browse brInGrDo;
+
+Fields
+//------------------------------------------------------------------------------
+  GroupSch1.Kod
+                'Код группы'
+                ('Код группы', , sci1378Esc)
+                : [5], Protect;
+//------------------------------------------------------------------------------
+  sOb1Name
+                'Название группы,'#13'участвующей в объединении'
+                ('Название поглощающей группы', , sci1378Esc)
+                : [30], Protect;
+//------------------------------------------------------------------------------
+  strFilial1 'филиал','───────'('',hcNastrAdmWOb, sci1Esc) : [7], Protect;
+//------------------------------------------------------------------------------
+GroupSch1.Sum
+                'Сумма'
+                ('Сумма', , sci1Esc)
+                : [11], Protect;
+//------------------------------------------------------------------------------
+  GroupSch1.SumV
+                'Сумма в валюте'
+                ('Сумма в валюте', , sci1Esc)
+                : [11], Protect;
+//------------------------------------------------------------------------------
+  SymVal1
+                'Валюта'
+                ('Валюта', , sci1Esc)
+                : [3], Protect;
+//------------------------------------------------------------------------------
+  Contr1
+                'Контрагент'
+                ('Контрагент', , sci1Esc)
+                : [15], Protect;
+//------------------------------------------------------------------------------
+end; //Browse In
+
+//******************************************************************************
+
+tableEvent Table SpJoi;
+cminsert :
+{
+  if (IsValid(tnJoiHead)) AND (UserName()<>JoiHead.UserName)
+  {
+    Message(lMsgOdebdifferenceUser, error);
+    Exit;
+  }
+
+  wMode_t := 3;
+  wTitl_t := 3;
+  if (Not ReadMyDsk(wCurFrmt_t, 'GroupSch_CurFrmt', TRUE))
+    wCurFrmt_t := 3;
+
+  if (RunInterface('GetGroupSch', wMode_t, wTitl_t, wCurFrmt_t, TRUE, m_cChoiceNrec, FALSE)<>cmCancel)
+  {
+    _LOOP Pick
+    {
+      m_cChoiceNrec := Pick.cRec;
+
+      if not FindExistObj(m_cChoiceNrec)
+      {
+        ClearBuffer(#SpJoi);
+        SpJoi.cJoiHead := JoiHead.NRec;
+        SpJoi.cRec := Pick.cRec;
+        SpJoi.Num := 0;
+        SpJoi.Status := 0;
+        SpJoi.IsDel := 0;
+        SpJoi.Step := 0;
+        insert current SpJoi;
+        SetFilialInNastrObed(coSpJoi, GroupSch1.Name, GroupSch1.Atl_Branch);
+      }
+    }
+
+    RereadRecord(#SpJoi);
+    RedrawPanel(#SpJoi);
+  }
+
+  SaveMyDsk( wCurFrmt_t, 'GroupSch_CurFrmt' );
+  Stop;
+}
+
+cmDeleteRecord:
+{
+  if (JoiHead.UserName <> UserName())
+  {
+    Message(lMsgOdebdifferenceUser, error);
+    Exit;
+  }
+
+  if (JoiHead.Status = 0)
+    if (message('Удалить запись?', yesno + mfSwapButtons + confirmation) = cmYes)
+      delete current SpJoi;
+}
+end;
+
+HandleEvent
+
+cmPick:
+{
+  m_cChoiceNrec := SpJoi.cRec;
+  if ( RunInterface('GetGroupSch', 3, 3, 0, FALSE, m_cChoiceNrec, FALSE) = cmDefault )
+  {
+    #CheckChoiceValueForSpJoiOnPick
+    ClearBuffer(#SpJoi);
+    SpJoi.cJoiHead := JoiHead.NRec;
+    SpJoi.cRec := m_cChoiceNrec;
+    SpJoi.Num := 0;
+    SpJoi.Status := 0;
+    SpJoi.IsDel := 0;
+    SpJoi.Step := 0;
+    insert current SpJoi;
+    SetFilialInNastrObed(coSpJoi, GroupSch1.Name, GroupSch1.Atl_Branch);
+    RereadRecord(#SpJoi);
+    RedrawPanel(#SpJoi);
+  }
+}
+
+end;
+end; //Screen In
+
+//******************************************************************************
+
+Panel pButtonPanel
+  Show at (, 22, , );
+
+Screen srcNavBar;
+
+Fields
+  'Показывать объединения для: ': Skip, {Font = {Bold = TRUE}};
+  m_wFilterByUser : NoProtect;
+
+Buttons
+  cmOk;
+  cmValue2;
+  cmCancel;
+  cmValue1;
+<<
+   .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    (.) всех пользователей   `       <. Объединить .>  <. Объединить все .> <.  Отмена  .> <. Настройки .>
+    (.) текущего пользователя`
+>>
+end; //Screen NavBar
+
+//******************************************************************************
+#doc
+  Окно настройки объединения каталога групп ДО.
+#end
+Window wTuneObedDO 'Настройки объединения групп ДО' ('Настройки объединения групп ДО', hcNastrAdmWOb, sci1esc) DoAccept, EscClose;
+  Show at (5, 5, 65, 14);
+
+//******************************************************************************
+
+Panel pTuneObedDo;
+  Table Oborot;
+
+Screen scrTuneObedDO;
+
+Fields
+  'Значение поля СУММА после объединения: ': Skip, {Font = {Bold = TRUE}};
+  TuneSumma ('Значение поля СУММА после объединения'): [LIST 'Суммирование значений поля СУММА у всех групп', 'Максимальное значение данного поля', 'Значение поля СУММА поглощающей группы'], Protect;
+  'Значение поля ДАТА после объединения: ': Skip, {Font = {Bold = TRUE}};
+  TuneDate ('Значение поля ДАТА после объединения'): [LIST 'Наиболее ранняя дата из всех групп ДО', 'Значение поля ДАТА поглощающей группы'], Protect;
+  'Режим объединения по значению поля КОНТРАГЕНТ: ': Skip, {Font = {Bold = TRUE}};
+  TuneContrAgent ('Режим объединения по значению поля КОНТРАГЕНТ'): [LIST 'Объединение возможно только при совпадении контрагентов', 'Объединение возможно при различных контрагентах'], Protect;
+
+Buttons
+  cmOk, default;
+  cmCancel;
+<<
+    .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+    .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+           <. Сохранить .>   <.  Отмена  .>
+>>
+end; //Screen scrTuneObedDO
+end; //Panel
+
+//******************************************************************************
+
+HandleEvent
+
+cmInit:
+{
+  DisableCommand(cmFilterSave);
+  m_wCodeTable := coGroupSch;
+// функцию можно запускать при выборе режима одного филиала
+  if (not CanMayRunObedInFilialDb)
+  {
+    CloseInterface(cmCancel);
+    exit;
+  }
+  bDBPlatformType := GetDBPlatformType;// читаем тип СУБД
+  m_wCgObedValue := cgObedGrDo;// присвоение должно быть раньше кода, где используется переменная m_wCgObedValue
+  var dc: boolean;
+  if not(ReadMyDsk(TuneSumma, 'TuneObedDOSumma', dc))
+    TuneSumma := 0;
+
+  if not(ReadMyDsk(TuneDate, 'TuneObedDODate', dc))
+    TuneDate := 0;
+
+  if not(ReadMyDsk(TuneContrAgent, 'TuneObedDOContrAgent', dc))
+    TuneContrAgent := 0;
+}
+
+cmOk:
+{
+  SaveMyDsk(TuneSumma, 'TuneObedDOSumma');
+  SaveMyDsk(TuneDate, 'TuneObedDODate');
+  SaveMyDsk(TuneContrAgent, 'TuneObedDOContrAgent');
+  PutCommand(cmDefault);
+}
+end;
+end; //Window wTuneObedDO
+
+//******************************************************************************
+#include ErrObAll.vpp   // Пакет ошибок
+#include obedtime.vpp //процедуры и фукнции по работе с таблицей информации по времени объединения
+#include Cor_Kau.vpp
+     //******************************************************************************
+Function updateObj : boolean;
+{
+  var dc: boolean;
+  result := FALSE;
+  if (IsValid(tnJoiHead))
+  {
+    if (not (CheckDOGroupValut()))
+    {
+      Message('Объединению подлежат только группы ДО с одинаковым кодом валюты.', error);
+      Exit;
+    }
+
+    if (not(CheckDOGroupContragent()))
+    {
+      if not(ReadMyDsk(TuneContrAgent, 'TuneObedDOContrAgent', dc))
+        TuneContrAgent := 0;
+
+      if (TuneContrAgent = 0 )
+      {
+        Message('Выбран режим объединения групп ДО только с совпадающими контрагентами, ' + chr(13) +
+                'но в выбранных для объединения группах ДО контрагенты не совпадают.', Warning);
+        Exit;
+      }
+    }
+
+    if ( GetFirst tmpGroupSch where (( JoiHead.cRec == tmpGroupSch.NRec)) = tsOk )
+      { }
+    iNextVisual('Идет замещение группы ДО на'#13'"'+ trim(tmpGroupSch.Name)+'"');
+    m_bWriteInfoSpJoi := TRUE;
+
+    StartNewVisual(vtRotateVisual, vfTimer, 'Идет Объединение.' + chr(13) + 'Подождите, пожалуйста.', 0);
+    MyMarker := InitMarker('', 8, 50, 50, FALSE);
+
+    #include obeddo.vpp
+
+    DoneMarker(MyMarker, '');
+    StopVisual('', 0);
+  }
+  result := TRUE;
+}
+
+//******************************************************************************
+
+HandleEvent
+
+cmInit:
+{
+  m_wCgObedValue := cgObedGrDo;// присвоение должно быть раньше кода, где используется переменная m_wCgObedValue
+  if (not ReadMyDsk (m_wNeedZarRun, lNeedZarRunOb, true)) m_wNeedZarRun := 3;
+  if (not ReadMyDsk (m_wFilterByUser, lFilterByUserOb, true)) m_wFilterByUser := 0;
+  if (not ReadMyDsk (m_wCheckTimeObedRep, lCheckTimeObedRepOb, true)) m_wCheckTimeObedRep := 0;
+  if (m_wFilterByUser = 1) PushBounds (tbOnlyUser);
+  bDBPlatformType := GetDBPlatformType;// читаем тип СУБД
+}
+cmValue1:
+  RunWindowModal(wTuneObedDO);
+
+cmOk:
+{
+  _try
+  {
+    SetFilialBdToStandart;// обработка филиальности (перевод с филиальности в стандарт)
+    if (IsNotExistNastroikiFromOtherFilials(m_wCgObedValue, m_wCodeTable))
+      if UpdateObj
+        Message('Объединение завершено.', information);
+  }
+  _finally
+  {
+    SetStandartBdToFilial;// обработка филиальности (перевод со стандартной в филиальную)
+  }
+  RescanPanel(#JoiHead);
+  RescanPanel(#SpJoi);
+}
+
+cmValue2:
+{
+  var Err: boolean;
+  Err := FALSE;
+  m_bBreak    := FALSE;
+  _nMsgFrm  := 0;          // Общее число ошибок
+  m_lErrorJoi  := 0;
+  m_lErrorSp   := 0;
+  m_lCount_vis := 0;
+  _try
+  {
+    SetFilialBdToStandart;// обработка филиальности (перевод с филиальности в стандарт)
+    _LOOP JoiHead
+    {
+      if (IsNotExistNastroikiFromOtherFilials(m_wCgObedValue, m_wCodeTable))
+        if UpdateObj  AND (not Err) {}
+        else Err := TRUE;
+    }
+
+    if (not Err)
+      Message('Объединение завершено.', information);
+  }
+  _finally
+  {
+    SetStandartBdToFilial;// обработка филиальности (перевод со стандартной в филиальную)
+  }
+  RescanPanel(#JoiHead);
+  RescanPanel(#SpJoi);
+}
+
+cmCheckField:
+  case CurField of
+  #m_wFilterByUser :
+  {
+    case m_wFilterByUser of
+    0 :  if (BoundActive(tbOnlyUser))     PopBounds (tbOnlyUser);
+    1 :  if (not BoundActive(tbOnlyUser)) PushBounds (tbOnlyUser);
+    end;
+    if (getFirst JoiHead = tsOk) {};
+
+    ReReadRecord(#JoiHead);
+    RescanPanel (#JoiHead);
+    RescanPanel (#SpJoi);
+    SelectPanel (#JoiHead);
+    SaveMyDsk (m_wFilterByUser, lFilterByUserOb);
+  }
+  end;
+
+end;
+end;
+
+//******************************************************************************
+
+HandleEvent
+
+cmInit:
+  if (BoundActive(tbOnlyUser))
+    PopBounds(tbOnlyUser);
+
+cmHotKeys:
+  PutHotCommAnd(RunMenu('ObedDo_HotKeys_Print'));
+
+cmPrintDoc:
+{
+  if (frmObedAll.error)
+  {
+    frmObedAll.AbortForm;
+    Message('Ошибка при формировании протокола соответствия.'#13+
+            'Возможно, формы ObedAll нет в ресурсе.', CancelButton);
+    Exit;
+  }
+  else
+    #PrintRelation(GroupSch1,GroupSch,Name,'групп ДО')
+}
+
+end;
+End.
+
+//******************************************************************************
+
+ObedDo_HotKeys_Print Menu
+{
+- 'Печать', cmPrintDoc, 'Печать соответствия объединения', , 'Ctrl+P', kbCtrlP, scMenuCtx;
+}
+
+//******************************************************************************

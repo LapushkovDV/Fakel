@@ -1,0 +1,364 @@
+//********************************************************************************
+//                                                        (c) корпорация Галактика
+// Галактика 7.12 - Настройка
+// Замена КАУ(Объединение счетов)
+//********************************************************************************
+
+#include Getkau.vih
+#Include ShowKau.vpp
+#include Contexts.vih  // Контексты
+
+#doc
+<brief>
+  Интерфейс реализует разделение счета по аналитикам.
+</brief><br>
+  Используется в объединении счетов.
+#end
+
+Interface RazdKau 'Разделение Аналитики' ('Разделение Аналитики',hcNastrIAdmServLinkBuhSchRazdKAU ,sci1Esc) EscClose,Cyan;
+show at (,,,);
+
+#include ServKau.vih   // Регистрация контекста
+
+  Table Struct TmpKau (Nrec : Comp, cRec : Comp, KodGroup : Word)
+  with index
+  (
+    TmpKau00 = nRec (Unique, Surrogate, Journal),
+    TmpKau01 = cRec,
+    TmpKau02 = KodGroup
+  );
+
+#include GetKau.var
+
+Create View vwRazdKau
+var
+   tmpnRec : comp;
+   tmpdefschet : Comp;
+   tmpanalitika : comp;
+   nMarkers : string[30];
+   i : integer;
+   (SchetDef)
+as select
+    if(TmpBuhSchet2.SubSch='',TmpBuhSchet2.Schet,
+                              TmpBuhSchet2.Schet+'.'+TmpBuhSchet2.SubSch),
+    *
+from
+      JoiHead,
+      SpJoi,
+      BuhSchet,
+      KatKau,
+      RazdSch,
+      SRazdSch,
+      tmpKau(memory),
+      synonym tmpKau tmpKau2,
+      synonym RazdSch DefRazdSch,
+      synonym RazdSch NoDefRazdSch,
+      synonym SRazdSch NoDefSRazdSch,
+      synonym SRazdSch TmpSRazdSch,
+      synonym RazdSch TmpRazdSch,
+      synonym BuhSchet SpBuhSchet,
+      synonym KatKau SpKatKau1,
+      synonym KatKau SpKatKau2,
+      synonym KatKau SpKatKau3,
+      synonym KatKau SpKatKau4,
+      synonym KatKau SpKatKau5,
+      synonym KatKau SpKatKau6,
+      synonym BuhSchet TmpBuhSchet,
+      synonym BuhSchet TmpBuhSchet2
+where
+      ((
+         tmpnRec                  ==             SpJoi.nRec  and
+         SpJoi.cJoiHead           ==           JoiHead.nRec  and
+         JoiHead.cRec             ==          BuhSchet.nRec  and
+         SpJoi.cRec               ==        SpBuhSchet.nRec  and
+         SpBuhSchet.KodTable[1]   ==     SpKatKau1.KodGroup  and   //
+         SpBuhSchet.KodTable[2]   ==     SpKatKau2.KodGroup  and   //
+         SpBuhSchet.KodTable[3]   ==     SpKatKau3.KodGroup  and   // Аналитика для спецификации объединения
+         SpBuhSchet.KodTable[4]   ==     SpKatKau4.KodGroup  and   //
+         SpBuhSchet.KodTable[5]   ==     SpKatKau5.KodGroup  and   //
+         SpBuhSchet.KodTable[6]   ==     SpKatKau6.KodGroup  and   // Аналитика для спецификации объединения
+         SpJoi.cRec               ==     DefRazdSch.CSCH     and
+         word(1)                  ==     DefRazdSch.DEFSCH (noindex)and
+         SpJoi.cRec               ==     RazdSch.CSCH        and
+         RazdSch.CRESULTSCH       ==     TmpBuhSchet2.nRec   and
+         SpJoi.cRec               ==     NoDefRazdSch.CSCH   and
+         word(0)                  ==     NoDefRazdSch.DEFSCH(noindex) and
+         NoDefRazdSch.Nrec        ==     NoDefSRazdSch.CRADZSCH and
+         NoDefRazdSch.CRESULTSCH  ==     TmpBuhSchet.Nrec    and
+         TmpKau2.KodGroup         ==     KatKau.KodGroup // название аналитик
+       ));
+parameters
+   tmpnRec;
+
+window SelKau 'Выбор Аналитики' ('Выбор Аналитики',,sci1Esc) Doaccept,EscClose,Cyan;
+Show At (10,5,40,8);
+browse brSelkau;
+Table TmpKau2;
+fields
+  KatKau.Name 'КАУ': [30],protect;
+end;//browse brSelKau
+end;//window Selkau
+
+Window SelSchet 'Выбор счета' ('Выбор операции',,sci1Esc) DoAccept,EscClose,Cyan;
+Show At (10,5,80,8);
+browse brSelSchet;
+Table RazdSch;
+fields
+   tmpBuhSchet2.Schet  'Счет': [10],protect;
+   tmpBuhSchet2.SubSch 'Cубсчет': [10],protect;
+   TmpBuhSchet2.Name 'Название': [30],protect;
+end;//browse brSelSchet
+end;//window SelSchet
+
+screen scKau;
+show at (,,,5);
+table TmpKau2;
+fields
+    'Аналитика, по которой будет происходит разделение счета (субсчета):':
+     {font={bold=true}},skip;
+    KatKau.Name ('Аналитика, по которой будет происходит разделение счета (субсчета)',
+                 hcNastrIAdmServLinkBuhSchRazdKAU,sci13Esc)
+           : [30],Protect;
+    'Счет по умолчанию:':     {font={bold=true}},skip;
+    SchetDef ('Cчет по умолчанию',hcNastrIAdmServLinkBuhSchRazdKAU
+               ,sci13Esc): [30],Protect;
+<<
+ .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ .@@@@@@@@@@@@@@@@@@@@@@@@
+ .@@@@@@@@@@@@@@@@@@@@@@@@
+>>
+end;//screen scKau
+
+panel pDopTab;
+//Show at (,5,,);
+browse brZamTab;
+show at (,6,35,19);
+table NoDefSRazdSch;
+fields
+  [fKauRepl] #ShowKau(TmpKau2.KodGroup,NoDefSRazdSch.cKauValue) 'Значение аналитики'
+     ('Элемент кау',,sci178Esc):[45],protect;
+end;//browse brTab
+
+browse brZamTab1;
+show at (36,6,,19);
+table NoDefRazdSch;
+fields
+  TmpBuhSchet.Schet  'Счет' ('Счет',,sci1Esc):[6],protect;
+  TmpBuhSchet.SubSch 'Субсчет'('Субсчет',,sci1Esc):[6],protect;
+  TmpBuhSchet.Name   'Название' ('Название счета(субсчета)',,sci1Esc):[25],protect;
+end;//browse ZamTab1
+
+Screen scrButtons;
+show at (,20,,);
+buttons
+  cmOk;
+  cmCancel;
+<<
+     <. ~П~ринять .>                           <. ~О~тмена .>
+>>
+end;//screen scrButtons
+
+end;//panel
+
+// #include razdkau.vpp
+
+#declare InitTmpKau(TableKau)
+  if isValid(tn#TableKau)
+  {
+    ClearBuffer(tnTmpKau);
+    TmpKau.KodGroup := #TableKau.KodGroup;
+    insert current TmpKau;
+  }
+#end
+
+procedure InitKAu;
+  {
+  if not(isValid(tnSpBuhSchet)) exit;
+  #InitTmpKau(SpKatKau1)
+  #InitTmpKau(SpKatKau2)
+  #InitTmpKau(SpKatKau3)
+  #InitTmpKau(SpKatKau4)
+  #InitTmpKau(SpKatKau5)
+  #InitTmpKau(SpKatKau6)
+}
+
+function CheckFull:boolean;
+{
+  CheckFull := true;
+  _loop NodefRazdSch
+  {
+    if NodefRazdSch.DEFSCH = 0
+      if(not IsValid(#NoDefSRazdSch))
+// (GetFirst tmpSRazdSch where ((NoDefRazdSch.Nrec == tmpSRazdSch.cRazdSch))<>tsOk)
+      {
+        CheckFull := false;
+        if TmpBuhSchet.SubSch = ''
+          Message('Для счета '+TmpBuhSchet.Schet+
+                  ' не задано соответствие');
+        else
+          Message('Для счета (субсчета) '+TmpBuhSchet.Schet+'.'+TmpBuhSchet.SubSch+
+                  ' не задано соответствие');
+        Break;
+      }
+  }
+}
+
+procedure SaveAndExit;
+{
+  if CheckFull = false
+    Exit;
+
+  CloseInterface(cmDefault);
+}
+
+HandleEvent //HandleEvent interface
+
+cmInit:
+{
+  if (not GetVipInterface(iGetKau))
+  {
+    message('Не могу получить ссылку на интерфейс GetKau');
+    exit;
+  }
+  tmpdefschet:= DefRazdSch.Nrec;
+  tmpanalitika := DefRazdSch.DEFKAU;
+  InitKau;
+  if (GetFirst tmpKau2 where ((tmpAnalitika == tmpKau2.KodGroup)) <> tsOk)
+    message('Не задана аналитика');
+  if (GetFirst RazdSch where ((tmpdefschet == RazdSch.Nrec)) <> tsOk)
+    message('Не задан счет по умолчанию');
+}
+
+cmInsert :
+{
+  if iGetKau.GetCodeKau(cgiPickMult, tmpKau2.KodGroup, NoDefSRazdSch.cKauValue) <> 0
+  {
+    var UnikMarker : TPtr;
+    var cRec : Comp;
+    nMarkers := '';
+    nMarkers := iGetKau.GetMarkerName(tmpKau2.KodGroup);
+    UnikMarker := InitMarker(nMarkers,8,200,100,false);
+    FOR (i := 0; i <= GetMarkerCount(UnikMarker)-1; i:=I+1)
+    {
+      GetMarker(UnikMarker, i, cRec);
+      var Exist : Boolean;
+      Exist := false;
+      _loop NoDefSRazdSch where ((cRec == NoDefSRazdSch.cKauValue))
+      {
+        if (GetFirst tmpRazdSch where ((NoDefSRazdSch.cradzSch == tmpRazdSch.Nrec)) = TsOk)
+        {
+          if (tmpRazdSch.cSch = NoDefRazdSch.cSch)and
+             (tmpRazdSch.Nrec <> NoDefRazdSch.Nrec)
+          {
+            if Message('Значение '+ #ShowKau(tmpanalitika,cRec) + ' уже задана на другом счете(субсчете).'+
+                       'Вы хотите переопределить на этот счет(субсчет)?', mfConfirmation + mfSwapButtons + YesNo) = Yes
+            {
+              var a : comp;
+              a := NoDefSRazdSch.Nrec;
+              delete all tmpSrazdSch where ((a == tmpSRazdSch.Nrec));
+              Break;
+            }
+            else
+            {
+              Exist := True;
+              Break;
+            }
+          }
+          else
+            if (tmpRazdSch.cSch = NoDefRazdSch.cSch)
+            {
+              Exist := True;
+              Break;
+            }
+        }
+      }
+      if Exist = false
+      {
+        clearbuffer(#NoDefSRazdSch);
+        NoDefSRazdSch.cKauValue := cRec;
+        NoDefSRazdSch.CRADZSCH := NoDefRazdSch.Nrec;
+        insert current NoDefSRazdSch;
+      }
+    }
+    clearmarker(unikMarker);
+    donemarker(unikMarker, nMarkers);
+  }
+  ReReadRecord(#NoDefSRazdSch);
+  abort;exit;
+}
+
+cmDelete:
+{
+  if (IsValid(#NoDefSRazdSch))
+  {
+    delete current NoDefSRazdSch;
+    ReReadRecord(#NoDefSRazdSch);
+  }
+}
+
+cmDelOnProtect :
+{
+  if (curfield = #KatKau.Name) abort;
+}
+
+cmPick:
+{
+  case curfield of
+  #KatKau.Name:
+  {
+    if (RunWindowModal(SelKau)<>cmCancel)
+    {
+      _loop tmpRazdSch where ((SpJoi.cRec == tmpRazdSch.cSch))
+      {
+        delete all tmpSRazdSch where ((tmpRazdSch.Nrec == tmpSRazdSch.cRadzSch));
+      }
+      tmpAnalitika := TmpKau2.KodGroup;
+      _loop RazdSch
+      {
+        RazdSch.DEFKAU := tmpAnalitika;
+        update current RazdSch;
+      }
+//      KauToSchet(tmpAnalitika); надо ли
+      RescanPanel(#tmpKau2);
+      RereadRecord(#NoDefRazdSch);
+      RereadRecord(#DefRazdSch);
+    }
+  }
+  #SchetDef:
+  {
+    updatetable;
+    if (RunWindowModal(SelSchet)<>cmCancel)
+    {
+      if (tmpdefschet <> RazdSch.Nrec)
+      {
+        update DefRazdSch where ((tmpdefschet == DefRazdSch.Nrec))
+        set DefRazdSch.DEFSCH := 0;
+
+        tmpdefschet := RazdSch.Nrec;
+        update DefRazdSch where ((tmpdefschet == DefRazdSch.Nrec))
+        set DefRazdSch.DEFSCH := 1;
+
+        delete all tmpSRazdSch where ((tmpdefschet == tmpSRazdSch.CRADZSCH));
+
+        RescanPanel(#tmpKau2);
+        ReReadRecord(#NoDefRazdSch);
+        ReReadRecord(#NoDefSRazdSch);
+      }
+    }
+  }
+  end;
+}
+
+cmOk :
+{
+  SaveAndExit;
+}
+
+cmDone :
+{
+  FreeVipInterface(iGetKau);
+}
+
+end; //HandleEvent interface
+end.

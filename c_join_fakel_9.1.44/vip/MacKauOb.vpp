@@ -1,0 +1,390 @@
+//------------------------------------------------------------------------------
+//                                                      (c) корпорация Галактика
+// ПИР 7.3-8.0
+// Назначение    : Замена КАУ для объединения
+//------------------------------------------------------------------------------
+
+// макрос предназначен для таблиц у которых 1 поле
+// для кау , по которым есть индекс
+#declare UpdateOneKau(Tabl,Tbl,Kau, TablString, TablFieldString)
+{
+  var titlerep : string;
+  titlerep := #TablString + ' по полю ' + #TablFieldString;
+  m_tTimeBeg := Cur_Time;
+  MSGstring := 'Обработка ' + #TablString + ' по полю ' + #TablFieldString + ' с индексом';
+  ////////////////////////////////////////////////////////////////////////////////////////
+  if (not NextVisual)
+    if (NeedOrNoRunObBreak) ObBreak;
+
+  if ((update visual 'Обработка таблицы #Tabl' #Tabl
+       where ((    wKodTbl  == #Tabl.#Tbl
+               and cKauFind == #Tabl.#Kau))
+       set #Tabl.#Kau := cKauRepl) <> tsOk) MSGForm(#TablString, 0, 4);
+}
+#end
+
+// макрос предназначен для таблиц у которых 6 полей
+// для кау , по которым есть индекс
+#declare UpdateKau(Tabl,Tbl,Kau, TablString, TablFieldString)
+{
+  var titlerep : string;
+  titlerep := #TablString + ' по полю ' + #TablFieldString;
+  m_tTimeBeg := Cur_Time;
+  MSGstring := 'Обработка ' + #TablString + ' по полю ' + #TablFieldString + ' с индексом';
+  ////////////////////////////////////////////////////////////////////////////////////////
+  if (not NextVisual)
+    if (NeedOrNoRunObBreak) ObBreak;
+  if ((update visual 'Обработка таблицы #Tabl (этап 1/6)' #Tabl
+       where ((    wKodTbl  == #Tabl.#Tbl[1]
+               and cKauFind == #Tabl.#Kau[1]))
+       set #Tabl.#Kau[1] := cKauRepl) <> tsOk) MSGForm(#TablString, 0, 4);
+  ////////////////////////////////////////////////////////////////////////////////////////
+  if (not NextVisual)
+    if (NeedOrNoRunObBreak) ObBreak;
+  if ((update visual 'Обработка таблицы #Tabl (этап 2/6)' #Tabl
+       where ((    wKodTbl  == #Tabl.#Tbl[2]
+               and cKauFind == #Tabl.#Kau[2]))
+       set #Tabl.#Kau[2] := cKauRepl) <> tsOk) MSGForm(#TablString, 0, 4);
+  ////////////////////////////////////////////////////////////////////////////////////////
+  if (not NextVisual)
+    if (NeedOrNoRunObBreak) ObBreak;
+  if ((update visual 'Обработка таблицы #Tabl (этап 3/6)' #Tabl
+       where ((    wKodTbl  == #Tabl.#Tbl[3]
+               and cKauFind == #Tabl.#Kau[3]))
+       set #Tabl.#Kau[3] := cKauRepl) <> tsOk) MSGForm(#TablString, 0, 4);
+  ////////////////////////////////////////////////////////////////////////////////////////
+  if (not NextVisual)
+    if (NeedOrNoRunObBreak) ObBreak;
+  if ((update visual 'Обработка таблицы #Tabl (этап 4/6)' #Tabl
+       where ((    wKodTbl  == #Tabl.#Tbl[4]
+               and cKauFind == #Tabl.#Kau[4]))
+       set #Tabl.#Kau[4] := cKauRepl) <> tsOk) MSGForm(#TablString, 0, 4);
+  ////////////////////////////////////////////////////////////////////////////////////////
+  if (not NextVisual)
+    if (NeedOrNoRunObBreak) ObBreak;
+  if ((update visual 'Обработка таблицы #Tabl (этап 5/6)' #Tabl
+       where ((    wKodTbl  == #Tabl.#Tbl[5]
+               and cKauFind == #Tabl.#Kau[5]))
+       set #Tabl.#Kau[5] := cKauRepl) <> tsOk) MSGForm(#TablString, 0, 4);
+  ////////////////////////////////////////////////////////////////////////////////////////
+  if (not NextVisual)
+    if (NeedOrNoRunObBreak) ObBreak;
+  if ((update visual 'Обработка таблицы #Tabl (этап 6/6)' #Tabl
+       where ((    wKodTbl  == #Tabl.#Tbl[6]
+               and cKauFind == #Tabl.#Kau[6]))
+       set #Tabl.#Kau[6] := cKauRepl) <> tsOk) MSGForm(#TablString, 0, 4);
+
+  InsExecTime(SpJoi.cRec, JoiHead.cRec, titlerep, m_tTimeBeg, Cur_Time);
+}
+#end
+
+//общие макросы для любого количества полей
+//  общий Макрос для таблиц с разным количеством полей для кау  и эти таблицы не имеют индекса на этих полях
+#Declare UpdatekauFieldNoIndex(Tabl,Tbl,Kau,TablString,CountRecordIntable,CountFieldString, TablFieldString)
+{
+  var titlerep : string;
+  titlerep := #TablString + ' with field ' + #TablFieldString;
+  m_tTimeBeg := cur_time;
+  MSGstring := 'Обработка ' + #TablString + ' по полю ' + #TablFieldString + ' без индекса';
+  if (not NextVisual)
+    if (NeedOrNoRunObBreak) ObBreak;
+
+  StartNewVisual(vtDownVisual, vfTimer, 'Обработка таблицы ' + #TablString, #CountRecordIntable);
+  _LOOP #Tabl
+  {
+    NextVisual;
+    ExistIntableWithNoIndexRecord := 0;
+    for (i := 1; i <= #CountFieldString ; i := i + 1)
+    {
+    	If (    (wKodTbl = #Tabl.#Tbl[i])
+	   	    AND (cKauFind = #Tabl.#kau[i]))
+	  	  {
+	  	    ExistIntableWithNoIndexRecord := 1;
+	      	#Tabl.#Kau[i] := cKauRepl;
+      	}
+    }
+    if (ExistIntableWithNoIndexRecord = 0) continue;
+
+    if ((Update current #Tabl) <> tsOk)
+   	  if (NeedOrNoRunObBreak) {MSGForm(#TablString, #Tabl.nRec, 1);}
+  }
+  StopVisual('', 0);
+  InsExecTime(SpJoi.cRec, JoiHead.cRec, titlerep, m_tTimeBeg, cur_time);
+}
+#end
+
+
+// макрос предназначен для таблиц у которых любое количество полей
+// для кау , по которым нет индекса (эти поля в таблице описывают или дебит или кредит)
+
+#declare UpdateKauWithDAndKNOINDEX(Tabl,Tbl1,Tbl2,Kau1,Kau2,TablString,CountRecordIntable, CountFieldString, Tabl1FieldString, Tabl2FieldString)
+        m_tTimeBeg := Cur_Time;
+	MSGstring := 'Обработка ' + #TablString + ' по полям ' + #Tabl1FieldString + ' и ' + #Tabl2FieldString + ' без индекса';
+
+	IF (Not NextVisual)
+    if (NeedOrNoRunObBreak) ObBreak;
+  StartNewVisual(vtDownVisual,vfTimer,'Обработка таблицы '+#TablString, #CountRecordIntable);
+
+  _LOOP #Tabl
+  {
+    NextVisual;
+    ExistIntableWithNoIndexRecord := 0;
+
+    For (i := 1; i <= #CountFieldString; i := i + 1)
+    {
+    	if ((wKodTbl = #Tabl.#Tbl1[i]) AND (cKauFind = #Tabl.#Kau1[i]))
+	    {
+		    #Tabl.#Kau1[i] := cKauRepl;
+	      ExistIntableWithNoIndexRecord := 1;
+	    }
+	    if ((wKodTbl = #Tabl.#Tbl2[i]) AND (cKauFind = #Tabl.#Kau2[i]))
+	    {
+	    	#Tabl.#Kau2[i]:= cKauRepl;
+	      ExistIntableWithNoIndexRecord := 1;
+	    }
+	  }
+	  if (ExistIntableWithNoIndexRecord = 1)
+	  {
+	    if ((Update current #Tabl) <> tsOk)
+	      if (NeedOrNoRunObBreak) {MSGForm(#TablString,#Tabl.nRec,1);}
+	  }
+	}
+  StopVisual('', 0);
+  InsExecTime(SpJoi.cRec,JoiHead.cRec,#TablString, m_tTimeBeg,Cur_Time);
+#end
+
+#declare UpdateKauWithDAndKAndTwoFieldNOINDEX(Tabl,Tbl1,Tbl2,Kau1,Kau2,Field1,Field2,TablString,CountRecordIntable, CountFieldString, Tabl1FieldString, Tabl2FieldString)
+  m_tTimeBeg := Cur_Time;
+	MSGstring := 'Обработка ' + #TablString + ' по полям ' + #Tabl1FieldString + ' и ' + #Tabl2FieldString + ' без индекса';
+
+  IF Not(NextVisual)
+    if (NeedOrNoRunObBreak) ObBreak;
+
+  StartNewVisual(vtDownVisual,vfTimer,'Обработка таблицы '+#TablString, #CountRecordIntable);
+  _LOOP #Tabl
+  {
+    NextVisual;
+    ExistIntableWithNoIndexRecord := 0;
+    if (ckauFind = #Tabl.#Field1)
+    {
+      #Tabl.#Field1 := cKauRepl;
+      ExistIntableWithNoIndexRecord := 1;
+    }
+    if (ckauFind = #Tabl.#Field2)
+    {
+      #Tabl.#Field2 := cKauRepl;
+      ExistIntableWithNoIndexRecord := 1;
+    }
+    for (i := 1; i <= #CountFieldString; i := i + 1)
+    {
+	    if ((wKodTbl = #Tabl.#Tbl1[i]) AND (cKauFind = #Tabl.#Kau1[i]))
+	    {
+	      #Tabl.#Kau1[i] := cKauRepl;
+	      ExistIntableWithNoIndexRecord := 1;
+	    }
+      if ((wKodTbl = #Tabl.#Tbl2[i]) AND (cKauFind = #Tabl.#Kau2[i]))
+	    {
+	      #Tabl.#Kau2[i] := cKauRepl;
+	      ExistIntableWithNoIndexRecord := 1;
+	    }
+    }
+    if (ExistIntableWithNoIndexRecord = 1)
+    {
+      if ((Update current #Tabl) <> tsOk)
+        if (NeedOrNoRunObBreak) {MSGForm(#TablString,#Tabl.nRec,1);}
+    }
+  }
+  StopVisual('', 0);
+  InsExecTime(SpJoi.cRec,JoiHead.cRec,#TablString, m_tTimeBeg,Cur_Time);
+#end
+
+// макрос предназначен для таблиц у которых 6 полей
+// для кау , по которым нет индекса (эти поля в таблице описывают или дебит или кредит)
+// и есть также два поля без индекса
+#declare UpdateKauWithDOrKOrFieldNOINDEX(Tabl,Tbl,Kau,Fieldx,TablString,CountRecordIntable, CountFieldString, TablFieldString)
+        m_tTimeBeg := Cur_Time;
+	MSGstring := 'Обработка ' + #TablString + ' по полю ' + #TablFieldString + ' без индекса';
+
+	IF (Not NextVisual)
+    if (NeedOrNoRunObBreak) ObBreak;
+  StartNewVisual(vtDownVisual,vfTimer,'Обработка таблицы '+#TablString, #CountRecordIntable);
+  _LOOP #Tabl
+  {
+    NextVisual;
+    ExistIntableWithNoIndexRecord := 0;
+    if (cKauFind = #Tabl.#Fieldx)
+    {
+      #Tabl.#Fieldx := cKauRepl;
+      ExistIntableWithNoIndexRecord := 1;
+    }
+    for (i := 1; i <= #CountFieldString; i := i + 1)
+    {
+	    if ((wKodTbl = #Tabl.#Tbl[i]) AND (cKauFind = #Tabl.#Kau[i]))
+	    {
+	      #Tabl.#Kau[i] := cKauRepl;
+	      ExistIntableWithNoIndexRecord :=1;
+	    }
+    }
+    if (ExistIntableWithNoIndexRecord = 1)
+    {
+      if ((Update current #Tabl) <> tsOk)
+    		if (NeedOrNoRunObBreak) {MSGForm(#TablString, #Tabl.nRec, 1);}
+    }
+  }
+  StopVisual('', 0);
+  InsExecTime(SpJoi.cRec, JoiHead.cRec, #TablString, m_tTimeBeg, cur_time);
+#end
+
+//макрос для таблиц у которых 5 полей без индекса
+#Declare UpdatekauWith5FieldsNoIndex(Tabl,TablString,CountRecordIntable)
+  m_tTimeBeg := Cur_Time;
+	MSGstring := 'Обработка ' + #TablString + ' по полям пользовательской аналитики'+ ' без индекса';
+
+  if (not NextVisual)
+  	if (NeedOrNoRunObBreak) ObBreak;
+  if ((update visual 'Обработка таблицы #Tabl (этап 1/5)' #Tabl
+       where ((    wKodTbl  == #Tabl.wKodGr1 (noindex)
+               and cKauFind == #Tabl.cAnVal1 (noindex)))
+       set #Tabl.cAnVal1 := cKauRepl) <> tsOk) MSGForm(#TablString, 0, 4);
+  if ((update visual 'Обработка таблицы #Tabl (этап 2/5)' #Tabl
+       where ((    wKodTbl  == #Tabl.wKodGr2 (noindex)
+               and cKauFind == #Tabl.cAnVal2 (noindex)))
+       set #Tabl.cAnVal2 := cKauRepl) <> tsOk) MSGForm(#TablString, 0, 4);
+  if ((update visual 'Обработка таблицы #Tabl (этап 3/5)' #Tabl
+       where ((    wKodTbl  == #Tabl.wKodGr3 (noindex)
+               and cKauFind == #Tabl.cAnVal3 (noindex)))
+       set #Tabl.cAnVal3 := cKauRepl) <> tsOk) MSGForm(#TablString, 0, 4);
+  if ((update visual 'Обработка таблицы #Tabl (этап 4/5)' #Tabl
+       where ((    wKodTbl  == #Tabl.wKodGr4 (noindex)
+               and cKauFind == #Tabl.cAnVal4 (noindex)))
+       set #Tabl.cAnVal4 := cKauRepl) <> tsOk) MSGForm(#TablString, 0, 4);
+  if ((update visual 'Обработка таблицы #Tabl (этап 5/5)' #Tabl
+       where ((    wKodTbl  == #Tabl.wKodGr5 (noindex)
+               and cKauFind == #Tabl.cAnVal5 (noindex)))
+       set #Tabl.cAnVal5 := cKauRepl) <> tsOk) MSGForm(#TablString, 0, 4);
+
+  InsExecTime(SpJoi.cRec, JoiHead.cRec, #TablString, m_tTimeBeg, cur_time);
+#End
+
+
+//макрос для таблиц у которых 7 полей без индекса
+#Declare UpdatekauWith7FieldsNoIndex(Tabl,TablString,CountRecordIntable)
+        m_tTimeBeg := Cur_Time;
+	MSGstring := 'Обработка ' + #TablString + ' по полям пользовательской аналитики'+ ' без индекса';
+	IF Not(NextVisual)
+	  if (NeedOrNoRunObBreak) ObBreak;
+
+  // проверяем  если субд Oracle или mssql запускаю групповое изменение
+  if (bDBPlatformType <> dbptBtrieve) and (bDBPlatformType <> dbptNone)
+  {
+    var sTitle : string;
+    sTitle := 'Обработка таблицы ' + #TablString;
+    if ((update visual sTitle #Tabl
+         where ((    wKodTbl == #Tabl.wKodGr1 (noindex)
+                 and cKauFind == #Tabl.cAnVal1(noindex)))
+         set #Tabl.cAnVal1 := cKauRepl) <> tsOk)
+      MSGForm(#TablString, 0, 4);
+    if ((update visual sTitle #Tabl
+         where ((    wKodTbl == #Tabl.wKodGr2 (noindex)
+                 and cKauFind == #Tabl.cAnVal2(noindex)))
+         set #Tabl.cAnVal2 := cKauRepl) <> tsOk)
+      MSGForm(#TablString, 0, 4);
+
+    if ((update visual sTitle #Tabl
+         where ((    wKodTbl == #Tabl.wKodGr3 (noindex)
+                 and cKauFind == #Tabl.cAnVal3(noindex)))
+         set #Tabl.cAnVal3 := cKauRepl) <> tsOk)
+      MSGForm(#TablString, 0, 4);
+    if ((update visual sTitle #Tabl
+         where ((    wKodTbl == #Tabl.wKodGr4 (noindex)
+                 and cKauFind == #Tabl.cAnVal4(noindex)))
+         set #Tabl.cAnVal4 := cKauRepl) <> tsOk)
+      MSGForm(#TablString, 0, 4);
+    if ((update visual sTitle #Tabl
+         where ((    wKodTbl == #Tabl.wKodGr5 (noindex)
+                 and cKauFind == #Tabl.cAnVal5(noindex)))
+         set #Tabl.cAnVal5 := cKauRepl) <> tsOk)
+      MSGForm(#TablString, 0, 4);
+    if ((update visual sTitle #Tabl
+         where ((    wKodTbl == #Tabl.wKodGr6 (noindex)
+                 and cKauFind == #Tabl.cAnVal6(noindex)))
+         set #Tabl.cAnVal6 := cKauRepl) <> tsOk)
+      MSGForm(#TablString, 0, 4);
+    if ((update visual sTitle #Tabl
+         where ((    wKodTbl == #Tabl.wKodGr7 (noindex)
+                 and cKauFind == #Tabl.cAnVal7(noindex)))
+         set #Tabl.cAnVal7 := cKauRepl) <> tsOk)
+      MSGForm(#TablString, 0, 4);
+  }
+  else
+  {
+	  StartNewVisual(vtDownVisual,vfTimer,'Обработка таблицы '+#TablString, #CountRecordIntable);
+	  _LOOP #Tabl
+	  {
+	    NextVisual;
+	    ExistIntableWithNoIndexRecord := 0;
+	    If ((wKodTbl = #Tabl.wKodGr1) AND (cKauFind = #Tabl.cAnVal1))
+      {
+	   	  ExistIntableWithNoIndexRecord := 1;
+		    #Tabl.cAnVal1:= cKauRepl;
+		  }
+	  	If ((wKodTbl = #Tabl.wKodGr2) AND (cKauFind = #Tabl.cAnVal2))
+	  	{
+	  	  ExistIntableWithNoIndexRecord := 1;
+	  	  #Tabl.cAnVal2:= cKauRepl;
+	  	}
+	  	If ((wKodTbl = #Tabl.wKodGr3) AND (cKauFind = #Tabl.cAnVal3))
+	  	{
+		    ExistIntableWithNoIndexRecord := 1;
+	   	  #Tabl.cAnVal3:= cKauRepl;
+		  }
+		  If ((wKodTbl = #Tabl.wKodGr4) AND (cKauFind = #Tabl.cAnVal4))
+		  {
+		    ExistIntableWithNoIndexRecord := 1;
+		    #Tabl.cAnVal4:= cKauRepl;
+		  }
+		  If ((wKodTbl = #Tabl.wKodGr5) AND (cKauFind = #Tabl.cAnVal5))
+		  {
+		    ExistIntableWithNoIndexRecord := 1;
+		    #Tabl.cAnVal5:= cKauRepl;
+		  }
+	  	If ((wKodTbl = #Tabl.wKodGr6) AND (cKauFind = #Tabl.cAnVal6))
+	  	{
+	  	  ExistIntableWithNoIndexRecord := 1;
+	  	  #Tabl.cAnVal6:= cKauRepl;
+	  	}
+	  	If ((wKodTbl = #Tabl.wKodGr7) AND (cKauFind = #Tabl.cAnVal7))
+	  	{
+	  	  ExistIntableWithNoIndexRecord := 1;
+	  	  #Tabl.cAnVal7:= cKauRepl;
+	  	}
+	  	if (ExistIntableWithNoIndexRecord = 1)
+	    {
+	      if ((Update current #Tabl)<>tsOk)
+	        if (NeedOrNoRunObBreak) {MSGForm(#TablString,#Tabl.nRec,1);}
+	    }
+	  }
+    StopVisual('', 0);
+  }
+  InsExecTime(SpJoi.cRec,JoiHead.cRec,#TablString, m_tTimeBeg,Cur_Time);
+#end
+
+//макрос для таблиц у которых 1 поле без индекса
+#Declare UpdatekauWith1FieldsNoIndex(Tabl,Tbl,Kau,TablString,CountRecordIntable, TablFieldString)
+  m_tTimeBeg := Cur_Time;
+  if (not NextVisual)
+    if (NeedOrNoRunObBreak) ObBreak;
+  if ((update visual 'Обработка таблицы #Tabl' #Tabl
+       where ((    wKodTbl  == #Tabl.#Tbl (noindex)
+               and cKauFind == #Tabl.#Kau (noindex)))
+       set #Tabl.#Kau := cKauRepl) <> tsOk) MSGForm(#TablString, 0, 4);
+  InsExecTime(SpJoi.cRec, JoiHead.cRec, #TablString, m_tTimeBeg, cur_time);
+#end
+
+#Declare UpdateFieldNoIndex(Tabl,Tbl)
+	if (#Tabl.#Tbl = cKauFind)
+	{
+		ExistIntableWithNoIndexRecord :=1;
+		#Tabl.#Tbl:= cKauRepl;
+	}
+#end

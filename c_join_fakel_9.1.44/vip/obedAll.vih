@@ -1,0 +1,12 @@
+#ifndef _iObedAll_vih_
+#define _iObedAll_vih__
+
+#component "C_join"
+
+ObjInterface iObedAll;
+
+  Function JoinAll(wType : word; cRec1, cRec2 : comp; sParam : string = '') : boolean;
+
+end;
+
+#endif

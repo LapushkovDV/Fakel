@@ -1,0 +1,22 @@
+#version C_Join 9.1.44.0 '#CompTitle'
+  required
+    C_AlterCumulative >= 9.1.25.0,
+    C_COMMON >= 9.1.32.0,
+    F_COMMON >= 9.1.91.0,
+    F_FPHASHAN >= 9.1.4.0,
+    L_BASEDOC >= 9.1.3.0,
+    L_COMMON >= 9.1.83.0,
+    L_DOGOVOR >= 9.1.5.0,
+    L_KATORG >= 9.1.2.0,
+    L_MCU >= 9.1.44.0,
+    L_SALDOMTR >= 9.1.4.0,
+    L_SKLAD >= 9.1.5.0,
+    L_SMETA >= 9.1.2.0,
+    L_SOPRDOC >= 9.1.4.0,
+    L_UKS >= 9.1.2.0,
+    L_UKSPLANS >= 9.1.3.0,
+    L_UKSREP >= 9.1.4.0,
+    Z_SERVICE >= 9.1.5.0,
+    Z_STAFFCAT >= 9.1.17.0,
+    Z_Staff >= 9.1.205.0,
+#include GloRequired.ver

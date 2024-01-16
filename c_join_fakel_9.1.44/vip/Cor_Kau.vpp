@@ -1,0 +1,926 @@
+/*
+ ╔═══════════════════════════════════════════════════════════════════════════╗
+ ║                     (c) 1994,97 корпорация ГАЛАКТИКА                      ║
+ ║ Система       : ГАЛАКТИКА                                                 ║
+ ║ Проект        : Объединение аналитик                                      ║
+ ║ Версия        : 8.50                                                      ║
+ ║ Назначение    : Замена значений аналитик для объединений                  ║
+ ║ Ответственный : Быковская Мария Евгеньевна                                ║
+ ╚═══════════════════════════════════════════════════════════════════════════╝
+*/
+var NeedOrNoRunObBreak :boolean;
+#include MacKauOb.vpp
+
+#ifdef IsDSQL
+
+#undef UpdatekauFieldNoIndex
+#Declare UpdatekauFieldNoIndex(Tabl,Tbl,Kau,TablString,CountRecordIntable,CountFieldString, TablFieldString)
+{
+  var titlerep : string;
+  titlerep := #TablString + ' with field ' + #TablFieldString;
+  m_tTimeBeg := cur_time;
+  MSGstring := 'Обработка ' + #TablString + ' по полю ' + #TablFieldString + ' без индекса';
+  if (not NextVisual)
+    if (NeedOrNoRunObBreak) ObBreak;
+
+  if (IsDSQL) {
+    var hSetFields:TPtr = 0;
+    var hWhereFields:TPtr = 0;
+    var n:string = '';
+
+    for (i := 1; i <= #CountFieldString ; i++) {
+      if (hSetFields <> 0) sqlAddStr(hSetFields, ', ');
+      if (hWhereFields <> 0) sqlAddStr(hWhereFields, ' or ');
+
+      n:=string(i);
+
+      sqlAddStr(hSetFields, '#Tabl.#Kau['+n+'] = case when (#Tabl.#Tbl['+n+'] = ' + string(wKodTbl) + ' and #Tabl.#kau['+n+'] = #comp(' + string(cKauFind) + ')) '+
+                                                      'then #comp(' + string(cKauRepl) + ') else #Tabl.#kau['+n+'] end');
+      sqlAddStr(hWhereFields, '(#Tabl.#Tbl['+n+'] = ' + string(wKodTbl) + ' and #Tabl.#kau['+n+'] = #comp(' + string(cKauFind) + '))');
+    }
+
+    if (queryManager.
+        createQuery(SQLQUERY(.
+          update #Tabl set
+            %SetFields
+          where
+            %WhereFields
+        .)).
+        setMacro('SetFields', hSetFields).
+        setMacro('WhereFields', hWhereFields).
+        execute.
+        errorCode <> tsOk)
+    MSGForm(#TablString, 0, 4);
+  }
+  else
+  {
+    StartNewVisual(vtDownVisual, vfTimer, 'Обработка таблицы ' + #TablString, #CountRecordIntable);
+    _LOOP fullcache #Tabl
+    {
+      NextVisual;
+      ExistIntableWithNoIndexRecord := 0;
+      for (i := 1; i <= #CountFieldString ; i++)
+      {
+      	If (    (wKodTbl = #Tabl.#Tbl[i])
+  	   	    AND (cKauFind = #Tabl.#kau[i]))
+  	  	  {
+  	  	    ExistIntableWithNoIndexRecord := 1;
+  	      	#Tabl.#Kau[i] := cKauRepl;
+        	}
+      }
+      if (ExistIntableWithNoIndexRecord = 0) continue;
+
+      if ((Update current #Tabl) <> tsOk)
+     	  if (NeedOrNoRunObBreak) {MSGForm(#TablString, #Tabl.nRec, 1);}
+    }
+    StopVisual;
+  }
+
+  InsExecTime(SpJoi.cRec, JoiHead.cRec, titlerep, m_tTimeBeg, cur_time);
+}
+#end
+
+#undef UpdateKauWithDAndKNOINDEX
+#declare UpdateKauWithDAndKNOINDEX(Tabl,Tbl1,Tbl2,Kau1,Kau2,TablString,CountRecordIntable, CountFieldString, Tabl1FieldString, Tabl2FieldString)
+  m_tTimeBeg := Cur_Time;
+	MSGstring := 'Обработка ' + #TablString + ' по полям ' + #Tabl1FieldString + ' и ' + #Tabl2FieldString + ' без индекса';
+
+	IF (Not NextVisual)
+    if (NeedOrNoRunObBreak) ObBreak;
+
+  if (IsDSQL) {
+    var hSetFields:TPtr = 0;
+    var hWhereFields:TPtr = 0;
+    var n:string = '';
+
+    for (i := 1; i <= #CountFieldString ; i++) {
+      if (hSetFields <> 0) sqlAddStr(hSetFields, ', ');
+      if (hWhereFields <> 0) sqlAddStr(hWhereFields, ' or ');
+
+      n:=string(i);
+
+      sqlAddStr(hSetFields, '#Tabl.#Kau1['+n+'] = case when (#Tabl.#Tbl1['+n+'] = ' + string(wKodTbl) + ' and #Tabl.#kau1['+n+'] = #comp(' + string(cKauFind) + ')) '+
+                                                      'then #comp(' + string(cKauRepl) + ') else #Tabl.#Kau1['+n+'] end');
+      sqlAddStr(hSetFields, ', ');
+      sqlAddStr(hSetFields, '#Tabl.#Kau2['+n+'] = case when (#Tabl.#Tbl2['+n+'] = ' + string(wKodTbl) + ' and #Tabl.#kau2['+n+'] = #comp(' + string(cKauFind) + ')) '+
+                                                      'then #comp(' + string(cKauRepl) + ') else #Tabl.#kau2['+n+'] end');
+
+      sqlAddStr(hWhereFields, '(#Tabl.#Tbl1['+n+'] = ' + string(wKodTbl) + ' and #Tabl.#kau1['+n+'] = #comp(' + string(cKauFind) + '))');
+      sqlAddStr(hWhereFields, ' or ');
+      sqlAddStr(hWhereFields, '(#Tabl.#Tbl2['+n+'] = ' + string(wKodTbl) + ' and #Tabl.#kau2['+n+'] = #comp(' + string(cKauFind) + '))');
+    }
+
+    if (queryManager.
+        createQuery(SQLQUERY(.
+          update #Tabl set
+            %SetFields
+          where
+            %WhereFields
+        .)).
+        setMacro('SetFields', hSetFields).
+        setMacro('WhereFields', hWhereFields).
+        execute.
+        errorCode <> tsOk)
+    MSGForm(#TablString, 0, 4);
+  }
+  else
+  {
+    StartNewVisual(vtDownVisual,vfTimer,'Обработка таблицы '+#TablString, #CountRecordIntable);
+    _LOOP fullcache #Tabl
+    {
+      NextVisual;
+      ExistIntableWithNoIndexRecord := 0;
+
+      For (i := 1; i <= #CountFieldString; i++)
+      {
+      	if ((wKodTbl = #Tabl.#Tbl1[i]) AND (cKauFind = #Tabl.#Kau1[i]))
+  	    {
+  		    #Tabl.#Kau1[i] := cKauRepl;
+  	      ExistIntableWithNoIndexRecord := 1;
+  	    }
+  	    if ((wKodTbl = #Tabl.#Tbl2[i]) AND (cKauFind = #Tabl.#Kau2[i]))
+  	    {
+  	    	#Tabl.#Kau2[i]:= cKauRepl;
+  	      ExistIntableWithNoIndexRecord := 1;
+  	    }
+  	  }
+  	  if (ExistIntableWithNoIndexRecord = 1)
+  	  {
+  	    if ((Update current #Tabl) <> tsOk)
+  	      if (NeedOrNoRunObBreak) {MSGForm(#TablString, #Tabl.nRec, 1);}
+  	  }
+  	}
+    StopVisual;
+  }
+  InsExecTime(SpJoi.cRec, JoiHead.cRec, #TablString, m_tTimeBeg, Cur_Time);
+#end
+
+#end
+
+#declare UpdateOneKauBySaldTune(Table, SaldTuneFld, KauFld, TableString)
+  if ((update visual 'Обработка таблицы #Table' #Table
+       where((tmSaldTune.Nrec == #Table.#SaldTuneFld(noindex)
+              and SpJoi.cRec == #Table.#KauFld(noindex)))
+       set #Table.#KauFld := JoiHead.cRec) <> tsOk) MSGForm(#TableString, 0, 4);
+#end
+
+//=================================================================================
+#define mConvertEd(mMount, mInd) fEdIzm.ConvertToSecondEd(#mMount,RepMove.cEd[#mInd],RepMoveCheak.cEd[#mInd])
+//-------------------
+//wType - тип объектов
+//aOne - что меняем
+//aTwo - на что меняем
+Procedure pAmalgamate_RepMove(aOne, aTwo : comp; wType : word);
+var MarkersUP, MarkersDEL: TPtr; var MarkerCount, li : longint;
+var cTempMove : comp;
+{
+  MarkersUP := InitMarker('', 8, 100, 10);
+  ClearMarker(MarkersUP);
+
+  MarkersDEL := InitMarker('', 8, 100, 10);
+  ClearMarker(MarkersDEL);
+
+  m_tTimeBeg := cur_time;
+  if (not NextVisual) ObBreak;
+  StartNewVisual(vtDownVisual, vfTimer, 'Обработка таблицы RepMove', 0);
+
+  _loop RepHead
+    if (RepHead.PrzSvod = Prz_Svod_PO
+     or RepHead.PrzSvod = Prz_Svod_SvPO
+     or RepHead.PrzSvod = Prz_Svod_Bal )
+      _loop RepMove where ((RepHead.nRec == RepMove.cRepHead and
+                            wType        == RepMove.TypeRes  and
+                            aOne         == RepMove.cRes     ))
+      {
+       if (NextVisual)
+        //  проверяем на личиие aTwo в данном RepHead
+        if (getfirst RepMoveCheak where ((RepHead.nRec == RepMoveCheak.cRepHead and
+                                          wType        == RepMoveCheak.TypeRes   and
+                                          aTwo         == RepMoveCheak.cRes      )) = tsOK)
+        {
+          // обединяем
+          RepMoveCheak.PricePlan        := RepMoveCheak.PricePlan        + RepMove.PricePlan;
+          RepMoveCheak.PriceFact        := RepMoveCheak.PriceFact        + RepMove.PriceFact;
+          RepMoveCheak.BegSaldo[1]      := RepMoveCheak.BegSaldo[1]      + #mConvertEd(RepMove.BegSaldo[1],1);
+          RepMoveCheak.BegSaldo[2]      := RepMoveCheak.BegSaldo[2]      + #mConvertEd(RepMove.BegSaldo[2],2);
+          RepMoveCheak.BegSum           := RepMoveCheak.BegSum           + RepMove.BegSum;
+          RepMoveCheak.BegSaldoInNZP[1] := RepMoveCheak.BegSaldoInNZP[1] + #mConvertEd(RepMove.BegSaldoInNZP[1],1);
+          RepMoveCheak.BegSaldoInNZP[2] := RepMoveCheak.BegSaldoInNZP[2] + #mConvertEd(RepMove.BegSaldoInNZP[2],2);
+          RepMoveCheak.BegSumInNZP      := RepMoveCheak.BegSumInNZP      + RepMove.BegSumInNZP;
+          RepMoveCheak.InCom[1]         := RepMoveCheak.InCom[1]         + #mConvertEd(RepMove.InCom[1],1);
+          RepMoveCheak.InCom[2]         := RepMoveCheak.InCom[2]         + #mConvertEd(RepMove.InCom[2],2);
+          RepMoveCheak.InSum            := RepMoveCheak.InSum            + RepMove.InSum;
+          RepMoveCheak.ProdCom[1]       := RepMoveCheak.ProdCom[1]       + #mConvertEd(RepMove.ProdCom[1],1);
+          RepMoveCheak.ProdCom[2]       := RepMoveCheak.ProdCom[2]       + #mConvertEd(RepMove.ProdCom[2],2);
+          RepMoveCheak.ProdSum          := RepMoveCheak.ProdSum          + RepMove.ProdSum;
+          RepMoveCheak.ProdComN[1]      := RepMoveCheak.ProdComN[1]      + #mConvertEd(RepMove.ProdComN[1],1);
+          RepMoveCheak.ProdSumN         := RepMoveCheak.ProdSumN         + RepMove.ProdSumN;
+          RepMoveCheak.PotrCom[1]       := RepMoveCheak.PotrCom[1]       + #mConvertEd(RepMove.PotrCom[1],1);
+          RepMoveCheak.PotrCom[2]       := RepMoveCheak.PotrCom[2]       + #mConvertEd(RepMove.PotrCom[2],2);
+          RepMoveCheak.PotrSum          := RepMoveCheak.PotrSum          + RepMove.PotrSum;
+          RepMoveCheak.SpisCom[1]       := RepMoveCheak.SpisCom[1]       + #mConvertEd(RepMove.SpisCom[1],1);
+          RepMoveCheak.SpisCom[2]       := RepMoveCheak.SpisCom[2]       + #mConvertEd(RepMove.SpisCom[2],2);
+          RepMoveCheak.SpisSum          := RepMoveCheak.SpisSum          + RepMove.SpisSum;
+          RepMoveCheak.SentCom[1]       := RepMoveCheak.SentCom[1]       + #mConvertEd(RepMove.SentCom[1],1);
+          RepMoveCheak.SentCom[2]       := RepMoveCheak.SentCom[2]       + #mConvertEd(RepMove.SentCom[2],2);
+          RepMoveCheak.SentSum          := RepMoveCheak.SentSum          + RepMove.SentSum;
+          RepMoveCheak.PrSpisCom[1]     := RepMoveCheak.PrSpisCom[1]     + #mConvertEd(RepMove.PrSpisCom[1],1);
+          RepMoveCheak.PrSpisCom[2]     := RepMoveCheak.PrSpisCom[2]     + #mConvertEd(RepMove.PrSpisCom[2],2);
+          RepMoveCheak.PrSpisSum        := RepMoveCheak.PrSpisSum        + RepMove.PrSpisSum;
+          RepMoveCheak.WasteCom[1]      := RepMoveCheak.WasteCom[1]      + #mConvertEd(RepMove.WasteCom[1],1);
+          RepMoveCheak.WasteCom[2]      := RepMoveCheak.WasteCom[2]      + #mConvertEd(RepMove.WasteCom[2],2);
+          RepMoveCheak.WasteSum         := RepMoveCheak.WasteSum         + RepMove.WasteSum;
+          RepMoveCheak.DefectCom[1]     := RepMoveCheak.DefectCom[1]     + #mConvertEd(RepMove.DefectCom[1],1);
+          RepMoveCheak.DefectCom[2]     := RepMoveCheak.DefectCom[2]     + #mConvertEd(RepMove.DefectCom[2],2);
+          RepMoveCheak.DefectSum        := RepMoveCheak.DefectSum        + RepMove.DefectSum;
+          RepMoveCheak.EndSaldo[1]      := RepMoveCheak.EndSaldo[1]      + #mConvertEd(RepMove.EndSaldo[1],1);
+          RepMoveCheak.EndSaldo[2]      := RepMoveCheak.EndSaldo[2]      + #mConvertEd(RepMove.EndSaldo[2],2);
+          RepMoveCheak.EndSum           := RepMoveCheak.EndSum           + RepMove.EndSum;
+          RepMoveCheak.EndSaldoInNZP[1] := RepMoveCheak.EndSaldoInNZP[1] + RepMove.EndSaldoInNZP[1];
+          RepMoveCheak.EndSaldoInNZP[2] := RepMoveCheak.EndSaldoInNZP[2] + RepMove.EndSaldoInNZP[2];
+          RepMoveCheak.EndSumInNZP      := RepMoveCheak.EndSumInNZP      + RepMove.EndSumInNZP;
+          RepMoveCheak.BegNZP[1]        := RepMoveCheak.BegNZP[1]        + #mConvertEd(RepMove.BegNZP[1],1);
+          RepMoveCheak.BegNZP[2]        := RepMoveCheak.BegNZP[2]        + #mConvertEd(RepMove.BegNZP[2],2);
+          RepMoveCheak.BegSumNZP        := RepMoveCheak.BegSumNZP        + RepMove.BegSumNZP;
+          RepMoveCheak.IntoNZP[1]       := RepMoveCheak.IntoNZP[1]       + #mConvertEd(RepMove.IntoNZP[1],1);
+          RepMoveCheak.IntoNZP[2]       := RepMoveCheak.IntoNZP[2]       + #mConvertEd(RepMove.IntoNZP[2],2);
+          RepMoveCheak.IntoSumNZP       := RepMoveCheak.IntoSumNZP       + RepMove.IntoSumNZP;
+          RepMoveCheak.ProdNZP[1]       := RepMoveCheak.ProdNZP[1]       + #mConvertEd(RepMove.ProdNZP[1],1);
+          RepMoveCheak.ProdNZP[2]       := RepMoveCheak.ProdNZP[2]       + #mConvertEd(RepMove.ProdNZP[2],2);
+          RepMoveCheak.ProdSumNZP       := RepMoveCheak.ProdSumNZP       + RepMove.ProdSumNZP;
+          RepMoveCheak.EndNZP[1]        := RepMoveCheak.EndNZP[1]        + #mConvertEd(RepMove.EndNZP[1],1);
+          RepMoveCheak.EndNZP[2]        := RepMoveCheak.EndNZP[2]        + #mConvertEd(RepMove.EndNZP[2],2);
+          RepMoveCheak.EndSumNZP        := RepMoveCheak.EndSumNZP        + RepMove.EndSumNZP;
+
+          Update Current RepMoveCheak;
+
+          InsertMarker(MarkersDEL, RepMove.nRec);
+        }//if (getfirst RepMoveCheak where
+       else
+        {
+          // заменяем
+          InsertMarker(MarkersUP, RepMove.nRec);
+        }
+      }
+// ----------
+     MarkerCount := GetMarkerCount(MarkersUP);
+     for ( li := 0; li < MarkerCount; li := li+1 )
+       if (GetMarker(MarkersUP, li, cTempMove))
+         update RepMove where ((cTempMove == RepMove.nRec))
+           set  RepMove.cRes := aTwo;
+// ----------
+     MarkerCount := GetMarkerCount(MarkersDEL);
+     for ( li := 0; li < MarkerCount; li := li+1 )
+       if (GetMarker(MarkersDEL, li, cTempMove))
+         delete RepMove where ((cTempMove == RepMove.nRec));
+//--------------------
+ InsExecTime(SpJoi.cRec,JoiHead.cRec,'RepMove', m_tTimeBeg,Cur_Time);
+ ClearMarker(MyMarker);
+ StopVisual('',0);
+} // procedure pAmalgamate_RepMove;
+!-------------------------------------------------------------------------------
+function UpdateOneKau (cKauFind : comp; cKauRepl : comp; wKodTbl : word; wKodTblRepl: comp; NeedOrNoRunObBreak : boolean): Boolean;
+begin
+  var i : word;
+	NeedOrNoRunObBreak := true;
+  UpdateOneKau := False;
+
+  #UpdatekauFieldNoIndex(ELDIAGRAM,TblOs,KauOs,'ELDIAGRAM',RecordsInTable(tnELDIAGRAM), 6,'TblOs')
+  #UpdateKau(GoNewPer,TblOs,KauOs,'GoNewPer', 'TblOs')
+#ifdef _ObedPodr
+  #UpdateKauWithDOrKOrFieldNOINDEX(JornTune,TblOs,KauOs,KodSPO,'JornTune',RecordsInTable(tnJornTune), 6,'TblOs')
+#else
+  #UpdatekauFieldNoIndex(JornTune,TblOs,KauOs,'JornTune',RecordsInTable(tnJornTune), 6, 'TblOs')
+#end
+  #UpdateKau(HozObor,TblOs,cKauOs,'HozObor',  'TblOs')
+  #UpdateKau(HozObor,TblKs,cKauKs,'HozObor',  'TblKs')
+  #UpdatekauFieldNoIndex(KAUCUTS,wKau,ckau,'KAUCUTS',RecordsInTable(tnKAUCUTS),10, 'wKau')
+  #UpdateKau(Oborot,TblOs,KauOs,'Oborot',  'TblOs')
+  #UpdateKau(Oborot,TblKs,KauKs,'Oborot',  'TblKs')
+  #UpdateKau(SaldDay,TblOs,KauOs,'SaldDay',  'TblOs')
+  #UpdateKau(SaldMoun,TblOs,KauOs,'SaldMoun',  'TblOs')
+  #UpdateKau(SALDOBL,TblOs,KauOs,'Saldobl',  'TblOs')
+  #UpdatekauFieldNoIndex(SEBFACT,TblKau,cKau,'SEBFACT',RecordsIntable(tnSEBFACT),6, 'TblKau')
+  #UpdatekauFieldNoIndex(SEBKAU,TblKau,cKau,'SEBKAU',RecordsInTable(tnSEBKAU),6, 'TblKau')
+  #UpdateKauWithDAndKNOINDEX(SETBILL,TblKauK,TblKauO,cKauK,cKauO,'SETBILL',RecordsInTable(tnSETBILL), 6,  'TblKauK', 'TblKauO')
+  #UpdatekauFieldNoIndex(SPBUHGT,TblOs,KauOs,'SPBUHGT',RecordsInTable(tnSPBUHGT), 6,'TblOs')
+  #UpdatekauFieldNoIndex(SPCASH,TblOs,KauOs,'SPCASH',RecordsInTable(tnSPCASH), 6,'TblOs')
+#ifdef _ObedPodr
+    #UpdateKauWithDOrKOrFieldNOINDEX(SpJorn,TblOs,KauOs,KodSPO,'SpJorn',RecordsInTable(tnSpJorn), 6,'TblOs')
+#else
+    #UpdatekauFieldNoIndex(SpJorn,TblOs,KauOs,'SpJorn',RecordsInTable(tnSpJorn), 6,'TblOs')
+#end
+  #UpdateKauWithDAndKNOINDEX(SPRASZTR,TBLOS,TBLKS,cKauOS,cKauKS,'SPRASZTR',RecordsInTable(tnSPRASZTR), 10, 'TBLOS','TBLKS')
+  #UpdateKau(Valut,TblOs,KauOs,'Valut',  'TblOs')
+  #UpdateKau(Valut,TblKs,KauKs,'Valut',  'TblKs')
+  #UpdateKau(Valut,TblKs1,KauKs1,'Valut',  'TblKs1')
+/*  #UpdatekauFieldNoIndex(AnalSxem,wKau,cKau,'AnalSxem', RecordsInTable(tnAnalSxem), 20,'wKau')
+*/
+  #UpdatekauFieldNoIndex(SpBill,wKau1,cKau1,'SpBill', RecordsInTable(tnSpBill), 10, 'wKau1')
+  #UpdatekauFieldNoIndex(SpBill,wKau2,cKau2,'SpBill', RecordsInTable(tnSpBill), 10,'wKau2')
+  #UpdatekauFieldNoIndex(BillObor,wKauFilt,cKauFilt,'BillObor', RecordsInTable(tnBillObor), 20, 'wKauFilt')
+  #UpdatekauFieldNoIndex(SpRateAdd,wKau,cKau,'SpRateAdd', RecordsInTable(tnSpRateAdd), 10, 'wKau')
+  #UpdatekauFieldNoIndex(CalcAver,wKau,cKau,'CalcAver', RecordsInTable(tnCalcAver), 6, 'wKau')
+  #UpdatekauFieldNoIndex(CalcFZAv,wKau,cKau,'CalcFZAv',RecordsInTable(tnCalcFZAv), 6,'wKau')
+  #UpdateKau(VOLPROD,wKau,cKau,'VOLPROD', 'wKau')
+// таблицы Indent,Claim обработка в AmalgamateBookings.vip
+// UpdatekauFieldNoIndex(Claim,wCodeKau,cValKau,'Claim',RecordsInTable(tnClaim), 10, 'wCodeKau')
+// UpdatekauFieldNoIndex(INDENT,wCodeKau,cValKau,'INDENT',RecordsInTable(tnINDENT), 10,'wCodeKau')
+  #UpdatekauFieldNoIndex(OPINFO,wCodeKau,cValKau,'OPINFO',RecordsInTable(tnOPINFO), 3,'wCodeKau')
+  #UpdatekauFieldNoIndex(OPERPERIOD,wCodeKau,cValKau,'OPERPERIOD',RecordsInTable(tnOPERPERIOD), 3,'wCodeKau')
+  #UpdatekauFieldNoIndex(SPOPERPLAN,wCodeKau,cValKau,'SPOPERPLAN',RecordsInTable(tnSPOPERPLAN), 3,'wCodeKau')
+  #UpdatekauFieldNoIndex(FPOBOR,wKau,cKau,'FPOBOR',RecordsInTable(tnFPOBOR), 10,'wKau')
+// Sfilters это настройки фильтра (настройки фильтров не обрабатываем)
+// UpdatekauFieldNoIndex(Sfilters,iceKauCo,iceKauVa,'Sfilters',RecordsInTable(tnSfilters), 10, 'iceKauCo')
+  #UpdatekauWith5FieldsNoIndex(RsvOper,'RsvOper',RecordsInTable(tnRsvOper))
+// KatMarsh, Marsh_Sp в AmalgamateNormas.vip
+// UpdatekauWith5FieldsNoIndex(KatMarsh,'KatMarsh',RecordsInTable(tnKatMarsh))
+// UpdatekauWith5FieldsNoIndex(Marsh_Sp,'Marsh_Sp',RecordsInTable(tnMarsh_Sp))
+  #UpdatekauWith5FieldsNoIndex(MnfOper,'MnfOper',RecordsInTable(tnMnfOper))
+// HDR_PS, PS_Lines в AmalgamateNormas.vip
+// UpdatekauWith5FieldsNoIndex(HDR_PS,'HDR_PS',RecordsInTable(tnHDR_PS))
+// UpdatekauWith5FieldsNoIndex(PS_Lines,'PS_Lines',RecordsInTable(tnPS_Lines))
+  #UpdatekauWith5FieldsNoIndex(NoteBene,'NoteBene',RecordsInTable(tnNoteBene))
+  #UpdateKau(BuhSchet,wDas,cDas,'BuhSchet', 'wDas')
+// данные три таблицы обрабатываются в в объектном методе AmalgamatePlan
+// UpdatekauWith5FieldsNoIndex(MNPLAN,'MNPLAN',RecordsInTable(tnMNPLAN))
+// UpdatekauWith5FieldsNoIndex(SPMNPLAN,'SPMNPLAN',RecordsInTable(tnSPMNPLAN))
+// UpdatekauWith7FieldsNoIndex(SPMNPL,'SPMNPL',RecordsInTable(tnSPMNPL))
+  #UpdatekauWith5FieldsNoIndex(OBJACCT,'OBJACCT',RecordsInTable(tnOBJACCT))
+// данную таблицу закоментарил ибо все поля не надо обрабатывать а только одно
+// SpObjAcc.TypePos и SpObjAcc.cPos на основные системные аналитики (МЦ, организации), а остальные поля ссылаются на
+// аналитики спец. для производства и таких объеинений еще не реализовано.
+// UpdatekauWith5FieldsNoIndex(SPOBJACC,'SPOBJACC',RecordsInTable(tnSPOBJACC))
+  #UpdateOneKau(SPOBJACC,TypePos,cPos,'SPOBJACC','cPos')
+  #UpdatekauWith5FieldsNoIndex(OBJPARAM,'OBJPARAM',RecordsInTable(tnOBJPARAM))
+  #UpdatekauWith5FieldsNoIndex(SPOBJPAR,'SPOBJPAR',RecordsInTable(tnSPOBJPAR))
+  #UpdatekauWith5FieldsNoIndex(OPERPLAN,'OPERPLAN',RecordsInTable(tnOPERPLAN))
+  #UpdatekauWith1FieldsNoIndex(ItemFlAn,KodGrKAU, cKAU, 'ItemFlAn',RecordsInTable(tnItemFlAn), 'KodGrKAU')
+  #UpdatekauWith1FieldsNoIndex(KPN_Hdr,KodGrKAU, COBJECT, 'KPN_Hdr',RecordsInTable(tnKPN_Hdr), 'KPN_Hdr')
+  //ViewSloj - нужно бут сделать для 8.5. для 7.12 делать не надо
+  //SpSloj - нужно бут сделать для 8.5. для 7.12 делать не надо
+  //VarAnKol - нужно бут сделать для 8.5. для 7.12 делать не надо
+  //BuhSchet.KodTable - нужно бут сделать для 8.5. для 7.12 делать не надо
+  //PlansSch - нужно бут сделать для 8.5. для 7.12 делать не надо
+  //GrFlAn   нужно бут сделать для 8.5. для 7.12 делать не надо
+
+	// контролинг
+  #UpdateTableOneFieldOnTwoFieldNoIndex(BazCalc,cKod,wKod,wKodTbl,'BazCalc')
+  #UpdateTableOneFieldOnTwoFieldNoIndex(CalcObj,CodObj,TblObj,wKodTbl,'CalcObj')
+  #UpdateTableOneFieldOnTwoFieldNoIndex(CalcParm,CodObj,TblObj,wKodTbl,'CalcParm with field CodObj')
+  #UpdateTableOneFieldOnTwoFieldNoIndex(CalcParm,cRes,TypeRes,wKodTbl,'CalcParm with field cRes')
+  #UpdateTableOneFieldOnTwoFieldWithIndex2(CalcProd,cProd,TblProd,wKodTbl,'CalcProd')
+  pAmalgamate_RepMove(SpJoi.cRec,JoiHead.cRec,wKodTbl);
+  #UpdateTableOneFieldOnTwoFieldNoIndex(RepObj,ckau,wKau,wKodTbl,'RepObj')
+  #UpdateTableOneFieldOnTwoFieldNoIndex(RepProd,cRes,TypeRes,wKodTbl,'RepProd')
+  #UpdateTableOneFieldOnTwoFieldNoIndex(RepSale,cRes,TypeRes,wKodTbl,'RepSale')
+  #UpdateTableOneFieldOnTwoFieldWithIndex2(SprPrice,cResource,TypeRes,wKodTbl,'SprPrice')
+  #UpdateTableOneFieldOnTwoFieldWithIndex2(SpStage,cObject,TypeObj,wKodTbl,'SpStage')
+  //------------------------------------------------------
+  //180.7480
+  #UpdatekauWith1FieldsNoIndex(SP130,wKau,cKau,'SP130',RecordsInTable(tnSP130),'wKau')
+
+
+  //---------------------- Зарплата  ------------------------------
+  if((m_wNeedZarRun and 1) = 1)   //архивная информация по зарплате
+  {
+  	#UpdatekauFieldNoIndex(AROTPUSK,TblD,cKauD,'AROTPUSK',RecordsInTable(tnAROTPUSK),6, 'TblD')
+  	#UpdateKau(OTPDOP,TblD,cKauD,'OTPDOP', 'TblD')
+  	#UpdateKauWithDAndKNOINDEX(KLFILTER,TblD,TblK,cKauD,cKauK,'KLFILTER',RecordsInTable(tnKLFILTER), 6,  'TblD', 'TblK')
+#ifDef _ObedPodr
+   	#UpdateKauWithDAndKAndTwoFieldNOINDEX(NENACH,TblD,TblK,cKauD,cKauK,Cex,CexOz,'NENACH',RecordsInTable(tnNENACH), 6,'TblD', 'TblK')
+    #UpdateKauWithDAndKAndTwoFieldNOINDEX(Perevod,TblD,TblK,cKauD,cKauK,Cex,CexOz,'Perevod',RecordsInTable(tnPerevod),6, 'TblD', 'TblK')
+    #UpdateKauWithDAndKAndTwoFieldNOINDEX(SUMVIDUD,TblD,TblK,cKauD,cKauK,Cex,CexOz,'SUMVIDUD',RecordsInTable(tnSUMVIDUD),6, 'TblD', 'TblK')
+   	#UpdateKauWithDAndKAndTwoFieldNOINDEX(SumVidOP,TblD,TblK,cKauD,cKauK,Cex,CexOz,'SumVidOP',RecordsInTable(tnSumVidOP), 6,'TblD', 'TblK')
+    #UpdateKauWithDAndKAndTwoFieldNOINDEX(LSTAB,TblD,TblK,cKauD,cKauK,Cex,CexOz,'LSTAB',RecordsInTable(tnLSTAB), 6,'TblD', 'TblK')
+#else
+    #UpdateKauWithDAndKNOINDEX(Perevod,TblD,TblK,cKauD,cKauK,'Perevod',RecordsInTable(tnPerevod), 6, 'TblD', 'TblK')
+    #UpdateKauWithDAndKNOINDEX(NENACH,TblD,TblK,cKauD,cKauK,'NENACH',RecordsInTable(tnNENACH),6,  'TblD', 'TblK')
+   	#UpdateKauWithDAndKNOINDEX(SUMVIDUD,TblD,TblK,cKauD,cKauK,'SUMVIDUD',RecordsInTable(tnSUMVIDUD), 6,'TblD', 'TblK')
+   	#UpdateKauWithDAndKNOINDEX(SumVidOP,TblD,TblK,cKauD,cKauK,'SumVidOP',RecordsInTable(tnSumVidOP), 6,'TblD', 'TblK')
+    #UpdateKauWithDAndKNOINDEX(LSTAB,TblD,TblK,cKauD,cKauK,'LSTAB',RecordsInTable(tnLSTAB), 6,'TblD', 'TblK')
+#end
+  	#UpdateKau(PEREXOD,TblD,cKauD,'PEREXOD', 'TblD')
+  	#UpdatekauFieldNoIndex(RASDOP,TblD,cKauD,'RASDOP',RecordsInTable(tnRASDOP), 6,'TblD')
+  	#UpdateKau(RasOper,TblD,cKauD,'RasOper',  'TblD')
+  	#UpdateKau(NormTmr,TblD,cKauD,'NormTmr',  'TblD')
+  	#UpdateKau(BLisNet,TblD,cKauD,'BLisNet',  'TblD')
+  	#UpdateKau(Otpusk,TblD,cKauD,'Otpusk',  'TblD')
+  	#UpdateKau(Otpusk,TblK,cKauK,'Otpusk',  'TblK')
+  	#UpdateKau(Schpere,TblD,cKauD,'Schpere',  'TblD')
+  	#UpdateKau(Schpere,TblDN,cKauDN,'Schpere',  'TblDN')
+  	#UpdateKau(DOPLATA,TblD,cKauD,'DOPLATA', 'TblD')
+  	#UpdateKau(Klvidopl,TblD,cKauD,'Klvidopl',  'TblD')
+  	#UpdateKau(Klvidopl,TblK,cKauK,'Klvidopl',  'TblK')
+  	#UpdateKau(Klvidud,TblD,cKauD,'Klvidud',  'TblD')
+  	#UpdateKau(Klvidud,TblK,cKauK,'Klvidud',  'TblK')
+  	#UpdateKau(LSchet,TblD,cKauD,'LSchet',  'TblD')
+  	#UpdatekauFieldNoIndex(LSchet,TblMin,cKauMin,'LSchet',RecordsInTable(tnXarPred), 6,'TblMin')
+  	#UpdatekauFieldNoIndex(LSchet,TblK,cKauK,'LSchet', RecordsInTable(tnXarPred),6,'TblK')
+  	#UpdateKau(Shtraf,TblK,cKauK,'Shtraf',  'TblK')
+  	#UpdatekauFieldNoIndex(XarPred,TblK,cKauK,'XarPred',RecordsInTable(tnXarPred), 6,'TblK')
+  	#UpdatekauFieldNoIndex(XarPred,TblKP,cKauP,'XarPred',RecordsInTable(tnXarPred), 6,'TblKP')
+  	#UpdateKauWithDAndKNOINDEX(ZAROPER,TblD,TblK,cKauD,cKauK,'ZAROPER',RecordsInTable(tnZAROPER), 6, 'TblD', 'TblK')
+  }
+  if((m_wNeedZarRun and 2) = 2)   //текущая информация по зарплате
+  {
+    #UpdateKau(Perech,TblK,cKauK,'Perech','TblK')
+    #UpdateKau(UchRabvr,TblD,cKauD,'UchRabvr','TblD')
+    #UpdateKauWithDAndKNOINDEX(Nachisl,TblD,TblK,cKauD,cKauK,'Nachisl',RecordsInTable(tnNachisl),6, 'TblD','TblK')
+    #UpdateKauWithDAndKNOINDEX(Uder,TblD,TblK,cKauD,cKauK,'Uder', RecordsInTable(tnUder),6,'TblD','TblK')
+    #UpdateKau(PrVidOpl,TblD,cKauD,'PrVidOpl', 'TblD')
+    #UpdateKau(PrVidOpl,TblK,cKauK,'PrVidOpl', 'TblK')
+    #UpdateKau(Sys_Mbf,TblK,cKauK,'Sys_Mbf', 'TblK')
+    #UpdateKau(ARHPEREX,TblD,cKauD,'ARHPEREX', 'TblD')
+#ifDef _ObedPodr
+    #UpdateKauWithDAndKAndTwoFieldNOINDEX(PEREVODTEK,TblD,TblK,cKauD,cKauK,Cex,CexOz,'PEREVODTEK',RecordsInTable(tnPEREVODTEK), 6,'TblD', 'TblK')
+#else
+   	#UpdateKauWithDAndKNOINDEX(PEREVODTEK,TblD,TblK,cKauD,cKauK,'PEREVODTEK',RecordsInTable(tnPEREVODTEK), 6, 'TblD', 'TblK')
+#end
+    #UpdateKau(Sys_Nar,TblK,cKauK,'Sys_Nar',  'TblK')
+    #UpdateKau(Prnaryad,TblD,cKauD,'Prnaryad', 'TblD')
+    #UpdateKau(SmNaryad,TblD,cKauD,'SmNaryad', 'TblD')
+    #UpdateKau(NarDop,TblD,cKauD,'NarDop',  'TblD')
+  }
+
+  IF Not(NextVisual) ObBreak;
+  StartNewVisual(vtDownVisual,vfTimer,'Обработка таблицы OborKau (I этап(всего II этапа))', RecordsInTable(tnOborKau));
+  m_tTimeBeg := cur_time;
+  _LOOP OBORKAU
+  {
+    nextVisual;
+    if ((wKodTbl = OBORKAU.WKAU) and (cKauFind = OBORKAU.CKAU))
+      InsertMarker(MyMarker,OBORKAU.nRec);
+  }
+  CountMarker := GetMarkerCount(MyMarker);
+  StopVisual('', 0);
+  InsExecTime(SpJoi.cRec,JoiHead.cRec,'OborKau I этап', m_tTimeBeg,Cur_Time);
+
+  IF Not(NextVisual) ObBreak;
+  StartNewVisual(vtDownVisual,vfTimer,'Обработка таблицы OborKau (II этап(всего II этапа))', CountMarker + 1);
+  m_tTimeBeg := cur_time;
+  For (lCycle := 0; lCycle <> CountMarker; lCycle := lCycle + 1)
+    if (GetFirst OBORKAU where ((GetMarkerMy(MyMarker,lCycle) == OBORKAU.nRec)) = tsOk)
+    {
+      NextVisual;
+      OBORKAU.WKAU := wKodTblRepl;
+     	OBORKAU.CKAU := cKauRepl;
+      if (Update current OBORKAU)<>tsOk then MSGForm('OBORKAU',OBORKAU.nRec,1);
+    }
+  ClearMarker(MyMarker);
+  StopVisual('',0);
+  InsExecTime(SpJoi.cRec,JoiHead.cRec,'OborKau II этап', m_tTimeBeg,Cur_Time);
+  //неизвестно для этой таблицы
+
+  delete all tmspsloj;  // для замен аналитик описанных в Sloj
+  insert into tmspsloj (cMain, NPP) select cMain, NPP from SpSloj
+         where ((wkodtbl == spsloj.kodgrkau (noindex)
+             and 1      <<= SpSloj.npp      (noindex)
+             and 10     >>= SpSloj.npp      (noindex) ));
+
+/*
+  // таблица CalcPred
+  IF Not(NextVisual)
+    if (NeedOrNoRunObBreak) ObBreak;
+  StartNewVisual(vtDownVisual,vfTimer,'Обработка таблицы CalcPred', RecordsInTable(tnCalcPred));
+  m_tTimeBeg := cur_time;
+
+  if (GetFirst tmspsloj where((0 << tmSpSloj.cMain)) = tsOK)
+   _loop CalcPred
+   {
+    NextVisual;
+    if (CalcPred.cSloj <> 0)
+    {
+      _loop tmspsloj where ((CalcPred.cSloj == tmSpSloj.cMain))
+      {
+        if (CalcPred.cKau[tmSpSloj.npp] = cKauFind)
+        {
+          CalcPred.cKau[tmSpSloj.npp] := cKauRepl;
+          if ((Update current CalcPred) <> tsOk)
+            if (NeedOrNoRunObBreak){MSGForm('CalcPred', CalcPred.nRec, 1);}
+          break;
+        }
+      }
+    }
+   }
+  StopVisual('', 0);
+  InsExecTime(SpJoi.cRec,JoiHead.cRec, 'CalcPred', m_tTimeBeg, Cur_Time);
+*/
+//для изменения ссылок во внешних КАУ
+  IF Not(NextVisual)
+    if (NeedOrNoRunObBreak) ObBreak;
+  m_tTimeBeg := cur_time;
+  if ((update visual 'обновление KAUREFF' KAUREFF
+  where (( cKauFind   == KAUREFF.cKau(noindex) and
+           wKodTbl    == KAUREFF.wKau(noindex)))
+  set KAUREFF.cKau := cKauRepl) <> tsOk) MSGForm('KAUREFF', 0, 4);
+  InsExecTime(SpJoi.cRec,JoiHead.cRec,'KAUREFF', m_tTimeBeg,Cur_Time);
+
+  IF Not(NextVisual)
+    if (NeedOrNoRunObBreak) ObBreak;
+  m_tTimeBeg := cur_time;
+  if ((update visual 'обновление OSCHGPAR' OSCHGPAR
+  where (( cgOsChg_KauReff == OsChgPar.ParCode(noindex) and
+                   wKodTbl == OsChgPar.dValue(noindex) and
+                  cKauFind == OsChgPar.cValue(noindex)))
+  set OsChgPar.cValue := cKauRepl) <> tsOk) MSGForm('OSCHGPAR', 0, 4);
+  InsExecTime(SpJoi.cRec,JoiHead.cRec,'OSCHGPAR', m_tTimeBeg,Cur_Time);
+
+  IF Not(NextVisual)
+    if (NeedOrNoRunObBreak) ObBreak;
+
+  var indkau : integer;
+  var iMaxCycle : word;
+  iMaxCycle := 9;
+
+  m_tTimeBeg := cur_time;
+  StartNewVisual(vtDownVisual,vfTimer,'Обработка таблицы SaldTune', RecordsInTable(tnSaldTune));
+  delete all tmSaldTune;
+  _Loop SaldTune
+  {
+    NextVisual;
+    indkau := -1;// нет ссылки на аналитику
+    if (SaldTune.WOBJ = wKodTbl)
+      indkau := 0;
+    else
+    {
+      for (lCycle := 1; lCycle <= iMaxCycle; lCycle := lCycle + 1)
+      {
+        if (SaldTune.wKau[lCycle] = wKodTbl)
+        {
+          indkau := lCycle;
+          break;
+        }
+      }
+    }
+
+    if (indkau <> -1)
+    {
+      clearbuffer(#tmSaldTune);
+      tmSaldTune.Nrec := SaldTune.Nrec;
+      tmSaldTune.indkau := indkau;
+      insert current tmSaldTune;
+    }
+  }
+  StopVisual('', 0);
+  InsExecTime(SpJoi.cRec,JoiHead.cRec,'SaldTune', m_tTimeBeg,Cur_Time);
+
+  _Loop tmSaldTune
+  {
+    if ((tmSaldTune.indkau <= -1) or (tmSaldTune.indkau >= (iMaxCycle + 1))) continue;
+
+    NextVisual;
+
+    m_tTimeBeg := Cur_Time;
+#ifdef IsDSQL
+    if (IsDSQL) {
+      var hSetField:TPtr = 0;
+      var hWhereField:TPtr = 0;
+
+      if (tmSaldTune.indkau = 0) {
+        sqlAddStr(hSetField, 'MtrAct.cObjSrc = case when MtrAct.cObjSrc = #comp(' + string(SpJoi.cRec) + ') then #comp(' + string(JoiHead.cRec) + ') else MtrAct.cObjSrc end');
+        sqlAddStr(hSetField, ', MtrAct.cObjDst = case when MtrAct.cObjDst = #comp(' + string(SpJoi.cRec) + ') then #comp(' + string(JoiHead.cRec) + ') else MtrAct.cObjDst end');
+
+        sqlAddStr(hWhereField, 'MtrAct.cObjSrc = #comp(' + string(SpJoi.cRec) + ')');
+        sqlAddStr(hWhereField, ' or MtrAct.cObjDst = #comp(' + string(SpJoi.cRec) + ')');
+      }
+      else {
+        sqlAddStr(hSetField, 'MtrAct.cKauSrc[' + string(tmSaldTune.indkau) + '] = case when ');
+        sqlAddStr(hSetField, 'MtrAct.cKauSrc[' + string(tmSaldTune.indkau) + '] = #comp(' + string(SpJoi.cRec) + ') then ');
+        sqlAddStr(hSetField, '#comp(' + string(JoiHead.cRec) + ') else MtrAct.cKauSrc[' + string(tmSaldTune.indkau) + '] end');
+        sqlAddStr(hSetField, ', MtrAct.cKauDst[' + string(tmSaldTune.indkau) + '] = case when ');
+        sqlAddStr(hSetField, 'MtrAct.cKauDst[' + string(tmSaldTune.indkau) + '] = #comp(' + string(SpJoi.cRec) + ') then ');
+        sqlAddStr(hSetField, '#comp(' + string(JoiHead.cRec) + ') else MtrAct.cKauDst[' + string(tmSaldTune.indkau) + '] end');
+
+        sqlAddStr(hWhereField, 'MtrAct.cKauSrc[' + string(tmSaldTune.indkau) + '] = #comp(' + string(SpJoi.cRec) + ')');
+        sqlAddStr(hWhereField, ' or MtrAct.cKauDst[' + string(tmSaldTune.indkau) + '] = #comp(' + string(SpJoi.cRec) + ')');
+      }
+
+      if (queryManager.
+        createQuery(SQLQUERY(.
+          update MtrAct set
+            %SetField
+          where
+            (MtrAct.cSaldSrc = :(tmSaldTune.Nrec) or MtrAct.cSaldDst = :(tmSaldTune.Nrec)) and
+            ( %WhereField )
+        .)).
+        setMacro('SetField', hSetField).
+        setMacro('WhereField', hWhereField).
+        execute.
+        errorCode <> tsOk)
+      MsgForm('MtrAct', 0, 4);
+    }
+    else
+#end
+    {
+      case tmSaldTune.indkau of
+        0:{
+          #UpdateOneKauBySaldTune(MtrAct,cSaldSrc,cObjSrc,'MtrAct')
+          #UpdateOneKauBySaldTune(MtrAct,cSaldDst,cObjDst,'MtrAct')
+        }
+        1:{
+          #UpdateOneKauBySaldTune(MtrAct,cSaldSrc,cKauSrc[1],'MtrAct')
+          #UpdateOneKauBySaldTune(MtrAct,cSaldDst,cKauDst[1],'MtrAct')
+        }
+        2:{
+          #UpdateOneKauBySaldTune(MtrAct,cSaldSrc,cKauSrc[2],'MtrAct')
+          #UpdateOneKauBySaldTune(MtrAct,cSaldDst,cKauDst[2],'MtrAct')
+        }
+        3:{
+          #UpdateOneKauBySaldTune(MtrAct,cSaldSrc,cKauSrc[3],'MtrAct')
+          #UpdateOneKauBySaldTune(MtrAct,cSaldDst,cKauDst[3],'MtrAct')
+        }
+        4:{
+          #UpdateOneKauBySaldTune(MtrAct,cSaldSrc,cKauSrc[4],'MtrAct')
+          #UpdateOneKauBySaldTune(MtrAct,cSaldDst,cKauDst[4],'MtrAct')
+        }
+        5:{
+          #UpdateOneKauBySaldTune(MtrAct,cSaldSrc,cKauSrc[5],'MtrAct')
+          #UpdateOneKauBySaldTune(MtrAct,cSaldDst,cKauDst[5],'MtrAct')
+        }
+        6:{
+          #UpdateOneKauBySaldTune(MtrAct,cSaldSrc,cKauSrc[6],'MtrAct')
+          #UpdateOneKauBySaldTune(MtrAct,cSaldDst,cKauDst[6],'MtrAct')
+        }
+        7:{
+          #UpdateOneKauBySaldTune(MtrAct,cSaldSrc,cKauSrc[7],'MtrAct')
+          #UpdateOneKauBySaldTune(MtrAct,cSaldDst,cKauDst[7],'MtrAct')
+        }
+        8:{
+          #UpdateOneKauBySaldTune(MtrAct,cSaldSrc,cKauSrc[8],'MtrAct')
+          #UpdateOneKauBySaldTune(MtrAct,cSaldDst,cKauDst[8],'MtrAct')
+        }
+        9:{
+          #UpdateOneKauBySaldTune(MtrAct,cSaldSrc,cKauSrc[9],'MtrAct')
+          #UpdateOneKauBySaldTune(MtrAct,cSaldDst,cKauDst[9],'MtrAct')
+        }
+      end;
+    }
+
+    InsExecTime(SpJoi.cRec,JoiHead.cRec,'MtrAct', m_tTimeBeg,Cur_Time);
+
+    NextVisual;
+
+    m_tTimeBeg := Cur_Time;
+#ifdef IsDSQL
+    if (IsDSQL) {
+      var hSetField:TPtr = 0;
+      var hWhereField:TPtr = 0;
+
+      if (tmSaldTune.indkau = 0) {
+        sqlAddStr(hSetField, 'SpecMTR.cObj = #comp(' + string(JoiHead.cRec) + ')');
+        sqlAddStr(hWhereField, 'SpecMTR.cObj = #comp(' + string(SpJoi.cRec) + ')');
+      }
+      else {
+        sqlAddStr(hSetField, 'SpecMTR.cKau[' + string(tmSaldTune.indkau) + '] = #comp(' + string(JoiHead.cRec) + ')');
+        sqlAddStr(hWhereField, 'SpecMTR.cKau[' + string(tmSaldTune.indkau) + '] = #comp(' + string(SpJoi.cRec) + ')');
+      }
+
+      if (queryManager.
+        createQuery(SQLQUERY(.
+          update SpecMTR set
+            %SetField
+          where
+            SpecMTR.cSaldTune = :(tmSaldTune.Nrec) and
+            ( %WhereField )
+        .)).
+        setMacro('SetField', hSetField).
+        setMacro('WhereField', hWhereField).
+        execute.
+        errorCode <> tsOk)
+      MsgForm('SpecMTR', 0, 4);
+    }
+    else
+#end
+    {
+      case tmSaldTune.indkau of
+        0:#UpdateOneKauBySaldTune(SpecMTR,cSaldTune,cObj,'SpecMTR')
+        1:#UpdateOneKauBySaldTune(SpecMTR,cSaldTune,cKau[1],'SpecMTR')
+        2:#UpdateOneKauBySaldTune(SpecMTR,cSaldTune,cKau[2],'SpecMTR')
+        3:#UpdateOneKauBySaldTune(SpecMTR,cSaldTune,cKau[3],'SpecMTR')
+        4:#UpdateOneKauBySaldTune(SpecMTR,cSaldTune,cKau[4],'SpecMTR')
+        5:#UpdateOneKauBySaldTune(SpecMTR,cSaldTune,cKau[5],'SpecMTR')
+        6:#UpdateOneKauBySaldTune(SpecMTR,cSaldTune,cKau[6],'SpecMTR')
+        7:#UpdateOneKauBySaldTune(SpecMTR,cSaldTune,cKau[7],'SpecMTR')
+        8:#UpdateOneKauBySaldTune(SpecMTR,cSaldTune,cKau[8],'SpecMTR')
+        9:#UpdateOneKauBySaldTune(SpecMTR,cSaldTune,cKau[9],'SpecMTR')
+      end;
+    }
+
+    InsExecTime(SpJoi.cRec,JoiHead.cRec,'SpecMTR', m_tTimeBeg,Cur_Time);
+
+    NextVisual;
+
+    m_tTimeBeg := Cur_Time;
+#ifdef IsDSQL
+    if (IsDSQL) {
+      var hSetField:TPtr = 0;
+      var hWhereField:TPtr = 0;
+
+      if (tmSaldTune.indkau = 0) {
+        sqlAddStr(hSetField, 'KitKau.cObj = #comp(' + string(JoiHead.cRec) + ')');
+        sqlAddStr(hWhereField, 'KitKau.cObj = #comp(' + string(SpJoi.cRec) + ')');
+      }
+      else {
+        sqlAddStr(hSetField, 'KitKau.cKau[' + string(tmSaldTune.indkau) + '] = #comp(' + string(JoiHead.cRec) + ')');
+        sqlAddStr(hWhereField, 'KitKau.cKau[' + string(tmSaldTune.indkau) + '] = #comp(' + string(SpJoi.cRec) + ')');
+      }
+
+      if (queryManager.
+        createQuery(SQLQUERY(.
+          update KitKau set
+            %SetField
+          where
+            KitKau.cSaldTune = :(tmSaldTune.Nrec) and
+            ( %WhereField )
+        .)).
+        setMacro('SetField', hSetField).
+        setMacro('WhereField', hWhereField).
+        execute.
+        errorCode <> tsOk)
+      MsgForm('KitKau', 0, 4);
+    }
+    else
+#end
+    {
+      case tmSaldTune.indkau of
+        0:#UpdateOneKauBySaldTune(KitKau,cSaldTune,cObj,'KitKau')
+        1:#UpdateOneKauBySaldTune(KitKau,cSaldTune,cKau[1],'KitKau')
+        2:#UpdateOneKauBySaldTune(KitKau,cSaldTune,cKau[2],'KitKau')
+        3:#UpdateOneKauBySaldTune(KitKau,cSaldTune,cKau[3],'KitKau')
+        4:#UpdateOneKauBySaldTune(KitKau,cSaldTune,cKau[4],'KitKau')
+        5:#UpdateOneKauBySaldTune(KitKau,cSaldTune,cKau[5],'KitKau')
+        6:#UpdateOneKauBySaldTune(KitKau,cSaldTune,cKau[6],'KitKau')
+        7:#UpdateOneKauBySaldTune(KitKau,cSaldTune,cKau[7],'KitKau')
+        8:#UpdateOneKauBySaldTune(KitKau,cSaldTune,cKau[8],'KitKau')
+        9:#UpdateOneKauBySaldTune(KitKau,cSaldTune,cKau[9],'KitKau')
+      end;
+    }
+
+    InsExecTime(SpJoi.cRec, JoiHead.cRec, 'KitKau', m_tTimeBeg, Cur_Time);
+  }
+  UpdateOneKau := True;
+end; // UpdateOneKau
+
+var KodTblArr:array[1] of word;
+function UpdateMnAnal(cKauFind : comp; cKauRepl : comp; NeedOrNoRunObBreak : boolean):boolean;
+{
+  result:=false;
+
+  // таблица MnAnal
+  IF Not(NextVisual)
+    if (NeedOrNoRunObBreak) ObBreak;
+  m_tTimeBeg := cur_time;
+
+  var KodTblArrCount:longint = Count(KodTblArr);
+  var wKodGrKau:word = 0;
+
+  delete all tmspsloj;  // для замен аналитик описанных в Sloj
+  for(lCycle:=1; lCycle <= KodTblArrCount; lCycle++) {
+    wKodGrKau:=KodTblArr[lCycle];
+
+    insert into tmspsloj (cMain, NPP)
+    select cMain, NPP from SpSloj
+    where ((wKodGrKau == SpSloj.KodGrKau
+       and 1      <<= SpSloj.npp      (noindex)
+       and 10     >>= SpSloj.npp      (noindex) ));
+  }
+
+  var mSloj:TPtr = InitMarker('', 8, 0, 1);
+  _loop tmspsloj
+    if (tmspsloj.cMain <> 0)
+      if (not FoundMarker(mSloj, tmspsloj.cMain))
+        InsertMarker(mSloj, tmspsloj.cMain);
+
+  StartNewVisual(vtDownVisual, vfTimer, 'Обработка таблицы MnAnal', RecordsInTable(tnMnAnal));
+
+  var mSlojCount:longint = GetMarkerCount(mSloj);
+  var cRec:comp = 0;
+  for(lCycle:=0; lCycle < mSlojCount; lCycle++) {
+    if (not GetMarker(mSloj, lCycle, cRec)) continue;
+
+#ifdef IsDSQL
+    if (IsDSQL) {
+      var hSetFields:TPtr = 0;
+      var hWhereFields:TPtr = 0;
+      var FldN:string = '';
+
+      _loop tmSpSloj where((cRec == tmSpSloj.cMain)) {
+        if (hSetFields <> 0) sqlAddStr(hSetFields, ', ');
+        if (hWhereFields <> 0) sqlAddStr(hWhereFields, ' or ');
+
+        FldN:=string(tmSpSloj.NPP);
+        sqlAddStr(hSetFields, 'MnAnal.FldAn' + FldN + ' = case when MnAnal.FldAn' + FldN +
+                              ' = #comp(' + string(cKauFind) + ') then #comp(' + string(cKauRepl) + ') else MnAnal.FldAn' + FldN + ' end');
+        sqlAddStr(hWhereFields, 'MnAnal.FldAn' + FldN + ' = #comp(' + string(cKauFind) + ')');
+      }
+
+      var hWhereFields2:TPtr = 0;
+      sqlAddStr(hWhereFields2, ' MnAnal.cSloj = #comp(' + string(cRec) + ')');
+
+      if (queryManager.
+          createQuery(SQLQUERY(.
+            update MnAnal set
+              %SetFields
+            where
+              %WhereFields2 and
+              ( %WhereFields )
+          .)).
+          setMacro('SetFields', hSetFields).
+          setMacro('WhereFields', hWhereFields).
+          setMacro('WhereFields2', hWhereFields2).
+          execute.
+          errorCode <> tsOk)
+      MSGForm('MnAnal', 0, 4);
+    }
+    else
+#end
+    {
+      _loop fullcache MnAnal where((cRec == MnAnal.cSloj)) {
+        NextVisual;
+
+        ExistIntableWithNoIndexRecord := 0;
+        _loop tmSpSloj where ((MnAnal.cSloj == tmSpSloj.cMain))
+        {
+          case tmSpSloj.NPP of
+          1: #UpdateFieldNoIndex(MnAnal,FldAn1)
+          2: #UpdateFieldNoIndex(MnAnal,FldAn2)
+          3: #UpdateFieldNoIndex(MnAnal,FldAn3)
+          4: #UpdateFieldNoIndex(MnAnal,FldAn4)
+          5: #UpdateFieldNoIndex(MnAnal,FldAn5)
+          6: #UpdateFieldNoIndex(MnAnal,FldAn6)
+          7: #UpdateFieldNoIndex(MnAnal,FldAn7)
+          8: #UpdateFieldNoIndex(MnAnal,FldAn8)
+          9: #UpdateFieldNoIndex(MnAnal,FldAn9)
+          10:#UpdateFieldNoIndex(MnAnal,FldAn10)
+          end;
+        }
+        if (ExistIntableWithNoIndexRecord = 1)
+        {
+          if ((Update current MnAnal) <> tsOk)
+            MSGForm('MnAnal', MnAnal.nRec, 1);
+        }
+      } // _loop MnAnal
+    }
+  }
+
+  DoneMarker(mSloj, '');
+  delete all tmspsloj;
+
+  StopVisual;
+  InsExecTime(SpJoi.cRec,JoiHead.cRec, 'MnAnal', m_tTimeBeg, Cur_Time);
+
+  result:=true;
+}
+
+!-------------------------------------------------------------------------------
+// функция предназначена для всех объединений, кроме объединения аналитик
+function UpdateKau (cKauFind : comp; cKauRepl : comp; wKodTbl : word; NeedOrNoRunObBreak : boolean;
+                    sAttrVal : string) : Boolean;
+var
+  wCodeTable : word;
+{
+  result := false;
+  // получаем список внешних атрибутов, которые являются ссылкой
+  if Not(NextVisual) Obbreak;
+  StartNewVisual(vtNumericVisual, vfTimer, 'Обработка таблицы AttrVal', 0);
+  wCodeTable := GetKauCoTable(wKodTbl);
+  m_tTimeBeg := cur_time;
+  _loop AttrNam where ((cgAttrType_Comp == AttrNam.ATTRTYPE
+                    and wCodeTable      == AttrNam.COTABLE(noindex)))
+  {
+    nextvisual;
+    _loop fullcache AttrVal where ((AttrNam.Nrec   == AttrVal.CATTRNAM
+                      and AttrNam.WTABLE == AttrVal.WTABLE(noindex)
+                      and cKauFind       == AttrVal.VCOMP(noindex)))
+    {
+      nextvisual;
+      AttrVal.VString := sAttrVal;
+      AttrVal.VCOMP := cKauRepl;
+      update current AttrVal;
+    }
+  }
+  stopvisual('', 0);
+  InsExecTime(cKauFind, cKauRepl,'AttrVal', m_tTimeBeg, Cur_Time);
+
+  // Обработка самой аналитики
+  if (not UpdateOneKau (cKauFind, cKauRepl, wKodTbl, wKodTbl, NeedOrNoRunObBreak))
+    Exit;
+
+  // Обработка синонимов
+  SetLimit(KodTblArr, 0);
+  KodTblArr[1]:=wKodTbl;
+  _Loop KatKau where ((    0        ==  KatKau.isActive
+                       and wKodTbl  ==  KatKau.UpGroup ))
+  {
+    if (KatKau.SysNum = cgKatKau_Synonym) {
+       KodTblArr[Count(KodTblArr)+1]:=KatKau.KodGroup;
+      if (not UpdateOneKau (cKauFind, cKauRepl, KatKau.KodGroup, KatKau.KodGroup, NeedOrNoRunObBreak))
+        Exit;
+    }
+  }
+
+  if (not UpdateMnAnal(cKauFind, cKauRepl, NeedOrNoRunObBreak)) exit;
+
+  result := true;
+} // UpdateKau

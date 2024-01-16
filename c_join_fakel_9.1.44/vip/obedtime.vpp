@@ -1,0 +1,116 @@
+
+// создание записи о времени объединения
+Procedure InsExecTime(rec1, rec2 : comp; tbl : string; stime : time; etime : time);
+{
+  ClearBuffer (#ExecTime);
+  ExecTime.Nrec1 := rec1;
+  ExecTime.Nrec2 := rec2;
+  ExecTime.tabname := tbl;
+  ExecTime.starttime := stime;
+  ExecTime.endtime := etime;
+  insert current exectime;
+}
+// создание протокола по времени объединения
+#Declare MakeTimeProt(InterfName)
+{
+         var  exetime, fromsumexetime,tosumexetime, sumexetime: time;
+         var  fromname, toname: string;
+         var  prevFromRec, prevToRec: comp;
+         var  notfilledfrom, notfilledto, firstto: boolean;
+         fromsumexetime := Time(0,0,0,0);
+         tosumexetime := Time(0,0,0,0);
+         sumexetime := Time(0,0,0,0);
+         notfilledfrom := true;
+         notfilledto := true;
+         firstto := true;
+         if (GetFirst ExecTime <>  tsOk)
+         {
+           Message('Таблица данных для отчета пуста.');
+           exit;// дальше продолжать формировать отчет смысла нет
+         }
+         prevFromRec := ExecTime.Nrec1;
+         prevToRec   := ExecTime.Nrec2;
+         fromname    := GetPrintName(ExecTime.Nrec1);
+         toname      := GetPrintName(ExecTime.Nrec2);
+         frmExchngTime.Write(#InterfName);
+         // нажали отмену на выборе отчетов - больше никаких действий
+         if (frmExchngTime.Error) {frmExchngTime.AbortForm; exit;}
+
+         _Loop ExecTime
+         {
+           if (ExecTime.Nrec1 <> prevFromRec)
+           {
+             notfilledfrom := true;
+             frmExchngTime.PutEventById (feBreak, fcCyrcleOfFromUchEd );
+             frmExchngTime.Write(fromname);
+             frmExchngTime.Write(toname);
+             if (firstto)
+             {
+               frmExchngTime.Write(toname);
+               firstto := false;
+             }
+             else
+               frmExchngTime.Write('');
+             frmExchngTime.Write(TimeToStr(fromsumexetime, 'HH:MM:SS:SSS'));
+             tosumexetime := Add_Time(tosumexetime, fromsumexetime);
+             fromsumexetime := Time(0,0,0,0);
+             prevFromRec := ExecTime.Nrec1;
+             fromname := GetPrintName(ExecTime.Nrec1);
+
+             if (ExecTime.Nrec2 <> prevToRec)
+             {
+                notfilledto := true;
+                frmExchngTime.PutEventById (feBreak, fcCyrcleOfToUchEd);
+                frmExchngTime.Write(toname);
+                frmExchngTime.Write(TimeToStr(tosumexetime, 'HH:MM:SS:SSS'));
+                sumexetime:=Add_Time(sumexetime, tosumexetime);
+                tosumexetime := Time(0,0,0,0);
+                prevToRec := ExecTime.Nrec2;
+                toname := GetPrintName(ExecTime.Nrec2);
+                firstto := true;
+             }
+           }
+           if (ExecTime.endtime >= ExecTime.starttime)
+             exetime:=Sub_Time (ExecTime.endtime, ExecTime.starttime);
+           else {
+             exetime:=Sub_Time(rvMaxTime, ExecTime.starttime);
+             exetime:=Add_Time(exetime, ExecTime.endtime);
+           }
+           fromsumexetime := Add_Time(fromsumexetime, exetime);
+           if (notfilledfrom)
+           {
+             frmExchngTime.Write(fromname);
+             notfilledfrom := false;
+           }
+           else
+             frmExchngTime.Write('');
+           if (notfilledto)
+           {
+             frmExchngTime.Write(toname);
+             notfilledto := false;
+           }
+           else
+             frmExchngTime.Write('');
+           frmExchngTime.Write(ExecTime.TabName);
+           frmExchngTime.Write(TimeToStr(ExecTime.starttime,'HH:MM:SS:SSS'));
+           frmExchngTime.Write(TimeToStr(ExecTime.endtime,'HH:MM:SS:SSS'));
+           frmExchngTime.Write(TimeToStr(exetime,'HH:MM:SS:SSS'));
+         }
+         frmExchngTime.PutEventById (feBreak, fcCyrcleOfFromUchEd);
+         tosumexetime := Add_Time(tosumexetime,fromsumexetime);
+         frmExchngTime.Write(fromname);
+         frmExchngTime.Write(toname);
+         if (firstto)
+            frmExchngTime.Write(toname);
+         else
+            frmExchngTime.Write('');
+         frmExchngTime.Write(TimeToStr(fromsumexetime,'HH:MM:SS:SSS'));
+         frmExchngTime.PutEventById (feBreak, fcCyrcleOfToUchEd);
+         sumexetime:=Add_Time(sumexetime,tosumexetime);
+         frmExchngTime.Write(toname);
+         frmExchngTime.Write(TimeToStr(tosumexetime,'HH:MM:SS:SSS'));
+         frmExchngTime.PutEventById (feBreak, fcCyrcleOfObedUchEd);
+         frmExchngTime.Write(TimeToStr(sumexetime,'HH:MM:SS:SSS'));
+         frmExchngTime.ShowFile;
+  }
+#end

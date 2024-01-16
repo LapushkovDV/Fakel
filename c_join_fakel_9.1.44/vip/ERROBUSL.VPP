@@ -1,0 +1,107 @@
+
+// ╔═════════════════════════════════════════════════════════════════════╗
+// ║              Проект Галактика (с) 1995,96,97 TOP SOFT Ltd.          ║
+// ║  Версия :     5.80                                                  ║
+// ║  Разработал: Лебедев В.В. (VITAS)                                   ║
+// ║  Назначение: функции для пакетной печати ошибок объединения услуг   ║
+// ╚═════════════════════════════════════════════════════════════════════╝
+
+var
+  _nMsgFrm  :longint;      // число ошибок(мессаг)
+  _Table  : string[15];    // Модифицируемая таблица
+  _nRec   : comp;          // Модифицируемая запись
+
+Function GetMarkerMy(Markers : TPtr; IndexNo : LongInt):comp;
+{
+Var FindComp : comp;
+
+GetMarkerMy := 0;
+if (GetMarker(Markers, IndexNo, FindComp)=True) then GetMarkerMy := FindComp;
+} // function GetMarkerMy
+
+
+function MSGForm(mTable : string[15]; mRec : comp; mPrOper : word):word;
+{
+Var
+  sMessage : string;
+
+  if (_nMsgFrm=0)
+    ErrObUsl.PutEventById (feDoLoop, fcCycleOfResUsl);
+  if (_nMsgFrm = ErrorJoi)
+    {
+    ErrObUsl.write('"'+sObName+'"');
+    ErrObUsl.write(JoiHead.cRec);
+    ErrObUsl.PutEventById (feDoLoop, fcCycleOfObUsl);
+    }
+  if (_nMsgFrm=ErrorSp)
+    {
+    if (prSp=True)
+      {
+      ErrObUsl.write('"'+sOb1Name+'"');
+      ErrObUsl.write(SpJoi.cRec);
+      }
+    else
+      {
+      ErrObUsl.write('"'+sObName+'"');
+      ErrObUsl.write(JoiHead.cRec);
+      }
+    ErrObUsl.PutEventById (feDoLoop, fcCycleOfErrorUsl);
+    }
+
+  _nMsgFrm:=_nMsgFrm+1;
+  case mPrOper of
+    Word(1) : sMessage:='Не удалось модифицировать запись';
+    Word(2) : sMessage:='Не удалось удалить запись';
+    Word(3) : sMessage:='Не удалось вставить запись';
+  end; // case
+
+  ErrObUsl.write(_nMsgFrm);
+  ErrObUsl.write(mTable);
+  ErrObUsl.write(mRec);
+  ErrObUsl.write(sMessage);
+
+  MSGForm:=cmYes;
+};
+
+function MSGFormDop(mTable : string[15]; mRec : comp; mPrOper : word; DopMessage : string):word;
+{
+Var
+  sMessage : string;
+
+  if (_nMsgFrm=0)
+    ErrObUsl.PutEventById (feDoLoop, fcCycleOfResUsl);
+  if (_nMsgFrm = ErrorJoi)
+    {
+    ErrObUsl.write('"'+sObName+'"');
+    ErrObUsl.write(JoiHead.cRec);
+    ErrObUsl.PutEventById (feDoLoop, fcCycleOfObUsl);
+    }
+  if (_nMsgFrm=ErrorSp)
+    {
+    if (prSp=True)
+      {
+      ErrObUsl.write('"'+sOb1Name+'"');
+      ErrObUsl.write(SpJoi.cRec);
+      }
+    else
+      {
+      ErrObUsl.write('"'+sObName+'"');
+      ErrObUsl.write(JoiHead.cRec);
+      }
+    ErrObUsl.PutEventById (feDoLoop, fcCycleOfErrorUsl);
+    }
+
+  _nMsgFrm:=_nMsgFrm+1;
+  case mPrOper of
+    Word(1) : sMessage:='Не удалось модифицировать запись';
+    Word(2) : sMessage:='Не удалось удалить запись';
+    Word(3) : sMessage:='Не удалось вставить запись';
+  end; // case
+
+  ErrObUsl.write(_nMsgFrm);
+  ErrObUsl.write(mTable);
+  ErrObUsl.write(mRec);
+  ErrObUsl.write(sMessage+DopMessage);
+
+  MSGFormDop:=cmYes;
+};

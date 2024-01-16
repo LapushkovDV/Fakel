@@ -1,0 +1,28 @@
+//------------------------------------------------------------------------------
+//                                                      (c) Корпорация Галактика
+// Галактика ERP 9.1
+// Проектный файл сборки компонента
+//------------------------------------------------------------------------------
+
+#statusline "statgal"
+#include GalNet.inc end;
+#include GloVars.inc
+
+#define CompTitle Объединение данных
+#doc
+  #CompTitle
+#end
+//#include C_JOIN.ver
+
+#define _ObedAll_
+
+#include galaktika.vil
+#include Getkau.vih
+#include RplHash.VIH
+#include KatStroy.vih
+
+
+#component "C_JOIN"
+// убрали объединение по таблицам analsxem и calcpred
+#make "vip\*.VIP"
+#make "FRM\*.frm"

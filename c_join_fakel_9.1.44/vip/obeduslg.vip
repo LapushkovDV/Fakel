@@ -1,0 +1,1583 @@
+//********************************************************************************
+//                                                        (c) корпорация Галактика
+// Галактика 7.12 - Настройка
+// Объединение услуг
+//********************************************************************************
+
+#include ExtFpModAn.Vih // модификация аналитик для "Управления бюджетом"
+#include Amalgamate.vih // объединения производства
+#include marker.vih // описание объекта и объявление интерфейса
+                    // marker c реализацией по умолчанию
+
+#include exectime.dic  // таблица  для хранения результатов по времени объединения
+#include filial_macro.vpp// макросы для обработки филиальности
+#include MacOb.vpp //макросы (для таблиц, не содержащих кау, и общие)
+#define UseGetMarkerMy
+
+#doc
+Объединение услуг
+#end
+Interface KatUslgOb 'Объединение услуг'  EscClose, cyan;
+  show at (,,80,25);
+
+#include ExtFpModAn.Var   // модификация аналитик для "Управления бюджетом" (pExtFpModAn)
+
+const
+  lMsgOdebdifferenceUser = 'Этим объединением занимается другой пользователь.';
+  lFilterByUserOb  = 'FilterByUserObKatUsl';
+  lNeedZarRunOb    = 'NeedZarRunObKatUsl';
+  lCheckTimeObedRepOb = 'CheckTimeObedRepObKatUsl';
+  lNotDefine = 'Удаленная услуга';
+  lPickConst = 12;
+end;
+
+Create View
+#INCLUDE obed.var //объявление переменных
+  IError       : integer;
+  NameFileMy   : string;
+  CountRecOrdInProcess :integer; //количество записей для визуализации vtDownVisual
+As select
+  #Strorka_sObName(KatUsl, lNotDefine,Name)
+  #Strorka_sOb1Name(KatUsl1,lNotDefine,Name)
+//----------------------------------------------------------------------------------
+  #InternalFields
+//----------------------------------------------------------------------------------
+  #InternalFieldsForShowFilial
+From
+    KatUsl
+  , ExecTime
+  , JoiHead
+  , SpJoi
+  , Pick
+  , EvJoiHead
+  #TableForFilial
+  , JoiHead   tmpJoiHead
+  , SpJoi     tmpSpJoi
+  , EvJoiHead EvJoiHead1
+  , KatUsl    KatUsl1
+  , KatUsl    KatUslTmp
+  , KatOtpEd
+  , KatOtpEd  KatOtpEdSyn
+  , KatOtpEd  KatOtpEdtmp
+  , ZAMKAU ZAMKAUTMP
+  , EXCLASSVAL
+  , EXCLASSIER
+
+// таблицы перечислены, чтобы работала функция recOrdsintable
+  #include iTable.vpp
+  , KATMC,   KatNalog, TRANSP,   PUTGSM,   NORMGSM, TRANINF,  WAYWPS
+  , SPZAKAZ, VALNAC,   MSDILLER, MRKSALES, SPDOCS,  SpStep,   SOPRDOP
+  , SPSOPR,  SPDOVER, INTEREST, ISKOTGR, SPSCHF, RAZDSCH, SRAZDSCH, ZAMTAB, ZAMKAU
+  , NORMGRUP, SKIDPRIM, LISTPAR, SpUsl, JourDefr, RabDef, PRICES, REPLKAU, SREPLKAU
+  ,SpSetAn,CRMGOODS, SPCUSL, KATKOD, TRANDOP, TRABREM, OsMc, OsMcUsl, DSGOTPR
+Where
+((
+  m_wCgObedValue == JoiHead.TypeEvent and    // Услуги
+  JoiHead.cRec    == KatUsl.nRec and      // Объединение - услуги
+  JoiHead.nRec    == SpJoi.cJoiHead and  // Объединение - спецификация
+  SpJoi.cRec      == KatUsl1.nRec        // Спецификация - услуги
+  #WhereForFilial
+))
+
+Bounds OnlyUser =
+      m_wCgObedValue == JoiHead.TypeEvent and UserName() == JoiHead.UserName
+;
+
+File MemoFile;
+File FileProtocol;
+
+Const
+  iCountTableStep2 = 31;
+  iCountTableStep3 = 6 * 40 + 70;
+end;
+
+var
+  m_pMarkerUp   : IMarker(marker) new;
+
+Procedure ObBreak;  // Прерывание объединения
+var
+  lcount_out : longint;
+{
+  lcount_out := VisualCount ();
+  Message('Для прекращения объединения придется' + chr(13)
+        + 'подождать до окончания замены на' + chr(13)
+        + '"' + trim (KatUslTmp.Name) + '".', Information + OkButton);
+
+  ReStartVisual('Идет замещение услуги  на'#13'' + '"' + trim(KatUslTmp.Name) + '"' +
+                ''#13'', m_lCount_vis);
+  NNextVisual (lcount_out);
+  m_bBreak := True;
+}
+
+// описаны переменные объектных интерфейсов и функции обработки таблиц
+// производственно контура
+#include Amalgamate.vpp
+
+form ErrObAll ('ErrObUsl.OUT','ErrObAll') with NoVisual;
+FORM frmObedAll('obedUsl.out','obedAll') with novisual;
+form frmExchngTime('ExchngTime.out', 'ExchngTime') with novisual;
+#include obedtime.vpp //процедуры и фукнции по работе с таблицей информации по времени объединения
+#include ErrObAll.vpp    // Пакет ошибок
+#include printrelat.vpp // отчет замен
+#include filial_func.vpp // проверка филиальности
+#include Cor_Kau.vpp   // KAU
+//процедуры и функции обрабатывающие приход реплики с объединеннями  из другого офиса
+#include ObFCorpo.vpp
+function GetPrintName(cRec : comp) : string;
+var
+  sResult : string;
+{
+  sResult := 'Удален';
+  If (GetFirst KatUslTmp where ((cRec == KatUslTmp.Nrec)) = tsOk)
+    sResult := KatUslTmp.Name;
+  result := sResult;
+}
+
+Function FindExistObj (cUsl : comp) : boolean;  // Проверка не участвует ли уже
+                                                // Услуга в объединении
+var
+  sObjUp, sObjDown : string[80];
+{
+  #FindObj(m_wCgObedValue, KatUslTmp, Name, lNotDefine, 'Услуга ', cUsl, 2)
+}
+
+Function setOtpEd ( cEdSour : comp ) :comp ;
+{
+  var bFind  : Boolean;
+  var dInter : Double;
+
+  IF ( GetFirst KatOtpEdSyn where (( cEdSour  ==  KatOtpEdSyn.NRec)) = tsOk )
+  {
+    IF ( GetFirst KatOtpEd where ((word(2)      ==  KatOtpEd.PrMC and
+                                   JoiHead.cRec ==  KatOtpEd.cMcUsl )) = tsOk )
+    {
+      bFind    := True;
+      setOtpEd := KatOtpEd.Nrec;
+      dInter := abs(KatOtpEd.Koef - KatOtpEdSyn.Koef);
+      WHILE ( bFind )
+      {
+        IF ( KatOtpEd.Koef = KatOtpEdSyn.Koef )
+        {
+          setOtpEd := KatOtpEd.Nrec;
+          Break;
+        }
+        ELSE
+        {
+          IF ( abs(KatOtpEd.Koef - KatOtpEdSyn.Koef) < abs(dInter) )
+          {
+            dInter   := KatOtpEd.Koef - KatOtpEdSyn.Koef;
+            setOtpEd := KatOtpEd.Nrec;
+          }
+        }
+        bFind :=  ( GetNext KatOtpEd where ((word(2)      ==  KatOtpEd.PrMC and
+                                             JoiHead.cRec ==  KatOtpEd.cMcUsl )) = tsOk )
+      } // WHILE
+      Exit;
+    }
+  }
+  setOtpEd := KatOtpEd.Nrec ;
+}
+
+Procedure FinishStage (stage : word);
+{
+  if(_nMsgFrm = m_lErrorSp)       // Если этап завершен без ошибок для одной об. МЦ
+  {
+    SpJoi.Step := word(stage);
+    Update current SpJoi;
+  }
+}
+
+Function CheckObj : boolean;
+{
+  #Check_Obj(KatUslTmp)
+}
+
+Function CheckAllRelation : boolean;
+{
+  var strType1 : string;
+  var ErrorOtpEd : boolean;
+  var strType2 : string;
+  NameFileMy := CreateTmpFileName;
+  IError := 0;
+  if (not FileProtocol.OpenFile(NameFileMy,  stCreate)) {Exit}
+  CheckAllRelation := True;
+  _Loop JoiHead
+  {
+    strType1 := '';
+    if (KatUsl.TYPEUSL = 0) strType1 := 'вводимая'
+    else strType1 := 'расчетная';
+    _Loop SpJoi
+    {
+      if (KatUsl.cEd <> KatUsl1.cEd)
+      {
+        FileProtocol.Writeln('У услуг '+KatUsl.Name+' и '+KatUsl1.Name+' не равны учетные единицы');
+        IError := IError + 1;
+      }
+      if (KatUsl.TYPEUSL <> KatUsl1.TYPEUSL)
+      {
+        strType2 := '';
+        if (KatUsl1.TYPEUSL = 0) strType2 := 'вводимая'
+        else strType2 := 'расчетная';
+        FileProtocol.Writeln('У услуг '+KatUsl.Name+' и '+KatUsl1.Name+' разные типы:'+
+                             KatUsl.Name+'-'+strType1+';'+KatUsl1.Name+'-'+strType2+';');
+        IError := IError + 1;
+      }
+      if (KatUsl.TYPEUSL = 1)and(KatUsl1.TYPEUSL=1)and(KatUsl.cSHBUSL <> KatUsl1.cSHBUSL)
+      {
+        FileProtocol.Writeln('Услуги '+KatUsl.Name+' и '+KatUsl1.Name+' имеют разные алгоритмы расчета.');
+        IError := IError + 1;
+      }
+      if (KatUsl.CGRNAL <> KatUsl1.CGRNAL)
+      {
+        FileProtocol.Writeln('Услуги '+KatUsl.Name+' и '+KatUsl1.Name+' имеют разные группы налогов.');
+        IError := IError + 1;
+      }
+      ErrorOtpEd := false;
+      _loop KatOtpEd where ((word(2)      ==  KatOtpEd.PrMC and
+                             JoiHead.cRec ==  KatOtpEd.cMcUsl))
+      {
+        if (GetFirst katOtpEdtmp where ((SpJoi.cRec ==  KatOtpEdtmp.cMcUsl and
+                                         word(2)    ==  KatOtpEdtmp.PrMC and
+                                         KatOtpEd.Name == KatOtpEdtmp.Name)) <> tsOk)
+        {
+          if (ErrorOtpEd = false)
+          {
+            FileProtocol.Writeln('Услуги '+KatUsl.Name+' и '+KatUsl1.Name+' имеют разные отпускные единицы.');
+            ErrorOtpEd := true;
+          }
+          IError := IError + 1;
+        }
+      }
+      if (ErrorOtpEd = false)
+      _loop KatOtpEd where ((word(2)    ==  KatOtpEd.PrMC and
+                             SpJoi.cRec ==  KatOtpEd.cMcUsl))
+      {
+        if (GetFirst katOtpEdtmp where ((JoiHead.cRec ==  KatOtpEdtmp.cMcUsl and
+                                         word(2)      ==  KatOtpEdtmp.PrMC and
+                                         KatOtpEd.Name == KatOtpEdtmp.Name)) <> tsOk)
+        {
+          if (ErrorOtpEd = false)
+          {
+            FileProtocol.Writeln('Услуги '+KatUsl.Name+' и '+KatUsl1.Name+' имеют разные отпускные единицы.');
+            ErrorOtpEd := true;
+          }
+          IError := IError + 1;
+        }
+      }
+    }
+  }
+  FileProtocol.Close;
+  if (IError <> 0)
+  {
+    if (Message('Возможно некорректное объединение Услуг. Смотрите протокол.' + chr(13)
+              + 'Будете делать объединение?', confirmation + YesNo) = Yes)
+      result := True
+    else result := False;
+  }
+}
+
+Function updateObj : boolean;
+var
+  lCount_sin : longint;
+  cOtpEd : comp;
+{
+  m_bBreak  := False;
+  result := False;
+  m_bShowRepTime := true;
+  _nMsgFrm  := 0;          // Общее число ошибок
+  m_lErrorJoi  := 0;
+  m_lErrorSp   := 0;
+  m_lCount_vis := 0;
+  lCount_sin := 0;
+
+  _loop JoiHead Where ((m_wCgObedValue == JoiHead.TypeEvent
+                    and UserName()      == JoiHead.UserName ))
+  {
+    case JoiHead.Status of
+    Word(0) : if (m_wParamOb = Word(1)) continue;
+    Word(1) : {};
+    Word(3) : continue;
+    Word(4) : iF (m_wParamOb <> Word(0)) continue;
+    end;
+
+    if (JoiHead.prCorpo <> byte(0))
+      if (CheckObj)
+      {
+        Message ('Одно из объединений, присланное по Corpo обмену' + chr(13)
+               + 'будет отложено, поскольку не существует услуги,' + chr(13)
+               + 'в которую необходимо производить объединение.');
+        continue;
+      }
+
+    _Loop KatKau where ((     0            == KatKau.isActive
+                         and  cgKau_KatUsl == KatKau.UpGroup))
+      lCount_sin := lCount_sin + 1;
+
+    _loop SpJoi where ((JoiHead.nRec == SpJoi.cJoiHead
+                     and (word(3) <> SpJoi.Status)))
+      m_lCount_vis := m_lCount_vis + 12 + 29 + 5 + ( lCount_sin + 1 ) * iCountTableStep3;
+  }
+
+  if (m_lCount_vis <> 0)
+  {
+    if (Message('Если Вы не сохранили данные, еще раз рекомендуем это сделать.' + chr(13)
+              + 'Запустить объединение Услуг?', YesNo + mfSwapButtons +confirmation) = cmNo)
+    {
+      m_bShowRepTime := false;
+      exit;
+    }
+    StartNewVisual(vtIndicatorVisual, vfTimer + vfBreak + vfConfirm,''#13#13#13'', m_lCount_vis);
+  }
+  else
+  {
+    Message ('Нет заданий на объединение.');
+    m_wParamOb := 0;
+    m_bShowRepTime := false;
+    exit;
+  }
+
+  MyMarker := InitMarker('', 8, 50, 50, False);
+              // Цикл по результирующей Услуге
+  If (GetFirst JoiHead Where ((m_wCgObedValue == JoiHead.TypeEvent AND
+                               UserName() == JoiHead.UserName )) = tsOk )
+  do {
+    case JoiHead.Status of
+      Word(0) : If m_wParamOb = Word(1) continue;
+      Word(1) : {};
+      Word(3) :  Continue;
+      Word(4) : IF m_wParamOb <> Word(0) continue;
+    end;
+
+    if (JoiHead.prCorpo <> byte(0))
+      if (CheckObj) continue;
+                       // Пересылка если Corpo
+    if (    m_bCorpo
+        and (JoiHead.prCorpo = byte(0))
+        and (JoiHead.Status = word(0)))
+    {
+      ClearBuffer (#EvJoiHead);
+      EvJoiHead.FilialNo := OfficeNo();
+      EvJoiHead.TypeEvent := m_wCgObedValue;
+      EvJoiHead.cRec := JoiHead.cRec;
+      EvJoiHead.dDate := Cur_date();
+      MemoFile.OpenMemo (EvJoiHead.EvSp);
+      _loop SpJoi where ((JoiHead.nRec == SpJoi.cJoiHead))
+      {
+        MemoFile.Write (SpJoi.cRec);
+        MemoFile.Write (SpJoi.Num);
+        MemoFile.Write (SpJoi.isDel);
+/*
+        if (GetFirst KatUsltmp where ((SpJoi.cRec == KatUsltmp.nRec)) = tsOk)
+          MemoFile.Write (KatUsltmp.Name);
+        else
+          MemoFile.Write ('Удаленная Услуга');
+*/
+      }
+      MemoFile.Close;
+      insert current EvJoiHead;
+    }
+
+    JoiHead.Status := word(1);  // Делаем статус "Начата"
+    Update Current JoiHead;
+
+    IF ( GetFirst KatOtpEd where ((     word(2) == KatOtpEd.PrMC and
+                                   JoiHead.cRec == KatOtpEd.cMcUsl)) = tsOk )
+    {
+      cOtpEd := KatOtpEd.Nrec;
+      IF ( GetNext KatOtpEd where ((     word(2) == KatOtpEd.PrMC and
+                                    JoiHead.cRec == KatOtpEd.cMcUsl)) = tsOk )
+        cOtpEd := 0; // несколько отпускных единиц
+    }
+
+    IF ( GetFirst KatUslTmp where (( JoiHead.cRec == KatUslTmp.nrec)) = tsOk ) {};
+
+    iNextVisual('Идет замещение Услуги на'#13''+'"'+ trim(KatUslTmp.Name)+'"' +
+                ''#13'');
+    m_bWriteInfoSpJoi := True;
+                 //  Цикл по объединяемым услуг
+    If (GetFirst SpJoi where ((JoiHead.nRec == SpJoi.cJoiHead and (word(3)<>SpJoi.Status))) = tsOk)
+      do
+      {
+        SpJoi.Status := word(1);
+        Update current SpJoi;
+
+        IF (SpJoi.Step < word(1)) // Первый этап объединения
+        {
+          //Count Table 1
+          #UpdateTableOneFieldNoIndex(KATMC, cUsl, 'KATMC')
+          //Count Table 2
+          #UpdateTableOneFieldNoIndex(KATNALOG, cUsl, 'KATNALOG')
+          //Count Table 3
+          #UpdateTableOneFieldOnTwoFieldWithIndex(KatKod,cOrg2,wType,cgKatKod_Str,'KatKod with type KatKod_Str')
+          //Count Table 4
+          #UpdateTableOneFieldOnTwoFieldWithIndex(KatKod,cOrg2,wType,cgKatKod_Tr,'KatKod with type KatKod_Tr')
+          //Count Table 5
+          #UpdateTableOneFieldOnTwoFieldWithIndex(KatKod,cOrg3,wType,cgTaxStr_Tax,'KatKod with type TaxStr_Tax')
+          //Count Table 6
+          #UpdateTableOneFieldWithIndex(LISTPAR, CKATUSL, 'LISTPAR')
+          //Count Table 7
+          #UpdateTableOneFieldWithIndexWithOtpEd(SPCUSL,cUsl,cOtpED,cOtpEd,'SPCUSL')
+          //Count Table 8
+          #UpdateTableOneFieldWithIndex(SPUSL, CUSL, 'SPUSL')
+          //Count Table 9
+          #UpdateTableOneFieldOnTwoFieldWithIndex(KAUREFF,CKAU,WKAU,cgKau_KatUsl,'KAUREFF')
+          //Count Table 10
+          #UpdateTableOneFieldOnTwoFieldNoIndex(ItemFlAn,cKAU, KodGrKAU, cgKau_KatUsl,'ItemFlAn')
+          //Count Table 11
+          IF Not(NextVisual) ObBreak;
+          m_tTimeBeg := cur_time;
+          _Loop SpSetAn where ((SpJoi.cRec       == SpSetAn.CKAU (noindex)and
+                                KatKau.KodGroup  == SpSetAn.KodGrKau (noindex) and
+                                ((cgKau_KatUsl   = KatKau.UpGroup) and
+                                 (cgKatKau_Set   = KatKau.SysNum))))
+            InsertMarker(MyMarker,SpSetAn.nRec);
+          CountMarker := GetMarkerCount(MyMarker);
+          StartNewVisual(vtDownVisual,vfTimer,'Обработка таблицы SpSetAn', CountMarker+1);
+          For (lCycle:=0; lCycle<>CountMarker; lCycle:=lCycle+1)
+          if (GetFirst SpSetAn  where ((GetMarkerMy(MyMarker,lCycle) == SpSetAn.nRec))= tsOk)
+          {
+            NextVisual;
+            SpSetAn.CKAU := JoiHead.cRec;
+            SpSetAn.Name := KatUsl.Name;
+            SpSetAn.Code := KatUsl.Kod;
+            if (Update current SpSetAn) <> tsOk then MsgForm('SpSetAn',SpSetAn.nRec,1);
+          }
+          StopVisual('',0);
+          InsExecTime(SpJoi.cRec,JoiHead.cRec,'SpSetAn', m_tTimeBeg,Cur_Time);
+          ClearMarker(MyMarker);
+          //Count Table 12
+          IF Not(NextVisual) ObBreak;
+          m_tTimeBeg := cur_time;
+          _Loop PRICES where ((SpJoi.cRec == PRICES.CThing and
+                               word(1)    == PRICES.Tip))
+            InsertMarker(MyMarker,PRICES.nRec);
+          CountMarker := GetMarkerCount(MyMarker);
+          StartNewVisual(vtDownVisual,vfTimer,'Обработка таблицы PRICES', CountMarker + 1);
+          For (lCycle:=0; lCycle<>CountMarker; lCycle:=lCycle+1)
+          if (GetFirst PRICES  where ((GetMarkerMy(MyMarker,lCycle) == PRICES.nRec))= tsOk)
+          {
+            NextVisual;
+            PRICES.CThing := JoiHead.cRec;
+            PRICES.CGROUPMC := KatUsl.cGroupUsl;
+            PRICES.Name := KatUsl.Name;
+            PRICES.Kod := KatUsl.kGroupUsl;
+            PRICES.BarKod :=  KatUsl.Kod;
+            IF ( cOtpEd > 0 )
+              PRICES.COtpEd := cOtpEd;
+            ELSE
+              PRICES.COtpEd := SetOtpEd(PRICES.COtpEd);
+            if (Update current PRICES) <> tsOk then MsgForm('PRICES',PRICES.nRec,1);
+          }
+          StopVisual('',0);
+          InsExecTime(SpJoi.cRec,JoiHead.cRec,'PRICES', m_tTimeBeg,Cur_Time);
+          ClearMarker(MyMarker);
+          //Count Table 13
+          IF Not(NextVisual) ObBreak;
+          #StartVisualPartOne('SPSTEP', RecordsInTable(tnSPSTEP))
+          m_tTimeBeg := cur_time;
+          _Loop SPSTEP
+          {
+            NextVisual;
+            If (SpJoi.cRec = SPSTEP.CMCUSL)
+            {
+              If (SPSTEP.PrMc = 2) InsertMarker(MyMarker,SPSTEP.nRec)
+              Else
+               if (SPSTEP.PrMc = 3) InsertMarker(MyMarker,SPSTEP.nRec)
+               Else
+                 if (SPSTEP.PrMc = 4) InsertMarker(MyMarker,SPSTEP.nRec)
+                 Else
+                   If(SPSTEP.PrMc = 5) InsertMarker(MyMarker,SPSTEP.nRec)
+                   Else
+                     If(SPSTEP.PrMc = 6) InsertMarker(MyMarker,SPSTEP.nRec);
+            }
+          }
+          CountMarker := GetMarkerCount(MyMarker);
+          #StartVisualPartTwo('SPSTEP', CountMarker + 1)
+          For (lCycle:=0; lCycle<>CountMarker; lCycle:=lCycle+1)
+          if (GetFirst SPSTEP  where ((GetMarkerMy(MyMarker,lCycle) == SPSTEP.nRec))= tsOk)
+          {
+            NextVisual;
+            SPSTEP.CMCUSL := JoiHead.cRec;
+            IF ( cOtpEd > 0 )
+              SPSTEP.COtpEd := cOtpEd;
+            ELSE
+              SPSTEP.COtpEd := SetOtpEd(SPSTEP.COtpEd);
+            if (Update current SPSTEP) <> tsOk then MsgForm('SPSTEP',SPSTEP.nRec,1);
+          }
+          StopVisual('',0);
+          InsExecTime(SpJoi.cRec,JoiHead.cRec,'SPSTEP', m_tTimeBeg,Cur_Time);
+          ClearMarker(MyMarker);
+          //Count Table 14
+          IF Not(NextVisual) ObBreak;
+            m_tTimeBeg := cur_time;
+            pExtFpModAn.ReplaceAnMean(cgKau_KatUsl,SpJoi.cRec,JoiHead.cRec);
+            InsExecTime(SpJoi.cRec, JoiHead.cRec,'интерфейс ExtFpModAn', m_tTimeBeg, Cur_Time);
+
+          if not(NextVisual) ObBreak;
+          m_tTimeBeg := cur_time;
+          _Loop OsMc where (( 315           == OsMc.TiDk
+                             and SpJoi.cRec == OsMc.cMC))
+          {
+            InsertMarker(MyMarker, OsMc.NRec);
+          }
+          _Loop OsMc where (( 316           == OsMc.TiDk
+                             and SpJoi.cRec == OsMc.cMC))
+          {
+            InsertMarker(MyMarker, OsMc.NRec);
+          }
+          CountMarker := GetMarkerCount(MyMarker);
+          StartNewVisual(vtDownVisual, vfTimer, 'Обработка таблицы OsMc', CountMarker + 1);
+          for (lCycle := 0; lCycle <> CountMarker; lCycle := lCycle + 1)
+            if (getFirst OsMc where ((GetMarkerMy(MyMarker, lCycle) == OsMc.NRec)) = tsOk)
+            {
+              NextVisual;
+              OsMc.cMC := JoiHead.cRec;
+              if (update current OsMc <> tsOk) MsgForm('OsMc', OsMc.NRec, 1);
+            }
+          stopVisual('', 0);
+          InsExecTime(SpJoi.cRec,JoiHead.cRec,'OsMc признак 0', m_tTimeBeg,Cur_Time);
+          clearMarker(MyMarker);
+
+          if not(NextVisual) ObBreak;
+          m_tTimeBeg := cur_time;
+          _Loop OsMcUsl where (( SpJoi.cRec == OsMcUsl.cKatUsl(NoIndex)))
+          {
+            InsertMarker(MyMarker, OsMcUsl.NRec);
+          }
+          CountMarker := GetMarkerCount(MyMarker);
+          StartNewVisual(vtDownVisual, vfTimer, 'Обработка таблицы OsMcUsl', CountMarker + 1);
+          for (lCycle := 0; lCycle <> CountMarker; lCycle := lCycle + 1)
+            if (getFirst OsMcUsl where ((GetMarkerMy(MyMarker, lCycle) == OsMcUsl.NRec)) = tsOk)
+            {
+              NextVisual;
+              OsMcUsl.cKatUsl := JoiHead.cRec;
+              if (update current OsMcUsl <> tsOk) MsgForm('OsMcUsl', OsMcUsl.NRec, 1);
+            }
+          stopVisual('', 0);
+          InsExecTime(SpJoi.cRec,JoiHead.cRec,'OsMcUsl признак 0', m_tTimeBeg,Cur_Time);
+          clearMarker(MyMarker);
+
+          FinishStage(1);
+        }                       // Конец первого этапа объединения
+        else
+          NNextVisual (14);
+
+        IF (SpJoi.Step < word(2))   // Второй этап объединения
+        {
+          //Count Table 1
+          IF Not(NextVisual) ObBreak;
+          #StartVisualPartOne('SPDOCS', RecordsInTable(tnSPDOCS))
+          m_tTimeBeg := cur_time;
+          _Loop SPDOCS
+          {
+            NextVisual;
+            if (SpJoi.cRec = SPDOCS.CMCUSL)
+              if (SPDOCS.PrMc = 2) InsertMarker(MyMarker,SPDOCS.nRec)
+              Else
+                If(SPDOCS.PrMc = 3) InsertMarker(MyMarker,SPDOCS.nRec)
+          }
+          CountMarker := GetMarkerCount(MyMarker);
+          #StartVisualPartTwo('SPDOCS', CountMarker + 1)
+          For (lCycle:=0; lCycle<>CountMarker; lCycle:=lCycle+1)
+          if (GetFirst SPDOCS  where ((GetMarkerMy(MyMarker,lCycle) == SPDOCS.nRec))= tsOk)
+          {
+            NextVisual;
+            SPDOCS.CMCUSL := JoiHead.cRec;
+            SPDOCS.CGRMCUSL := KatUsl.CGROUPUSL;
+            IF ( cOtpEd > 0 )
+              SPDOCS.COtpEd := cOtpEd;
+            ELSE
+              SPDOCS.COtpEd := SetOtpEd(SPDOCS.COtpEd);
+            if (Update current SPDOCS) <> tsOk then MsgForm('SPDOCS',SPDOCS.nRec,1);
+          }
+          StopVisual('',0);
+          InsExecTime(SpJoi.cRec,JoiHead.cRec,'SPDOCS', m_tTimeBeg,Cur_Time);
+          ClearMarker(MyMarker);
+          //Count Table 2
+          #UpdateTableOneFieldNoIndex(TRANSP, CKATUSL, 'TRANSP')
+          //Count Table 3
+          #UpdateTableOneFieldNoIndex(PUTGSM, CRASHDOC, 'PUTGSM')
+          //Count Table 4
+          #UpdateTableFieldWithOtpEdnoIndex(NORMGSM,CWORKAVT,KOFFNGSM1,'NORMGSM',RecordsIntable(tnNORMGSM))
+          //Count Table 5
+          #UpdateTableOneFieldFindOnTwoFields(TRANINF,INFTR12,INFTR11,7, 'TRANINF with field INFTR12',RecordsInTable(tnTRANINF))
+          //Count Table 6
+          #UpdateTableOneFieldFindOnTwoFields(TRANINF,CTRANSP,INFTR11,9, 'TRANINF with field CTRANSP',RecordsInTable(tnTRANINF))
+          // удалил таблицы для старых версий
+          //Count Table 10
+          #UpdateTableOneFieldNoIndex(WAYWPS, cKatUsl,'WAYWPS')
+          //Count Table 11
+          #UpdateTableOneFieldNoIndex(NORMGRUP, CKATUSL, 'NORMGRUP')
+          //Count Table 12
+          #UpdateTableOneFieldNoIndex(SPZAKAZ, CKATUSL, 'SPZAKAZ')
+          //Count Table 13
+          #UpdateTableOneFieldWithIndex(JOURDEFR, CKATUSL, 'JOURDEFR')
+          //Count Table 14
+          #UpdateTableOneFieldWithIndex(RABDEF, CKATUSL,'RABDEF')
+//------------------------------------------------------------------------------
+          //Count Table 15
+          IF Not(NextVisual) ObBreak;
+          #StartVisualPartOne('SKIDPRIM', RecordsInTable(tnSKIDPRIM))
+          m_tTimeBeg := cur_time;
+          _Loop  SKIDPRIM
+          {
+            NextVisual;
+            if ((SpJoi.cRec = SKIDPRIM.CMCUSL)and
+                (word(2)    = SKIDPRIM.PrMC))
+              InsertMarker(MyMarker,SKIDPRIM.nRec);
+          }
+          CountMarker := GetMarkerCount(MyMarker);
+          #StartVisualPartTwo('SKIDPRIM', CountMarker + 1)
+          For (lCycle:=0; lCycle<>CountMarker; lCycle:=lCycle+1)
+          if (GetFirst SKIDPRIM  where ((GetMarkerMy(MyMarker,lCycle) == SKIDPRIM.nRec))= tsOk)
+          {
+            NextVisual;
+            SKIDPRIM.CMCUSL := JoiHead.cRec;
+            SKIDPRIM.cGroupMCUsl := KatUsl.cGroupUsl;
+            if (Update current SKIDPRIM) <> tsOk then MsgForm('SKIDPRIM',SKIDPRIM.nRec,1);
+          }
+          StopVisual('',0);
+          InsExecTime(SpJoi.cRec,JoiHead.cRec,'SKIDPRIM', m_tTimeBeg,Cur_Time);
+          ClearMarker(MyMarker);
+//------------------------------------------------------------------------------
+          //Count Table 16
+          IF Not(NextVisual) ObBreak;
+          m_tTimeBeg := cur_time;
+          _Loop TRABREM where ((SpJoi.cRec == TRABREM.CKATUSL))
+            InsertMarker(MyMarker,TRABREM.nRec);
+          CountMarker := GetMarkerCount(MyMarker);
+          StartNewVisual(vtDownVisual,vfTimer,'Обработка таблицы TRABREM', CountMarker + 1);
+          For (lCycle:=0; lCycle<>CountMarker; lCycle:=lCycle+1)
+          if (GetFirst TRABREM  where ((GetMarkerMy(MyMarker,lCycle) == TRABREM.nRec))= tsOk)
+          {
+            NextVisual;
+            TRABREM.CKATUSL := JoiHead.cRec;
+            TRABREM.cKatEd := KatUsl.cEd;
+            if (Update current TRABREM) <> tsOk then MsgForm('TRABREM',TRABREM.nRec,1);
+          }
+          StopVisual('',0);
+          InsExecTime(SpJoi.cRec,JoiHead.cRec,'TRABREM', m_tTimeBeg,Cur_Time);
+          ClearMarker(MyMarker);
+//------------------------------------------------------------------------------
+          //Count Table 17
+          IF Not(NextVisual) ObBreak;
+          m_tTimeBeg := cur_time;
+          _Loop TRANDOP where ((SpJoi.cRec       == TRANDOP.CMCUSL (noindex) and
+                                ((TRANDOP.PrMc = 2)Or(TRANDOP.PrMc = 3)Or
+                                 (TRANDOP.PrMc = 4)Or(TRANDOP.PrMc = 5)Or
+                                 (TRANDOP.PrMc = 6))
+                              ))
+            InsertMarker(MyMarker,TRANDOP.nRec);
+          CountMarker := GetMarkerCount(MyMarker);
+          StartNewVisual(vtDownVisual,vfTimer,'Обработка таблицы TRANDOP', CountMarker + 1);
+          For (lCycle:=0; lCycle<>CountMarker; lCycle:=lCycle+1)
+          if (GetFirst TRANDOP  where ((GetMarkerMy(MyMarker,lCycle) == TRANDOP.nRec))= tsOk)
+          {
+            NextVisual;
+            TRANDOP.CMCUSL := JoiHead.cRec;
+            TRANDOP.cGroupUsl := KatUsl.cGroupUsl;
+            if (Update current TRANDOP) <> tsOk then MsgForm('TRANDOP',TRANDOP.nRec,1);
+          }
+          StopVisual('',0);
+          InsExecTime(SpJoi.cRec,JoiHead.cRec,'TRANDOP', m_tTimeBeg,Cur_Time);
+          ClearMarker(MyMarker);
+//------------------------------------------------------------------------------
+          //Count Table 18
+          IF Not(NextVisual) ObBreak;
+          #StartVisualPartOne('SPSOPR', RecordsInTable(tnSPSOPR))
+          m_tTimeBeg := cur_time;
+          _Loop SPSOPR
+          {
+            NextVisual;
+            if (SpJoi.cRec = SPSOPR.CMCUSL)
+              if (SPSOPR.PrMc = 2) InsertMarker(MyMarker,SPSOPR.nRec)
+              Else
+                if(SPSOPR.PrMc = 3) InsertMarker(MyMarker,SPSOPR.nRec)
+                Else
+                  If(SPSOPR.PrMc = 4) InsertMarker(MyMarker,SPSOPR.nRec)
+                  Else
+                    If(SPSOPR.PrMc = 5) InsertMarker(MyMarker,SPSOPR.nRec)
+                    Else
+                      If(SPSOPR.PrMc = 6) InsertMarker(MyMarker,SPSOPR.nRec)
+          }
+          CountMarker := GetMarkerCount(MyMarker);
+          #StartVisualPartTwo('SPSOPR', CountMarker + 1)
+          For (lCycle:=0; lCycle<>CountMarker; lCycle:=lCycle+1)
+          if (GetFirst SPSOPR  where ((GetMarkerMy(MyMarker,lCycle) == SPSOPR.nRec))= tsOk)
+          {
+            NextVisual;
+            SPSOPR.CMCUSL := JoiHead.cRec;
+            IF ( cOtpEd > 0 )
+              SPSOPR.COtpEd := cOtpEd;
+            ELSE
+              SPSOPR.COtpEd := SetOtpEd(SPSOPR.COtpEd);
+            if (Update current SPSOPR) <> tsOk then MsgForm('SPSOPR',SPSOPR.nRec,1);
+          }
+          StopVisual('',0);
+          InsExecTime(SpJoi.cRec,JoiHead.cRec,'SPSOPR', m_tTimeBeg,Cur_Time);
+          ClearMarker(MyMarker);
+//------------------------------------------------------------------------------
+          //Count Table 19
+          IF Not(NextVisual) ObBreak;
+          #StartVisualPartOne('SOPRDOP', RecordsInTable(tnSOPRDOP))
+          m_tTimeBeg := cur_time;
+          _Loop SOPRDOP
+          {
+            NextVisual;
+            If(SpJoi.cRec = SOPRDOP.CMCUSL)
+              If(SOPRDOP.PrMc = 2) InsertMarker(MyMarker,SOPRDOP.nRec)
+              Else
+                If(SOPRDOP.PrMc = 3) InsertMarker(MyMarker,SOPRDOP.nRec)
+                Else
+                  If(SOPRDOP.PrMc = 4) InsertMarker(MyMarker,SOPRDOP.nRec)
+                  Else
+                    If(SOPRDOP.PrMc = 5) InsertMarker(MyMarker,SOPRDOP.nRec)
+                    Else
+                      If(SOPRDOP.PrMc = 6) InsertMarker(MyMarker,SOPRDOP.nRec);
+          }
+          CountMarker := GetMarkerCount(MyMarker);
+          #StartVisualPartTwo('SOPRDOP', CountMarker + 1)
+          For (lCycle:=0; lCycle<>CountMarker; lCycle:=lCycle+1)
+          if (GetFirst SOPRDOP  where ((GetMarkerMy(MyMarker,lCycle) == SOPRDOP.nRec))= tsOk)
+          {
+            NextVisual;
+            SOPRDOP.CMCUSL := JoiHead.cRec;
+            SOPRDOP.cGroupUsl := KatUsl.cGroupUsl;
+            if (Update current SOPRDOP) <> tsOk then MsgForm('SOPRDOP',SOPRDOP.nRec,1);
+          }
+          StopVisual('',0);
+          InsExecTime(SpJoi.cRec,JoiHead.cRec,'SOPRDOP', m_tTimeBeg,Cur_Time);
+          ClearMarker(MyMarker);
+//------------------------------------------------------------------------------
+          //Count Table 20
+          IF Not(NextVisual) ObBreak;
+          m_tTimeBeg := cur_time;
+          _Loop SPDOVER where ((SpJoi.cRec == SPDOVER.CMCUSL and
+                                word(2)    == SPDOVER.PrMc))
+            InsertMarker(MyMarker,SPDOVER.nRec);
+          CountMarker := GetMarkerCount(MyMarker);
+          StartNewVisual(vtDownVisual,vfTimer,'Обработка таблицы SPDOVER', CountMarker + 1);
+          For (lCycle:=0; lCycle<>CountMarker; lCycle:=lCycle+1)
+          if (GetFirst SPDOVER  where ((GetMarkerMy(MyMarker,lCycle) == SPDOVER.nRec))= tsOk)
+          {
+            NextVisual;
+            SPDOVER.CMCUSL := JoiHead.cRec;
+            IF ( cOtpEd > 0 )
+              SPDOVER.COtpEd := cOtpEd;
+            ELSE
+              SPDOVER.COtpEd := SetOtpEd(SPDOVER.COtpEd);
+            if (Update current SPDOVER) <> tsOk then MsgForm('SPDOVER',SPDOVER.nRec,1);
+          }
+          StopVisual('',0);
+          InsExecTime(SpJoi.cRec,JoiHead.cRec,'SPDOVER', m_tTimeBeg,Cur_Time);
+          ClearMarker(MyMarker);
+//------------------------------------------------------------------------------
+          //Count Table 21
+          #UpdateTableOneFieldNoIndex(VALNAC,CUSL,'VALNAC')
+//------------------------------------------------------------------------------
+          //Count Table 22
+          #UpdateTableOneFieldFindOnTwoFields(MSDILLER,KatMcNrec,Typ,word(1), 'MSDILLER',RecordsInTable(tnMSDILLER))
+//------------------------------------------------------------------------------
+          //Count Table 23
+          IF Not(NextVisual) ObBreak;
+          m_tTimeBeg := cur_time;
+          _Loop INTEREST where ((SpJoi.cRec == INTEREST.INT_MCU (noindex)and
+                                 word(1)    == INTEREST.INT_TYPE(noindex)))
+            InsertMarker(MyMarker,INTEREST.nRec);
+          CountMarker := GetMarkerCount(MyMarker);
+          StartNewVisual(vtDownVisual,vfTimer,'Обработка таблицы INTEREST', CountMarker + 1);
+          For (lCycle:=0; lCycle<>CountMarker; lCycle:=lCycle+1)
+            if (GetFirst INTEREST  where ((GetMarkerMy(MyMarker,lCycle) == INTEREST.nRec))= tsOk)
+            {
+              NextVisual;
+              INTEREST.INT_MCU := JoiHead.cRec;
+              if (Update current INTEREST) <> tsOk then MsgForm('INTEREST',INTEREST.nRec,1);
+            }
+          StopVisual('',0);
+          InsExecTime(SpJoi.cRec,JoiHead.cRec,'INTEREST', m_tTimeBeg,Cur_Time);
+          ClearMarker(MyMarker);
+//------------------------------------------------------------------------------
+          //Count Table 24
+          #UpdateTableOneFieldFindOnTwoFields(MRKSALES,KATUSLNREC,KATMCNREC,word(0), 'MRKSALES',RecordsInTable(tnMRKSALES))
+//------------------------------------------------------------------------------
+          //Count Table 25
+          #UpdateTableOneFieldFindOnTwoFieldsAtlNrec(CRMGOODS,cKATMC,GOODSServ,word(1), 'CRMGOODS',RecordsInTable(tnCRMGOODS))
+//------------------------------------------------------------------------------
+          //Count Table 26
+          IF Not(NextVisual) ObBreak;
+          m_tTimeBeg := cur_time;
+          _Loop ISKOTGR where ((SpJoi.cRec == ISKOTGR.cMCUSL (noindex)and
+                                 ((word(1) < ISKOTGR.prMc)Or
+                                  (word(10) > ISKOTGR.prMc))
+                               ))
+            InsertMarker(MyMarker,ISKOTGR.nRec);
+          CountMarker := GetMarkerCount(MyMarker);
+          StartNewVisual(vtDownVisual,vfTimer,'Обработка таблицы ISKOTGR', CountMarker + 1);
+          For (lCycle:=0; lCycle<>CountMarker; lCycle:=lCycle+1)
+            if (GetFirst ISKOTGR where ((GetMarkerMy(MyMarker,lCycle) == ISKOTGR.nRec))= tsOk)
+            {
+               NextVisual;
+               ISKOTGR.cMcUsl := JoiHead.cRec;
+               if (Update current ISKOTGR) <> tsOk then MsgForm('ISKOTGR',ISKOTGR.nRec,1);
+            }
+          StopVisual('',0);
+          InsExecTime(SpJoi.cRec,JoiHead.cRec,'ISKOTGR', m_tTimeBeg,Cur_Time);
+          ClearMarker(MyMarker);
+//------------------------------------------------------------------------------
+          //Count Table 27
+          IF Not(NextVisual) ObBreak;
+          m_tTimeBeg := cur_time;
+          _Loop SpSchf where((SpJoi.cRec == SpSchf.cMCUSL and
+                              word(2)    == SpSchf.PrMC))
+            InsertMarker(MyMarker,SpSchf.nRec);
+          CountMarker := GetMarkerCount(MyMarker);
+          StartNewVisual(vtDownVisual,vfTimer,'Обработка таблицы SpSchf', CountMarker + 1);
+          For (lCycle:=0; lCycle<>CountMarker; lCycle:=lCycle+1)
+            if (GetFirst SpSchf where ((GetMarkerMy(MyMarker,lCycle) == SpSchf.nRec))= tsOk)
+            {
+              NextVisual;
+              SpSchf.Name := KatUsl.Name;
+              SpSchf.cMCUSL := JoiHead.cRec;
+              IF ( cOtpEd > 0 )
+                SpSchf.cOtpEd := cOtpEd;
+              ELSE
+                SpSchf.cOtpEd := SetOtpEd(SpSchf.cOtpEd);
+              if (Update current SpSchf) <> tsOk then MsgForm('SpSchf',SpSchf.nRec,1);
+            }
+          StopVisual('',0);
+          InsExecTime(SpJoi.cRec,JoiHead.cRec,'SpSchf', m_tTimeBeg,Cur_Time);
+          ClearMarker(MyMarker);
+//------------------------------------------------------------------------------
+          //Count Table 28
+          IF Not(NextVisual) ObBreak;
+          m_tTimeBeg := cur_time;
+          _loop ReplKau where ((cgKau_KatUsl == ReplKau.WKauNew and
+                                SpJoi.cRec   == ReplKau.CKAUOTHER(Noindex)))
+            InsertMarker(MyMarker,ReplKau.nRec);
+          CountMarker := GetMarkerCount(MyMarker);
+          StartNewVisual(vtDownVisual,vfTimer,'Обработка таблицы ReplKau', CountMarker + 1);
+          For (lCycle:=0; lCycle<>CountMarker; lCycle:=lCycle+1)
+            if (GetFirst ReplKau where ((GetMarkerMy(MyMarker,lCycle) == ReplKau.nRec))= tsOk)
+            {
+               NextVisual;
+               ReplKau.CKAUOTHER := JoiHead.cRec;
+               if (Update current ReplKau) <> tsOk then MsgForm('ReplKau',ReplKau.nRec,1);
+            }
+          StopVisual('',0);
+          InsExecTime(SpJoi.cRec,JoiHead.cRec,'ReplKau', m_tTimeBeg,Cur_Time);
+          ClearMarker(MyMarker);
+//------------------------------------------------------------------------------
+          //Count Table 29
+          IF Not(NextVisual) ObBreak;
+          m_tTimeBeg := cur_time;
+          _loop ReplKau where ((cgKau_KatUsl == ReplKau.WKauNew))
+          {
+            _Loop SReplKau where ((ReplKau.Nrec == SReplKau.cReplKau and
+                                   SpJoi.cRec   == SReplKau.cKauNew))
+            {
+               InsertMarker(MyMarker,SReplKau.nRec);
+            }
+          }
+          CountMarker := GetMarkerCount(MyMarker);
+          StartNewVisual(vtDownVisual,vfTimer,'Обработка таблицы SReplKau (I этап из II)', CountMarker + 1);
+          For (lCycle:=0; lCycle<>CountMarker; lCycle:=lCycle+1)
+            if (GetFirst SReplKau where ((GetMarkerMy(MyMarker,lCycle) == SReplKau.nRec))= tsOk)
+            {
+               NextVisual;
+               SReplKau.CKAUNew := JoiHead.cRec;
+               if (Update current SReplKau) <> tsOk then MsgForm('SReplKau поле cKauNew',SReplKau.nRec,1);
+            }
+          StopVisual('',0);
+          InsExecTime(SpJoi.cRec,JoiHead.cRec,'ReplKau I этап', m_tTimeBeg,Cur_Time);
+          ClearMarker(MyMarker);
+//------------------------------------------------------------------------------
+          //Count Table 30
+          IF Not(NextVisual) ObBreak;
+          m_tTimeBeg := cur_time;
+          _loop ReplKau where ((cgKau_KatUsl == ReplKau.WKauOld))
+          {
+            _Loop SReplKau where ((ReplKau.Nrec == SReplKau.cReplKau and
+                                   SpJoi.cRec   == SReplKau.cKauOld))
+            {
+               InsertMarker(MyMarker,SReplKau.nRec);
+            }
+          }
+          CountMarker := GetMarkerCount(MyMarker);
+          StartNewVisual(vtDownVisual,vfTimer,'Обработка таблицы SReplKau (II этап из II)', CountMarker + 1);
+          For (lCycle:=0; lCycle<>CountMarker; lCycle:=lCycle+1)
+
+            if (GetFirst SReplKau where ((GetMarkerMy(MyMarker,lCycle) == SReplKau.nRec))= tsOk)
+            {
+               NextVisual;
+               SReplKau.CKAUOld := JoiHead.cRec;
+               if (Update current SReplKau) <> tsOk then MsgForm('SReplKau поле cKauOld',SReplKau.nRec,1);
+            }
+          StopVisual('',0);
+          InsExecTime(SpJoi.cRec,JoiHead.cRec,'ReplKau II этап', m_tTimeBeg,Cur_Time);
+          ClearMarker(MyMarker);
+//------------------------------------------------------------------------------
+          //Count Table 31
+          IF Not(NextVisual) ObBreak;
+          m_tTimeBeg := cur_time;
+          _loop RazdSch where ((cgKau_KatUsl == RazdSch.DefKau))
+          {
+            _Loop SRazdSch where ((RazdSch.Nrec == SRazdSch.cRadzSch and
+                                   SpJoi.cRec   == SRazdSch.cKauvalue(noindex)))
+            {
+               InsertMarker(MyMarker,SRazdSch.nRec);
+            }
+          }
+          CountMarker := GetMarkerCount(MyMarker);
+          StartNewVisual(vtDownVisual,vfTimer,'Обработка таблицы SRazdSch', CountMarker + 1);
+          For (lCycle:=0; lCycle<>CountMarker; lCycle:=lCycle+1)
+            if (GetFirst SRazdSch where ((GetMarkerMy(MyMarker,lCycle) == SRazdSch.nRec))= tsOk)
+            {
+               NextVisual;
+               SRazdSch.CKAUValue := JoiHead.cRec;
+               if (Update current SRazdSch) <> tsOk then MsgForm('SRazdSch',SRazdSch.nRec,1);
+            }
+          StopVisual('',0);
+          InsExecTime(SpJoi.cRec,JoiHead.cRec,'SRazdSch', m_tTimeBeg,Cur_Time);
+          ClearMarker(MyMarker);
+//------------------------------------------------------------------------------
+          //Count Table 32
+          IF Not(NextVisual) ObBreak;
+          m_tTimeBeg := cur_time;
+          _loop ZamTab where ((cgKau_KatUsl == ZamTab.TableOld(noindex)))
+          {
+            _Loop ZamKau where ((ZamTab.Nrec == ZamKau.cZamtab and
+                                 SpJoi.cRec  == ZamKau.KodOld))
+            {
+               InsertMarker(MyMarker,ZamKau.nRec);
+            }
+          }
+          CountMarker := GetMarkerCount(MyMarker);
+          StartNewVisual(vtDownVisual,vfTimer,'Обработка таблицы ZamKau (I этап из II)', CountMarker + 1);
+          For (lCycle:=0; lCycle<>CountMarker; lCycle:=lCycle+1)
+            if (GetFirst ZamKau where ((GetMarkerMy(MyMarker,lCycle) == ZamKau.nRec))= tsOk)
+            {
+               NextVisual;
+               if (GetFirst ZamKauTmp where ((ZamKau.cZamTab == ZamKauTmp.cZamTab and
+                                              JoiHead.cRec   == ZamKauTmp.kodOld))<>tsOk)
+               {
+                 ZamKau.KodOld := JoiHead.cRec;
+                 if (Update current ZamKau) <> tsOk then MsgForm('ZamKau поле KodOld',ZamKau.nRec,1);
+               }
+               else
+               {
+                 if (delete current ZamKau) <> tsOk then MsgForm('ZamKau поле KodOld',ZamKau.nRec,2);
+               }
+            }
+          StopVisual('',0);
+          InsExecTime(SpJoi.cRec,JoiHead.cRec,'ZamKau I этап', m_tTimeBeg,Cur_Time);
+          ClearMarker(MyMarker);
+//------------------------------------------------------------------------------
+          //Count Table 33
+          IF Not(NextVisual) ObBreak;
+          m_tTimeBeg := cur_time;
+          _loop ZamTab where ((cgKau_KatUsl == ZamTab.TableNew(noindex)))
+          {
+            _Loop ZamKau where ((ZamTab.Nrec == ZamKau.cZamtab and
+                                 SpJoi.cRec  == ZamKau.KodNew))
+            {
+               InsertMarker(MyMarker,ZamKau.nRec);
+            }
+          }
+          CountMarker := GetMarkerCount(MyMarker);
+          StartNewVisual(vtDownVisual,vfTimer,'Обработка таблицы ZamKau (II этап из II)', CountMarker + 1);
+          For (lCycle:=0; lCycle<>CountMarker; lCycle:=lCycle+1)
+            if (GetFirst ZamKau where ((GetMarkerMy(MyMarker,lCycle) == ZamKau.nRec))= tsOk)
+            {
+               NextVisual;
+               if (GetFirst ZamKauTmp where ((ZamKau.cZamTab == ZamKauTmp.cZamTab and
+                                              JoiHead.cRec   == ZamKauTmp.kodNew  and
+                                              ZamKau.KodOld  == ZamKauTmp.kodOld ))<>tsOk)
+               {
+                 ZamKau.KodNew := JoiHead.cRec;
+                 if (Update current ZamKau) <> tsOk then MsgForm('ZamKau поле KodNew',ZamKau.nRec,1);
+               }
+               else
+               {
+                 if (delete current ZamKau) <> tsOk then MsgForm('ZamKau поле KauOld',ZamKau.nRec,2);
+               }
+            }
+          StopVisual('',0);
+          InsExecTime(SpJoi.cRec,JoiHead.cRec,'ZamKau II этап', m_tTimeBeg,Cur_Time);
+          ClearMarker(MyMarker);
+//------------------------------------------------------------------------------
+          //Count Table 18
+          IF Not(NextVisual) ObBreak;
+          m_tTimeBeg := cur_time;
+          _Loop DsGotPr
+          {
+            NextVisual;
+            if (SpJoi.cRec = DsGotPr.cMC)
+              if (DsGotPr.wTypeNorm = 2) InsertMarker(MyMarker,DsGotPr.nRec)
+          }
+          CountMarker := GetMarkerCount(MyMarker);
+          StartNewVisual(vtDownVisual,vfTimer,'Обработка таблицы DsGotPr', CountMarker + 1);
+          For (lCycle:=0; lCycle<>CountMarker; lCycle:=lCycle+1)
+          if (GetFirst DsGotPr  where ((GetMarkerMy(MyMarker,lCycle) == DsGotPr.nRec))= tsOk)
+          {
+            NextVisual;
+            DsGotPr.cMC := JoiHead.cRec;
+            IF ( cOtpEd > 0 )
+              DsGotPr.cEd := cOtpEd;
+            ELSE
+              DsGotPr.cEd := SetOtpEd(DsGotPr.cEd);
+            if (Update current DsGotPr) <> tsOk then MsgForm('DsGotPr',DsGotPr.nRec,1);
+          }
+          StopVisual('',0);
+          InsExecTime(SpJoi.cRec,JoiHead.cRec,'DsGotPr', m_tTimeBeg,Cur_Time);
+          ClearMarker(MyMarker);
+//------------------------------------------------------------------------------
+          // counttable 34 // Обьединение производства
+          if not(NextVisual) ObBreak;
+          m_tTimeBeg := cur_time;
+          AmalgamateBook(word(cgKau_KatUsl), SpJoi.cRec, JoiHead.cRec, cOtpEd);
+          InsExecTime(SpJoi.cRec, JoiHead.cRec,'интерфейс AmalgamateBookings', m_tTimeBeg, Cur_Time);
+          m_tTimeBeg := cur_time;
+          AmalgamateNorm(word(cgKau_KatUsl), SpJoi.cRec, JoiHead.cRec, cOtpEd);
+          InsExecTime(SpJoi.cRec, JoiHead.cRec,'интерфейс AmalgamateNormas', m_tTimeBeg, Cur_Time);
+          m_tTimeBeg := cur_time;
+          AmalgamateXCh(word(cgKau_KatUsl), SpJoi.cRec, JoiHead.cRec, cOtpEd);
+          InsExecTime(SpJoi.cRec, JoiHead.cRec,'интерфейс AmalgamateXChange', m_tTimeBeg, Cur_Time);
+          m_tTimeBeg := cur_time;
+          AmalgamatePlan(word(cgKau_KatUsl), SpJoi.cRec, JoiHead.cRec, cOtpEd);
+          InsExecTime(SpJoi.cRec, JoiHead.cRec,'интерфейс AmalgamatePlaning', m_tTimeBeg, Cur_Time);
+          // специфическая дополнительная обработка таблицы SpBill
+          if not(NextVisual) ObBreak;
+          StartNewVisual(vtDownVisual, vfTimer, 'Обработка таблицы SpBill', RecordsIntable(tnSpBill));
+          var bNeedUpdate : boolean;
+          m_tTimeBeg := cur_time;
+          _Loop SpBill
+          {
+            NextVisual;
+            bNeedUpdate := false;
+            if (SpBill.wTipRes1 = 5) // если выбран Поле Ресурс услуга
+            {
+               if (SPBILL.WRESTBL1 = 5) // только значение смотреть
+               {
+                 if (SPBILL.cResTbl1 = SpJoi.cRec)
+                 {
+                   bNeedUpdate := true;
+                   SPBILL.cResTbl1 := JoiHead.cRec;
+                 }
+               }
+            }
+
+            if (SpBill.wTipRes2 = 5) // если выбран Поле Ресурс услуга
+            {
+              if (SPBILL.WRESTBL2 = 5) // только значение смотреть
+              {
+                if (SPBILL.cResTbl2 = SpJoi.cRec)
+                {
+                  bNeedUpdate := true;
+                  SPBILL.cResTbl2 := JoiHead.cRec;
+                }
+              }
+            }
+
+            if (bNeedUpdate)
+              update current SPBILL;
+          }
+          StopVisual('',0);
+          InsExecTime(SpJoi.cRec,JoiHead.cRec,'SPBILL', m_tTimeBeg,Cur_Time);
+          ClearMarker(MyMarker);
+
+          FinishStage (2);
+        }                       // Конец второго этапа объединения
+        else
+          NNextVisual(iCountTableStep2);
+        IF (SpJoi.Step < word(3))   // Третий этап объединения
+        {
+          // KAU
+          UpdateKau(SpJoi.cRec,JoiHead.cRec,cgKau_KatUsl,true, KatUsl.Name);
+          FinishStage (3);
+        }                         // Конец третьего этапа объединения
+        else
+          NNextVisual(iCountTableStep3);
+        // Если этап завершен без ошибок для одной рез. Услуг
+        if (_nMsgFrm = m_lErrorSp) SpJoi.Status := word(3);
+        else                       SpJoi.Status := word(4);
+        Update current SpJoi;
+
+        if (m_lErrorSp <> _nMsgFrm)
+        {
+          ErrObAll.PutEventById (feBreak, fcCycleOfErrorAll);
+          ErrObAll.write(_nMsgFrm - m_lErrorSp);
+        }
+        m_lErrorSp := _nMsgFrm;
+      } While (GetNext SpJoi where ((JoiHead.nRec == SpJoi.cJoiHead and (word(3)<>SpJoi.Status))) = tsOk);
+      m_bWriteInfoSpJoi := False;
+
+      if (m_lErrorSp <> _nMsgFrm)
+      {
+        ErrObAll.PutEventById (feBreak, fcCycleOfErrorAll);
+        ErrObAll.write(_nMsgFrm - m_lErrorSp);
+      }
+      if (m_lErrorJoi <> _nMsgFrm)
+      {
+        ErrObAll.PutEventById (feBreak, fcCycleOfObAll);
+        ErrObAll.write(_nMsgFrm - m_lErrorJoi);
+      }
+      // Если объединение без ошибок
+      if (_nMsgFrm = m_lErrorJoi) JoiHead.Status := word(3); // статус "Завершено"
+      else                        JoiHead.Status := word(4);// статус "Завершено с ошибками"
+      Update Current JoiHead;
+
+      m_lErrorJoi := _nMsgFrm;
+      m_lErrorSp := m_lErrorJoi;
+
+    } While (GetNext JoiHead where ((m_wCgObedValue == JoiHead.TypeEvent AND
+                                     UserName() == JoiHead.UserName )) = tsOk and m_bBreak = False);
+
+  if (_nMsgFrm > 0)
+  {
+    ErrObAll.PutEventById (feBreak, fcCycleOfResAll);
+    ErrObAll.write(_nMsgFrm);
+  }
+
+  m_wParamOb := 0;
+  DoneMarker (MyMarker, '');
+  if (m_lCount_vis <> 0)
+  {
+    StopVisual('', 0);
+    if (_nMsgFrm > 0)  // Если были ошибки во время объединения
+    {
+      Message('Во время объединения произошли ошибки.' + chr(13)
+            + 'Просмотрите протокол ошибок и если необходимо,' + chr(13)
+            + 'запустите процедуру объединения Услуг еще раз.' + chr(13));
+      ErrObAll.ShowFile;
+    }
+// Message('Объединение завершено.' + chr(13)
+//       + 'Вам необходимо рассчитать остатки на начало периода и' + chr(13)
+//       + 'произвести расчет текущих остатков в модуле Складской учет.');
+  }
+  Message('Объединение завершено.');
+}
+
+browse UslJoi;
+show at (,,,6);
+Table JoiHead;
+  recMarker = m_pMarkerUp {JoiHead.Nrec};
+fields
+  sObName          'Наим.Услуги (результат объединения)',
+	                 ('', hcNastrAdmWOb, sci1378EscInsPMBrigadeDuty) : [33], protect;
+  KatUsl.Kod       'Ном.номер ',('', hcNastrAdmWOb, sci1Esc) : [11], protect;
+  strFilial        'филиал', ('',hcNastrAdmWOb,sci1Esc) : [7], Protect;
+  strJoiStatus     'Статус', ('', hcNastrAdmWOb, sci1Esc) : [15], Protect;
+  JoiHead.UserName 'Пользователь',('', hcNastrAdmWOb, sci13Esc) : [12], Protect;
+  strJoiCorpo      '№ офиса', ('', hcNastrAdmWOb, sci1Esc) : [7], Protect;
+end;
+
+TableEvent Table JoiHead;
+cmSetDefault :
+{
+  JoiHead.TypeEvent := m_wCgObedValue;
+  JoiHead.Status := word(0);
+  JoiHead.UserName := UserName();
+  JoiHead.dDate := Cur_Date;
+}
+
+cmInsertRecord : insert current JoiHead;
+cmUpdateRecord : update current JoiHead;
+
+cmInsert :
+{
+  case CurField of
+  #sObName :
+  {
+    if (RunInterface('GetUsl', m_cChoiceNrec) <> cmCancel)
+    {
+      if (not FindExistObj(m_cChoiceNrec)) putCommand(cmValue1);
+      else abort;
+    }
+    else abort;
+  }
+  end;
+}
+
+cmMarkDelete :
+{
+  if (curtable = #JoiHead)
+  {
+    m_bDeleteByMarker := false;
+    if (m_pMarkerUp.Count <> 0)
+    {
+      if (message('Удалить помеченные записи?', yesno + mfSwapButtons + confirmation) = cmYes)
+      {
+        m_bDeleteByMarker := true;
+        stop;
+      }
+      else abort;
+    }
+  }
+}
+
+cmDeleteRecord :
+{
+  if not(isValid(tnJoiHead)) exit;
+  if (not m_bDeleteByMarker) m_bExistDel := false; // инициализация переменной в случае когда пометки нет для случая обычного удаления
+
+  //#5578 >>>>>>>>>>>>>>>>>
+  var _boDiffUser : boolean = (JoiHead.UserName <> UserName());
+  if _boDiffUser
+    if (not m_bDeleteByMarker)
+      if pr_CurUserAdmin
+      { if message(lMsgOdebdifferenceUser
+          +chr(13)+'Продолжить?' , YesNo)=cmYes
+        { _boDiffUser:=false
+
+        }
+      }
+  //#5578 <<<<<<<<<<<<<<<<<<<<<<<<<
+  if _boDiffUser
+  {
+    if (not m_bDeleteByMarker)
+      message(lMsgOdebdifferenceUser
+        +chr(13)+'обратитесь к администратору БД', Warning);
+    if (m_bExistDel and ((not m_bDeleteByMarker) or (m_bDeleteByMarker and m_pMarkerUp.Count = 0)))
+      message('Удаление из каталога МЦ произведено.', Information + OkButton);
+    exit;
+  }
+
+  var bRun : boolean; bRun := true;
+  if (not m_bDeleteByMarker)
+    bRun := message('Удалить запись?', yesno + mfSwapButtons + confirmation) = cmYes;
+
+  if (bRun)
+  {
+    if (   (JoiHead.Status = word(3))
+        or (JoiHead.Status = word(4)))
+    {
+      if (GetFirst SpJoi where ((    JoiHead.nRec == SpJoi.cJoiHead
+                                 and byte(1)      == SpJoi.isDel
+                                 and byte(4)      == SpJoi.Status )) = tsOk)
+      {
+        var bDelFromCatalog : boolean; bDelFromCatalog := false;
+        bDelFromCatalog := Message('Удалять из каталога Услуг, объединение' + chr(13) +
+                  + 'которых завершено с ошибками?', yesno + mfSwapButtons + confirmation) = cmYes;
+        if (bDelFromCatalog)
+          update SpJoi where ((    JoiHead.nRec == SpJoi.cJoiHead
+                               and byte(1)      == SpJoi.isDel
+                               and byte(4)      == SpJoi.Status)) set Status := 3;
+      }
+      _loop SpJoi where ((    JoiHead.nRec == SpJoi.cJoiHead
+                          and byte(1)      == SpJoi.isDel
+                          and byte(3)      == SpJoi.Status))
+      {
+        _loop ExClassVal where ((    m_wCodeTable == ExClassVal.wTable
+                                 and SpJoi.cRec   == ExClassVal.cRec ))
+          delete ExClassIer where ((ExClassVal.cClassSeg == ExClassIer.cGroup));
+
+        delete ExClassVal where ((    m_wCodeTable == ExClassVal.wTable
+                                  and SpJoi.cRec   == ExClassVal.cRec ));
+
+        delete KatOtpEd where ((    word(2)    == KatOtpEd.PrMC
+                                and SpJoi.cRec == KatOtpEd.cMcUsl ));
+
+        delete KatUslTmp where (( SpJoi.cRec == KatUslTmp.nrec));
+        m_bExistDel := true;
+      }
+    }
+    delete SpJoi where ((JoiHead.nRec == SpJoi.cJoiHead));
+    delete current JoiHead;
+    if (m_bExistDel and ((not m_bDeleteByMarker) or (m_bDeleteByMarker and m_pMarkerUp.Count = 0)))
+      Message('Удаление из каталога Услуг произведено.', Information + OkButton);
+    else Abort;
+  }
+}
+end;
+
+handleevent
+cmValue1 :
+{
+  set JoiHead.cRec := m_cChoiceNrec;
+  UpdateTable;
+  SetFilialInNastrObed(coJoiHead, KatUsl.Name, KatUsl.Atl_Branch);
+  ReDrawPanel(#JoiHead);
+}
+
+cmPick :
+{
+  #Check_Pick(JoiHead)
+  case CurField of
+  #sObName :
+  {
+    if (JoiHead.Status <> 0) exit;
+    m_cChoiceNrec := JoiHead.cRec;
+    if (RunInterface('GetUsl', m_cChoiceNrec) <> cmCancel)
+    {
+      #CheckChoiceValueForJoiHeadOnPick
+      UpdateTable;
+      SetFilialInNastrObed(coJoiHead, KatUsl.Name, KatUsl.Atl_Branch);
+      ReReadRecord(#JoiHead);
+      ReDrawPanel(#JoiHead);
+    }
+  }
+  end;
+}
+end; // hanldeevent
+
+browse UslSpJoi;
+show at (,7,,17);
+Table SpJoi;
+fields
+  sOb1Name        'Наим. услуг, подлежащих объединению'
+                  ('', hcNastrAdmWOb, sci1378Esc): [41], Protect;
+  KatUsl1.Kod     'Ном. номер','───────────'('',hcNastrAdmWOb,sci1Esc) : [11], Protect;
+  strFilial1      'филиал','───────'('',hcNastrAdmWOb, sci1Esc) : [7], Protect;
+  strSpJoiStatus  'Статус'
+                  ('', hcNastrAdmWOb, sci1Esc)   : [15], Protect;
+  cSpJoiDel       'Удалять'
+                  ('Изменяется при нажатии на <F3>', hcNastrAdmWOb, sci13Esc)
+                                                          : [7], #protectedcentered;
+end;
+
+tableEvent Table SpJoi;
+cmInsert:
+{
+  if (JoiHead.UserName <> UserName())
+  {
+    message (lMsgOdebdifferenceUser, Warning);
+    abort; exit;
+  }
+
+  if (JoiHead.Status <> 0) {abort; exit;}
+
+  delete Pick where ((lPickConst == Pick.wList));
+
+  if (RunInterface('GetSomeUsl',comp(-12347)) <> Cancel)
+  {
+    _loop Pick where ((lPickConst == Pick.wList))
+    {
+      if (FindExistObj(Pick.cRec)) continue;
+      ClearBuffer (#SpJoi);
+      SpJoi.cJoiHead := JoiHead.nRec;
+      SpJoi.cRec := Pick.cRec;
+      SpJoi.Status := word(0);
+      SpJoi.IsDel := word(1);
+      Insert current SpJoi;
+      SetFilialInNastrObed(coSpJoi, KatUsl1.Name, KatUsl1.Atl_Branch);
+    }
+    ReReadRecord(#SpJoi);
+    ReDrawPanel(#SpJoi);
+  }
+  abort;
+}
+
+
+cmdeleteRecord :
+{
+  if (JoiHead.UserName <> UserName())
+  {
+    message (lMsgOdebdifferenceUser, Warning);
+    exit;
+  }
+
+  if (JoiHead.Status = 0)
+    if (message('Удалить запись?', yesno + mfSwapButtons + Confirmation) = cmYes)
+      delete current SpJoi;
+}
+end;
+
+handleevent
+cmPick :
+{
+  #Check_Pick(SpJoi)
+
+  case CurField of
+  #sOb1Name :
+  {
+    if (JoiHead.Status <> 0) exit;
+    m_cChoiceNrec := SpJoi.cRec;
+    if (RunInterface('GetUsl', m_cChoiceNrec) <> cmCancel)
+    {
+      #CheckChoiceValueForSpJoiOnPick
+      ClearBuffer(#SpJoi);
+      SpJoi.cJoiHead := JoiHead.nRec;
+      SpJoi.cRec := m_cChoiceNrec;
+      SpJoi.Status := Word(0);
+      SpJoi.IsDel := word(1);
+      Insert current SpJoi;
+      SetFilialInNastrObed(coSpJoi, KatUsl1.Name, KatUsl1.Atl_Branch);
+      ReReadRecord(#SpJoi);
+      ReDrawPanel(#SpJoi);
+    }
+  }
+  #cSpJoiDel :
+    if (SpJoi.cRec <> comp(0))
+    {
+      If (SpJoi.IsDel = word(1)) SpJoi.IsDel := word(0);
+      Else                       SpJoi.IsDel := word(1);
+      Update current SpJoi;
+      RedrawPanel (#SpJoi);
+    }
+ end;
+}
+end; // handleevent
+
+// Экран с кнопками
+screen ButtonsList;
+  show at (,18,,24);
+  Fields
+    m_wFilterByUser ('Изменяется при нажатии на <Пробел>', hcNastrAdmWOb, sci1Esc) : , noprotect;
+    m_wNeedZarRun ('Изменяется при нажатии на <Пробел>',hcNastrAdmWOb,sci1Esc): noprotect;
+    m_wCheckTimeObedRep ('Изменяется при нажатии на <Пробел>',hcNastrAdmWOb,sci1Esc): noprotect;
+Buttons
+  cmObed,Default,,,hcNastrAdmWOb,sci1Esc;
+  cmCancel,,,,hcNastrAdmWOb,sci1Esc;
+<<
+  Показывать объединения         Включить в обработку таблицы модуля Заработная плата:
+  (.) всех пользователей`        [.] таблицы с архивной информацией`
+  (.) только свои       `        [.] таблицы с текущей информацией`
+
+                                 [.] Протокол по времени объединения`
+                      <.~О~бъединить .>         <. О~т~мена .>
+>>
+end; // screen
+
+handleevent
+cmCheckField :
+{
+  case curfield of
+  #m_wFilterByUser :
+  {
+    case m_wFilterByUser of
+    0 :  if (BoundActive(tbOnlyUser))     PopBounds (tbOnlyUser);
+    1 :  if (not BoundActive(tbOnlyUser)) PushBounds (tbOnlyUser);
+    end;
+    if (getFirst JoiHead = tsOk) {};
+
+    ReReadRecord(#JoiHead);
+    RescanPanel (#JoiHead);
+    RescanPanel (#SpJoi);
+    SelectPanel (#JoiHead);
+    SaveMyDsk (m_wFilterByUser, lFilterByUserOb);
+  }
+  #m_wNeedZarRun : SaveMyDsk (m_wNeedZarRun, lNeedZarRunOb);
+  #m_wCheckTimeObedRep : SaveMyDsk (m_wCheckTimeObedRep, lCheckTimeObedRepOb);
+  end; // case
+}
+
+cmInit:
+{
+  DisableCommand(cmFilterSave);
+  m_wCodeTable := coKatUsl;
+   // функцию можно запускать при выборе режима одного филиала
+   if (not CanMayRunObedInFilialDb)
+   {
+      CloseInterface(cmCancel);
+      exit;
+   }
+  LoadAmalgamate;
+
+  bDBPlatformType := GetDBPlatformType;// читаем тип СУБД
+  delete Pick where ((lPickConst == Pick.wList));
+  m_wCgObedValue := cgObedUsl;// присвоение должно быть раньше кода, где используется переменная m_wCgObedValue
+  if (not ReadMyDsk (m_wNeedZarRun, lNeedZarRunOb, true)) m_wNeedZarRun := 3;
+  if (not ReadMyDsk (m_wFilterByUser, lFilterByUserOb, true)) m_wFilterByUser := 0;
+  if (not ReadMyDsk (m_wCheckTimeObedRep, lCheckTimeObedRepOb, true)) m_wCheckTimeObedRep := 0;
+  if (m_wFilterByUser = 1) PushBounds (tbOnlyUser);
+
+  m_wParamOb := 0;
+  m_bCorpo := InCorpo(m_wCgObedValue);
+  if (m_bCorpo)
+  {
+    DelOutCOrpo(m_wCgObedValue);
+    CorpoForUser(m_wCgObedValue);
+  }
+
+
+  if (getFirst tmpJoiHead where ((    m_wCgObedValue   == tmpJoiHead.TypeEvent
+                                  and UserName()        == tmpJoiHead.UserName
+                                  and (word(1)=tmpJoiHead.Status) )) = tsOk )
+  {
+    m_wParamOb := Word(1);
+    if (Message('Обнаружено незавершенное объединение Услуг' + chr(13)
+              + 'рекомендуется немедленно продолжить это объединение.' + chr(13)
+              + 'Запустить незавершенное объединение?', yesno + confirmation) = cmYes)
+      PutCommand(cmObed);
+    else
+      CloseInterface (cmCancel);
+  }
+}
+
+cmDefault: Abort;
+
+cmHotKeys :
+  PutHotCommAnd(RunMenu('ObedUsl_HotKeys_Print'));
+
+cmPrintDoc :
+{
+  if (frmObedAll.error)
+  {
+    frmObedAll.AbortForm;
+    message('Ошибка при формировании протокола соответствия.' + chr(13)
+          + 'Возможно, формы ObedAll нет в ресурсе.', CancelButton);
+    exit;
+  }
+  else
+    #PrintRelation(KatUsl1,KatUsl,Name,'Услуги')
+}
+cmdone :
+{
+  FreeVipInterface(pExtFpModAn);
+  UnLoadAmalgamate; // освобождение памяти (объектные интерфейсы производства)
+}
+
+cmObed :
+{
+ _try
+  {
+    SetFilialBdToStandart;// обработка филиальности (перевод с филиальности в стандарт)
+    mtClear (#ExecTime,mfNormal);
+    IF m_wParamOb <> 1
+    {
+      _loop tmpJoiHead where ((    m_wCgObedValue == tmpJoiHead.TypeEvent
+                               and UserName()      == tmpJoiHead.UserName))
+      {
+        IF (GetFirst tmpSpJoi where
+                ((tmpJoiHead.nRec == tmpSpJoi.cJoiHead)) <> tsOk)
+        {
+          var sObjName : string; sObjName := lNotDefine;
+          if (getFirst KatUslTmp where (( tmpJoiHead.cRec == KatUslTmp.nrec)) = tsOk )
+            sObjName := trim(KatUslTmp.Name);
+          message ('Для результата объединения' + chr(13)
+                 + '"' + sObjName + '"' + chr(13)
+                 + 'не выбраны услуги, которые необходимо объединять.', CancelButton);
+          SetStandartBdToFilial;// обработка филиальности (перевод со стандартной в филиальную)
+          exit;
+        }
+      }
+      if (getFirst tmpJoiHead where ((    m_wCgObedValue == tmpJoiHead.TypeEvent
+                                      and UserName()        == tmpJoiHead.UserName
+                                      and (word(4) = tmpJoiHead.Status) )) = tsOk )
+        if (message('Хотите повторять объединение для' + chr(13)
+                  + 'завершенных с ошибками услуг?', YesNo + Confirmation) = cmNo)
+          m_wParamOb := 2;
+    }
+    if (IsNotExistNastroikiFromOtherFilials(m_wCgObedValue, m_wCodeTable))
+      if (CheckAllRelation) updateObj ;
+      else if (IError <> 0)
+      {
+        ProcessText(NameFileMy,vfToErase or vfEscable or vfMacroSize,
+                    'Отчет о некорректных объединениях в объединении услуг');
+      }
+  }
+  _finally
+  {
+    SetStandartBdToFilial;// обработка филиальности (перевод со стандартной в филиальную)
+  }
+  ReReadRecord(#JoiHead);
+  ReReadRecord(#SpJoi);
+  if ((m_wCheckTimeObedRep = 1) and m_bShowRepTime)
+    #MakeTimeProt('услуг');
+}
+end;
+end.  // Interface
+ObedUsl_HotKeys_Print Menu
+{
+- 'Печать',cmPrintDoc,'Печать соответствия объединения',, 'Ctrl+P', kbCtrlP, scMenuCtx;
+}

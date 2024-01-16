@@ -1,0 +1,1975 @@
+//------------------------------------------------------------------------------
+//                                                      (c) корпорация Галактика
+// Галактика 7.12 - Настройка
+// интерфейс Объединение контрагентов
+//------------------------------------------------------------------------------
+
+#include KontrBal.vih
+#include aOfpOrg.vih    // модификация аналитик для "Платежный календарь"
+#include ExtFpModAn.Vih // модификация аналитик для "Управления бюджетом"
+#include Amalgamate.vih // объединения производства
+#include ExtFpImpRelJoin.Vih // объединение значений аналитик для "Управления бюджетом" (Каталог соответствий)
+#include marker.vih // описание объекта и объявление интерфейса
+                    // marker c реализацией по умолчанию
+
+#include exectime.dic  // таблица  для хранения результатов по времени объединения
+#include filial_macro.vpp// макросы для обработки филиальности
+#include MacOb.vpp //макросы (для таблиц, не содержащих кау, и общие)
+
+#define UseGetMarkerMy
+
+#doc
+Объединение контрагентов
+#end
+Interface KatOrgOb 'Объединение контрагентов' EscClose, cyan;
+  show at (,, 80, 25);
+
+const
+  lMsgOdebdifferenceUser = 'Этим объединением занимается другой пользователь.';
+  lFilterByUserOb  = 'FilterByUserObKatOrg';
+  lNeedZarRunOb    = 'NeedZarRunObKatOrg';
+  lCheckTimeObedRepOb = 'CheckTimeObedRepObKatOrg';
+  lNotDefine = 'Удаленная организация';
+  lPickConst = 6;
+end;
+
+Create View
+#INCLUDE obed.var //объявление переменных
+  CountRecOrdInProcess :integer; //количество записей для визуализации vtdownVisual
+  cVremBank : comp;
+  cBank   : comp ;
+  m_sTitleRep : string;
+as Select
+  #Strorka_sObName(KatOrg,lNotDefine,Name)
+  #Strorka_sOb1Name(KatOrg1,lNotDefine,Name)
+//----------------------------------------------------------------------------------
+  #InternalFields
+//----------------------------------------------------------------------------------
+  , if(JoiHead.rComp = comp(1), '+', '') (fieldname = strJoiBank)
+//----------------------------------------------------------------------------------
+  #InternalFieldsForShowFilial
+From
+    KatOrg
+  , JoiHead
+  , SpJoi
+  , Pick
+  , EvJoiHead
+  #TableForFilial
+  , KatOrg   KatOrg1
+  , KatOrg   KatOrgtmp
+  , JoiHead   tmpJoiHead
+  , SpJoi     tmpSpJoi
+  , EvJoiHead EvJoiHead1
+  , KATBANK
+  , KatBank KatBankS
+  , KatBank KatBankCashbank
+  , KatBank KatBankTmp
+  , CUSTOMER, CONCURNT, ADVERDIR, SALECHAN, SUPPLIER, EXCLASSIER, KONTRIER, KONTRVID, KontrBal, BALCUTS
+// таблицы перечислены, чтобы работала функция RecordsInTable
+  #include iTable.vpp
+  , KatZak, Valutdoc,  BookPrZk, MarAvt,  PlPOr,    dogovor,    CalPlan
+  , NZakaz, OtgOrder,  PaySchem, MrkSd,   MarkDPar, StOrREp,    DanPlz
+  , dover,  GRSOPr,    Veksl,    Aval,    KatPodr,  GroupParty, SpCurRep
+  , rzdoc,  rzKutPrih, rzSpdoc,  TTNdoC,  Waydoc,   Autodoc,    WayItem
+  , MARREL, Schfact
+  , LimZapH, AktOfp,   DocReq,     NormRash
+  , Prikaz, FilVeksl,  SpGrPlat, MoveOs,  SoprHoz
+  , CashBank CashBankTmp, CashBank
+  , Basedoc,  KatSopr,  BaseFin,  Kontras,  Filial,   Transp,   Npunkts,    KnDriver,   Goods
+  , KatParty, GroupSch, MBPIN,    SpdocNal, MrkSales, Contacts, ConcGood,   MrkGoodC,   CnGPrice, KLPrice
+  , ConcUtil, MrkUtilC, CnUPrice, AdverSrv, MSDiller, SuplGood, Org ,       KatKod,     MarkPay
+  , Tabledoc, dogpodr,  kluder,   AppVeks,  PutGsm,   TranInf,  ExClassVal, KatOrgDescr
+  , ExecTime
+  , TUNEVAL, TUNEDEF
+  , SPDOCS
+  , DSIO //давальческое сырье
+  , FPCO
+  , THEME
+where
+((
+      m_wCgObedValue == JoiHead.TypeEvent     // Матценности
+  and JoiHead.cRec   == KatOrg.nRec           // Объединение - матценности
+  and JoiHead.nRec   == SpJoi.cJoiHead        // Объединение - спецификация
+  and SpJoi.cRec     == KatOrg1.nRec          // Спецификация - матценности
+  #WhereForFilial
+))
+
+Bounds OnlyUser =
+      m_wCgObedValue == JoiHead.TypeEvent and UserName() == JoiHead.UserName;
+File MemoFile;
+
+#declare UpdateSpDocs(cField,wConst)
+if ((update visual 'Обработка таблицы SpDocs' SpDocs
+     where ((Dogovor.Nrec == SpDocs.cDoc and
+             #wConst      == SpDocs.Tidk and
+             SpJoi.cRec   == SpDocs.#cField(noindex)))
+     set SpDocs.#cField := JoiHead.cRec) <> tsOk) MSGForm('SpDocs', 0, 4);
+#end
+
+
+Const
+  iCountTableStep1 = 57;
+  iCountTableStep2 = 42;
+  iCountTableStep3 = 6 * 40 + 72;
+end;
+
+var interface_KONTRBAL : iKontrBal;
+var m_pMarkerUp        : IMarker(marker) new;
+
+#include aOfpOrg.var    // модификация аналитик для "Платежный календарь" (piOfpOrg   )
+#include ExtFpModAn.Var // модификация аналитик для "Управления бюджетом" (pExtFpModAn)
+#include ExtFpImpRelJoin.Var // модификация аналитик для "Управления бюджетом" (pExtFpImpRelJoin)
+// описаны переменные объектных интерфейсов и функции обработки таблиц
+// производственно контура
+#include Amalgamate.vpp
+
+#Declare ChangeBank(Tabl,Field)
+if (JoiHead.rComp = comp(1))
+{
+  if (FindBank(#Tabl.#Field))
+    #Tabl.#Field := cVremBank;   //  "Код Банка пол-теля",
+  else
+    #Tabl.#Field := cBank;       //  "банк контрагента",
+}
+#End
+
+procedure Obbreak;  // Прерывание объединения
+var
+  lcount_out : longint;
+{
+  lcount_out := VisualCount();
+  message('Для прекращения объединения придется'
+          + chr(13) + 'подождать до окончания замены на'
+          + chr(13) + '"' + trim (KatOrgTmp.Name) + '".', Information + OkButton);
+
+  ReStartVisual('Идет замещение организации на'#13'' + '"' + trim(KatOrgTmp.Name)
+                +'"' + ''#13'', m_lcount_vis);
+  NNextVisual (lcount_out);
+  m_bBreak := true;
+}
+
+form ErrObAll ('ErrObOrg.OUT', 'ErrObAll') with NoVisual;
+forM frmObedAll('obedKontr.out', 'obedAll') with novisual;
+form frmExchngTime('ExchngTime.out', 'ExchngTime') with novisual;
+#include obedtime.vpp //процедуры и функции по работе с таблицей информации по времени объединения
+#include ErrObAll.vpp    // Пакет ошибок
+#include Cor_Kau.vpp   // KAU
+#include printrelat.vpp // отчет замен
+#include filial_func.vpp // проверка филиальности
+//процедуры и функции обрабатывающие приход реплики с объединениями из другого офиса
+#include ObFCorpo.vpp
+function GetPrintName(cRec : comp) : string;
+var
+  sResult : string;
+{
+  sResult := 'Удален';
+  If (GetFirst KatOrgTmp where ((cRec == KatOrgTmp.Nrec)) = tsOk)
+    sResult := KatOrgTmp.Name;
+  result := sResult;
+}
+//.... поиск банка
+function FindBank(cNrecB : comp) : Boolean ;
+{
+  cVremBank := cNrecB;
+  findBank  := false;
+
+  if (getFirst Katbank where ((cVremBank == Katbank.Nrec)) = tsOk )
+    if (getFirst KatbankS where ((  JoiHead.cRec == KatbankS.cOrg)) = tsOk )
+      do
+      {
+        if (    (KatbankS.MFO1 = Katbank.MFO1)
+            and (KatbankS.Schet1 =  Katbank.Schet1)
+           )
+        {
+          findBank  := true;
+          cVremBank := KatbankS.Nrec;
+          break;
+        }
+      } while (Getnext KatbankS where ((JoiHead.cRec == KatbankS.cOrg)) = tsOk);
+}
+
+Procedure FinishStage (stage : word);
+{
+  if (_nMsgFrm = m_lErrorSp)       // Если этап завершен без ошибок для одной об. МЦ
+  {
+    SpJoi.Step := word(stage);
+    update current SpJoi;
+  }
+}
+// Проверка не участвует ли уже организация в объединении
+function FindExistObj (cOrg : comp) : boolean;
+var
+  sObjUp, sObjDown : string[80];
+{
+  #FindObj(m_wCgObedValue, KatOrgTmp, Name, lNotDefine, 'Организация ', cOrg, 2)
+}
+
+Function CheckObj : boolean;
+{
+  #Check_Obj(KatOrgTmp)
+}
+
+Procedure DelSaldRest (cKatOrgRec : comp);
+{
+  if (delete KontrBal where ((cKatOrgRec == KontrBal.cOrg)) = tsOk){}
+  // Удаление из BalCuts
+  if (GetFirst FastFirstRow KauCuts where ((cKatOrgRec == KauCuts.cKau[1])) = tsOK)
+    _LOOP KauCuts where ((cKontr == KauCuts.cKau[1]))
+      if (delete BalCuts where ((KauCuts.nRec == BalCuts.cKauCuts )) = tsOk) {}
+}
+
+function updateObj : boolean;
+var
+  lCount_sin : longint;//Шаги визуализации для синонимов
+  OrgMarker : TPtr;
+{
+  result   := false;
+  m_bBreak := false;
+  m_bShowRepTime := true;
+  _nMsgFrm  := 0;          // Общее число ошибок
+  m_lErrorJoi  := 0;
+  m_lErrOrSp   := 0;
+  m_lcount_vis := 0;
+  lCount_sin := 0;
+// расчет шагов для визуализации
+  _loop JoiHead where ((    m_wCgObedValue == JoiHead.TypeEvent
+                        and UserName() == JoiHead.UserName ))
+  {
+    case JoiHead.Status of
+    word(0) : if (m_wParamOb = word(1)) continue;
+    word(1) : {};
+    word(3) :  continue;
+    word(4) : if (m_wParamOb <> word(0)) continue;
+    end;
+
+    if (JoiHead.prCOrpo <> byte(0))
+      if (CheckObj)
+      {
+        message ('Одно из объединений, присланное по COrpo обмену'
+                 + chr(13) + 'будет отложено, поскольку не существует организации,'
+                 + chr(13) + 'в которую необходимо производить объединение.');
+        continue;
+      }
+
+    _Loop KatKau where ((    0            ==  KatKau.isActive
+                         and cgKau_KatOrg ==  KatKau.UpGroup ))
+      lCount_sin := lCount_sin + 1;
+
+    _loop SpJoi where ((    JoiHead.nRec == SpJoi.cJoiHead
+                        and (word(3) <> SpJoi.Status) ))
+      m_lcount_vis := m_lcount_vis + iCountTableStep1 + iCountTableStep2 + (lCount_sin + 1) * iCountTableStep3; //добавить
+  }
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  if (m_lcount_vis <> 0)
+  {
+    if (message('Если Вы не сохранили данные, еще раз рекомендуем это сделать.' + chr(13)
+              + 'Запустить объединение организаций?', YesNo + mfSwapButtons + Confirmation) = cmNo)
+    {
+      m_bShowRepTime := false;
+      exit;
+    }
+    StartNewVisual(vtIndicatOrVisual, vfTimer + vfbreak + vfConfirm,''#13#13#13'', m_lcount_vis);
+  }
+  else
+  {
+    message ('Нет заданий на объединение.');
+    m_bShowRepTime := false;
+    m_wParamOb := 0;
+    exit;
+  }
+
+  MyMarker:=InitMarker('', 8, 50, 50, false);
+  OrgMarker := InitMarker('', 8, 100, 10);
+  // инициализация сессии объединения в "Каталоге соответствия аналитик"
+  pExtFpImpRelJoin.Session_Begin;
+  var cTTNDocOrgName:comp = ExtAttr_ID(coTTNDoc, 'НАИМЕНОВАНИЕ АВТОПРЕДПРИЯТИЯ');
+
+              // Цикл по результирующей
+  if (getFirst JoiHead where ((    m_wCgObedValue == JoiHead.TypeEvent
+                               and UserName() == JoiHead.UserName )) = tsOk )
+  do
+  {
+    case JoiHead.Status of
+    word(0) : if (m_wParamOb = word(1)) continue;
+    word(1) : {};
+    word(3) :  continue;
+    word(4) : if (m_wParamOb <> word(0)) continue;
+    end;
+
+    if (JoiHead.prCOrpo <> byte(0))
+      if (CheckObj) continue;
+                        // Пересылка если COrpo
+    if (    (m_bCOrpo)
+        and (JoiHead.prCOrpo = byte(0))
+        and (JoiHead.Status = word(0)))
+    {
+      ClearBuffer (#EvJoiHead);
+      EvJoiHead.FilialNo := OfficeNo();
+      EvJoiHead.TypeEvent := m_wCgObedValue;
+      EvJoiHead.cRec := JoiHead.cRec;
+      EvJoiHead.dDate := Cur_date();
+      MemoFile.OpenMemo (EvJoiHead.EvSp);
+      MemoFile.Write(JoiHead.rComp); //?
+      _loop SpJoi where ((JoiHead.nRec == SpJoi.cJoiHead))
+      {
+        MemoFile.Write(SpJoi.cRec);
+        MemoFile.Write(SpJoi.Num);
+        MemoFile.Write(SpJoi.isDel);
+/*
+        if (getFirst KatOrgtmp where ((SpJoi.cRec == KatOrgtmp.nRec)) = tsOk)
+          MemoFile.Write(KatOrgtmp.Name);
+        else
+          MemoFile.Write(lNotDefine);
+*/
+      }
+      MemoFile.Close;
+      insert current EvJoiHead;
+    }
+    JoiHead.Status := word(1);  // Делаем статус "Начата"
+    update Current JoiHead;
+
+    if ( getFirst KatOrgTmp where (( JoiHead.cRec == KatOrgTmp.nrec)) = tsOk ) {};
+
+    iNextVisual('Идет замещение организаций на'#13'' + '"' + trim(KatOrgTmp.Name) + '"' + ''#13'');
+    m_bWriteInfoSpJoi := true;
+                 //  Цикл по объединяемым
+    if (getFirst SpJoi where ((    JoiHead.nRec == SpJoi.cJoiHead
+                               and (word(3) <> SpJoi.Status) )) = tsOk)
+      do
+      {
+        SpJoi.Status := word(1);
+        update current SpJoi;
+        if (SpJoi.Step < word(1))   // Первый этап объединения
+        {
+          //....объединение банков CountTable 1
+          if ( JoiHead.rComp = comp(1) )
+          {
+             Var bYesOkBank : Boolean;
+             bYesOkBank := false;
+             CountRecOrdInProcess := 0;
+             m_tTimeBeg := cur_time;
+             _loop Katbank where ((SpJoi.cRec == Katbank.cOrg))
+               CountRecOrdInProcess := CountRecOrdInProcess + 1;
+             StartNewVisual(vtdownVisual, vfTimer, 'Обработка таблицы KatBank', CountRecOrdInProcess);
+             if (getFirst Katbank where ((SpJoi.cRec == Katbank.cOrg)) = tsOk )
+               do
+               {
+                 NextVisual;
+                 bYesOkBank := false;
+                 if (getFirst KatbankS where ((JoiHead.cRec == KatbankS.cOrg)) = tsOk )
+                   do
+                   {
+                     if (    (KatbankS.MFO1 = Katbank.MFO1)
+                         and (KatbankS.Schet1 =  Katbank.Schet1)
+                         and (length(KatbankS.MFO1)  > 0)
+                         and (length(Katbank.MFO1)   > 0)
+                         and (length(KatbankS.Schet1)> 0)
+                         and (length(Katbank.Schet1) > 0))
+                     {
+                       bYesOkBank := true;
+                       break;
+                     }
+                   } while (GetNext KatbankS where ((JoiHead.cRec == KatbankS.cOrg)) = tsOk);
+
+                 cVremBank := Katbank.Nrec;
+                 // .. модификация банков
+                 if (( Not bYesOkBank) and (cVremBank > 0))
+                   if (getFirst KatbankS where ((cVremBank == KatbankS.Nrec )) = tsOk )
+                   {
+                     KatbankS.Nrec := 0;
+                     KatbankS.cOrg := JoiHead.cRec;
+                     if (Insert Current KatbankS) <> tsOk Then Msgform('KatBank', 0, 3);
+                   }
+               } while (GetNext Katbank where ((SpJoi.cRec == Katbank.cOrg)) = tsOk );
+            StopVisual('', 0);
+          }
+          //..объединение организаций
+
+          cBank := GetOrgActiveBank(JoiHead.cRec);
+
+          InsExecTime(SpJoi.cRec,JoiHead.cRec,'Katbank', m_tTimeBeg,Cur_Time);
+          //..Исправляется таблица Basedoc CountTable 2
+          if Not(NextVisual) Obbreak;
+          m_tTimeBeg := cur_time;
+          _Loop Basedoc where ((SpJoi.cRec == Basedoc.cOrg))
+            InsertMarker(MyMarker, Basedoc.nRec);
+          CountMarker := GetMarkerCount(MyMarker);
+          StartNewVisual(vtdownVisual,vfTimer,'Обработка таблицы Basedoc', CountMarker + 1);
+          for (lCycle := 0; lCycle <> CountMarker; lCycle := lCycle + 1)
+            if (getFirst Basedoc where ((GetMarkerMy(MyMarker, lCycle) == Basedoc.nRec)) = tsOk)
+            {
+              NextVisual;
+              Case Basedoc.Viddoc Of // обработка договоров цессии
+              90..93:
+              {
+                Basedoc.cOrg := JoiHead.cRec;
+              }
+              else
+              {
+                Basedoc.cOrg := JoiHead.cRec;
+                #ChangeBank(Basedoc, cBank)
+              }
+              end; // case
+              if (update Current Basedoc <> tsOk)  MSGform('Basedoc with field cOrg', Basedoc.nRec, 1);
+            }
+          StopVisual('', 0);
+          clearMarker(MyMarker);
+
+          //CountTable 3
+          // проверяем  если субд Oracle или mssql запускаю групповое изменение
+          if Not(NextVisual) Obbreak;
+          var iVidDoc : integer;
+          for (iVidDoc := 90; iVidDoc <= 93; iVidDoc := iVidDoc + 1)
+          {
+            if ((update visual 'Обработка таблицы BaseDoc' Basedoc
+                 where ((    iVidDoc    == Basedoc.Viddoc
+                         and SpJoi.cRec == Basedoc.cBank (noindex)))
+                 set BaseDoc.cbank := JoiHead.cRec) <> tsOk)
+              MSGForm('BaseDoc with field cBank', 0, 4);
+          }
+          InsExecTime(SpJoi.cRec,JoiHead.cRec,'Basedoc with field cBank', m_tTimeBeg,Cur_Time);
+          clearMarker(MyMarker);
+
+          //CountTable 4,5
+          #updateTableOneFieldWithIndex(Basedoc, cGrPol, 'Basedoc with field cGrPol')
+          #updateTableOneFieldWithIndex(Basedoc, cGrOtpr, 'Basedoc with field cGrOtpr')
+          //..Исправляется таблица KatSopr  CountTable 6,7,8,9
+          #updateTableOneFieldWithIndex(KatSopr, cOrg, 'KatSopr with field cOrg')
+          #updateTableOneFieldWithIndex(KatSopr, cOrgBase, 'KatSopr with field cOrgBase')
+          #updateTableOneFieldWithIndex(KatSopr, cGruzFrom, 'KatSopr with field cGruzFrom')
+          #updateTableOneFieldWithIndex(KatSopr, cGruzTO, 'KatSopr with field cGruzTO')
+          #UpdateTableOneFieldNoIndex(KatSopr, CORGPLAT, 'KatSopr with field CORGPLAT')
+          //..Исправляется таблица BaseFin CountTable 10
+          #updateTableOneFieldWithIndex(BaseFin, cOrg, 'BaseFin')
+          //..Исправляется таблица Kontras CountTable 11
+          #updateTableOneFieldWithIndex(Kontras, cOrg, 'Kontras')
+          //..Исправляется таблица Filial CountTable 12
+          #updateTableOneFieldWithIndex(Filial, cOrg, 'Filial')
+          //..Исправляется таблица Transp CountTable 13
+          #updateTableOneFieldWithIndex(Transp, cOrg, 'Transp')
+          //..Исправляется таблица Npunkts CountTable 14
+          #updateTableOneFieldWithIndex(Npunkts, cOrg, 'Npunkts')
+          //..Исправляется таблица KnDriver CountTable 15
+          #updateTableOneFieldWithIndex(KnDriver, cOrg, 'KnDriver')
+          //..Исправляется таблица Goods CountTable 16
+          #updateTableOneFieldWithIndex(Goods, cOrg, 'Goods')
+          //..Исправляется таблица KatParty CountTable 17
+          #updateTableOneFieldWithIndex(KatParty, cOrgPar, 'KatParty')
+          //..Исправляется таблица GroupSch CountTable 18
+          #updateTableOneFieldWithIndex(GroupSch, cOrg, 'GroupSch')
+          //..Исправляется таблица KatZak CountTable 19
+          #updateTable3FieldWithNoIndex(KatZak, cOrg, cGruzFrom, cGruzTo, 'KatZak', RecordsInTable(tnKatZak))
+
+          //..Исправляется таблица Valutdoc CountTable 20
+          if Not(NextVisual) Obbreak;
+          #StartVisualPartOne('Valutdoc', RecordsInTable(tnValutdoc))
+           m_tTimeBeg := cur_time;
+          _Loop Valutdoc
+          {
+            NextVisual;
+            if(SpJoi.cRec = Valutdoc.cOrg)
+              InsertMarker(MyMarker, Valutdoc.nRec);
+          }
+          CountMarker := GetMarkerCount(MyMarker);
+          #StartVisualPartTwo('Valutdoc', CountMarker + 1)
+          for (lCycle := 0; lCycle <> CountMarker; lCycle := lCycle + 1)
+            if (getFirst Valutdoc where ((GetMarkerMy(MyMarker, lCycle) == Valutdoc.nRec)) = tsOk)
+            {
+              NextVisual;
+              Valutdoc.cOrg  := JoiHead.cRec;
+              if (JoiHead.rComp = comp(1))
+              {
+                if (findBank(Valutdoc.cBank))
+                {
+                  Valutdoc.cBank    :=  cVremBank;
+                  Valutdoc.ValSch   :=  KatBankS.Schet3; //    "Валютный счет",
+                  Valutdoc.cBankSch :=  cVremBank;       //    "Банк валютного счета",
+                }
+                else
+                {
+                  Valutdoc.cBank    :=  cBank;           //    "Код Банка пол-теля",
+                  Valutdoc.ValSch   :=  KatBank.Schet3;  //    "Валютный счет",
+                  Valutdoc.cBankSch :=  cBank;           //    "Банк валютного счета",
+                }
+              }
+              if (update current Valutdoc <> tsOk)  MSGform('Valutdoc', Valutdoc.nRec, 1);
+            }
+          InsExecTime(SpJoi.cRec,JoiHead.cRec,'Valutdoc', m_tTimeBeg,Cur_Time);
+          StopVisual('', 0);
+          clearMarker(MyMarker);
+
+          //..Исправляется таблица SchFact CountTable 21
+          #updateTableOneFieldWithIndex(SchFact, cOrg, 'SchFact with field cOrg')
+          #updateTable2FieldWithNoIndex(Schfact, cGruzTo, cGruzFrom, 'Schfact with field cGruzTo', RecordsInTable(#Schfact))
+          //..Исправляется таблица BookPrZk Counttable 22
+          #updateTableOneFieldNoIndex(BookPrZk, cOrg, 'BookPrZk')
+          //..Исправляется таблица MBPIN Counttable 23
+          #updateTableOneFieldWithIndex(MBPIN, cOrg, 'MBPIN')
+          //..Исправляется таблица MarAvt Counttable 24
+          #updateTable3FieldWithNoIndex(MarAvt, cOrgAvt, cOrg, cOrg_Kontr, 'MarAvt', RecordsInTable(tnMarAvt))
+          //..Исправляется таблица SpdocNal Counttable 25
+          #updateTableOneFieldWithIndex(SpdocNal, cOrg, 'SpdocNal')
+
+          //..Исправляется таблица PlPOr Counttable 26
+          if Not(NextVisual) Obbreak;
+          #StartVisualPartOne('PlPOr', RecordsInTable(tnPlPOr))
+          m_tTimeBeg := cur_time;
+          _Loop PlPOr
+          {
+            NextVisual;
+            ExistIntableWithNoIndexRecOrd := 0;
+            if (SpJoi.cRec = PlPOr.cPol)
+              ExistIntableWithNoIndexRecOrd := 1
+            else
+              if (SpJoi.cRec = PlPOr.cPlat)
+                ExistIntableWithNoIndexRecOrd := 1
+              else
+                if (SpJoi.cRec = PlPOr.cGruzOtp)
+                  ExistIntableWithNoIndexRecOrd := 1
+                else
+                  if (SpJoi.cRec = PlPOr.cGruzPol)
+                    ExistIntableWithNoIndexRecOrd := 1
+                  else
+                    if (SpJoi.cRec = PlPOr.cPlatNew)
+                      ExistIntableWithNoIndexRecOrd := 1
+                    else ExistIntableWithNoIndexRecOrd := 0;
+            if (ExistIntableWithNoIndexRecOrd = 1)
+              InsertMarker(MyMarker,PlPOr.nRec);
+          }
+          CountMarker := GetMarkerCount(MyMarker);
+          #StartVisualPartTwo('PlpOr', CountMarker + 1)
+          for (lCycle := 0; lCycle <> CountMarker; lCycle := lCycle + 1)
+            if (getFirst PlPOr where ((GetMarkerMy(MyMarker, lCycle) == PlPOr.nRec)) = tsOk)
+            {
+              NextVisual;
+              if (SpJoi.cRec = PlPOr.cPol)
+              {
+                PlPOr.cPol := JoiHead.cRec;       //      "Код Получателя",
+                #ChangeBank(PlPOr,cBankPol)
+              }
+              if (SpJoi.cRec = PlPOr.cPlat)
+              {
+                PlPOr.cPlat := JoiHead.cRec;
+                #ChangeBank(PlPOr,cBankPlat)
+              }
+              if (SpJoi.cRec = PlPOr.cGruzOtp)
+                PlPOr.cGruzOtp := JoiHead.cRec;
+              if (SpJoi.cRec = PlPOr.cGruzPol)
+                PlPOr.cGruzPol := JoiHead.cRec;
+              if (SpJoi.cRec = PlPOr.cPlatNew)
+                PlPOr.cPlatNew := JoiHead.cRec;
+              if (update current PlPOr <> tsOk)  MSGform('PlPOr', PlPOr.nRec, 1);
+            }
+            InsExecTime(SpJoi.cRec,JoiHead.cRec,'PlPOr', m_tTimeBeg,Cur_Time);
+          StopVisual('', 0);
+          clearMarker(MyMarker);
+          //-------------------------Market----------------------------------------
+          var cReplaceRec : comp;
+          //..Исправляется таблица Customer CountTable 28,29,30
+          if Not(NextVisual) Obbreak;
+          m_tTimeBeg := cur_time;
+          if (getFirst Customer where ((JoiHead.cRec == Customer.FIRM_CODE)) = tsOk )
+          {
+            cReplaceRec := Customer.Nrec;
+            if (getFirst Customer where ((SpJoi.cRec == Customer.FIRM_CODE)) = tsOk )
+            {
+              #CheckInTableFieldWithIndexandReplaceWithValue(MrkSales, CUST_CODE, Customer.NRec, cReplaceRec, 'MrkSales')
+              #CheckInTableFieldWithIndexandReplaceWithValue(Contacts, CUST_CODE, Customer.NRec, cReplaceRec, 'Contacts')
+              #CheckInTableFieldWithNoIndexandReplaceWithValue(MrkSd, CUST_CODE, Customer.NRec, cReplaceRec, 'MrkSd', RecordsInTable(tnMrkSd))
+              if (delete current Customer <> tsOk)  MSGform('Customer', Customer.nRec, 2);
+            }
+          }
+          else
+          {
+            if (getFirst Customer where ((SpJoi.cRec == Customer.FIRM_CODE)) = tsOk )
+            {
+              Customer.FIRM_CODE := JoiHead.cRec;
+              if (update current Customer <> tsOk)  MSGform('Customer', Customer.nRec, 1);
+            }
+          }
+          InsExecTime(SpJoi.cRec,JoiHead.cRec,'Customer', m_tTimeBeg,Cur_Time);
+          //..Исправляется таблица Concurnt CountTable 31,32,33,34,35,36
+          if Not(NextVisual) Obbreak;
+          m_tTimeBeg := cur_time;
+          if (getFirst Concurnt where ((JoiHead.cRec == Concurnt.KATOrGNREC)) = tsOk )
+          {
+            cReplaceRec := Concurnt.Nrec;
+            if (getFirst Concurnt where ((SpJoi.cRec == Concurnt.KATOrGNREC)) = tsOk )
+            {
+              #CheckInTableFieldWithIndexandReplaceWithValue(ConcGood, CONC_CODE, Concurnt.NRec, cReplaceRec, 'ConcGood')
+              #CheckInTableFieldWithIndexandReplaceWithValue(MrkGoodC, CONC_CODE, Concurnt.NRec, cReplaceRec, 'MrkGoodC')
+              #CheckInTableFieldWithIndexandReplaceWithValue(CnGPrice, CONC_CODE, Concurnt.NRec, cReplaceRec, 'CnGPrice')
+              #CheckInTableFieldWithIndexandReplaceWithValue(ConcUtil, CONC_CODE, Concurnt.NRec, cReplaceRec, 'ConcUtil')
+              #CheckInTableFieldWithIndexandReplaceWithValue(MrkUtilC, CONC_CODE, Concurnt.NRec, cReplaceRec, 'MrkUtilC')
+              #CheckInTableFieldWithIndexandReplaceWithValue(CnUPrice, CONC_CODE, Concurnt.NRec, cReplaceRec, 'CnUPrice')
+              if (delete current Concurnt <> tsOk) MSGform('Concurnt', Concurnt.nRec, 2);
+            }
+          }
+          else
+          {
+            if (getFirst Concurnt where ((SpJoi.cRec == Concurnt.KATOrGNREC)) = tsOk )
+            {
+              Concurnt.KATOrGNREC := JoiHead.cRec;
+              if (update current Concurnt <> tsOk) MSGform('Concurnt', Concurnt.nRec, 1);
+            }
+          }
+          InsExecTime(SpJoi.cRec,JoiHead.cRec,'Concurnt', m_tTimeBeg,Cur_Time);
+          //..Исправляется таблица AdverDir CountTable 37
+          if Not(NextVisual) Obbreak;
+          m_tTimeBeg := cur_time;
+          if (getFirst AdverDir where (( JoiHead.cRec == AdverDir.FIRM_CODE)) = tsOk )
+          {
+            cReplaceRec := AdverDir.Nrec;
+            if (getFirst AdverDir where (( SpJoi.cRec == AdverDir.FIRM_CODE)) = tsOk )
+            {
+              #CheckInTableFieldWithIndexandReplaceWithValue(AdverSrv, ADVER_CODE, AdverDir.NRec, cReplaceRec, 'AdverSrv')
+              if (delete current AdverDir <> tsOk)MSGform('AdverDir', AdverDir.nRec, 2);
+            }
+          }
+          else
+          {
+            if (getFirst AdverDir where (( SpJoi.cRec == AdverDir.FIRM_CODE)) = tsOk )
+            {
+              AdverDir.FIRM_CODE := JoiHead.cRec;
+              if (update current AdverDir <> tsOk) MSGform('AdverDir', AdverDir.nRec, 1);
+            }
+          }
+          InsExecTime(SpJoi.cRec,JoiHead.cRec,'AdverDir', m_tTimeBeg,Cur_Time);
+          //..Исправляется таблица SaleChan CountTable 38,39,40
+          if Not(NextVisual) Obbreak;
+          m_tTimeBeg := cur_time;
+          if (getFirst SaleChan where (( JoiHead.cRec == SaleChan.CHAN_CODE)) = tsOk )
+          {
+            cReplaceRec := SaleChan.Nrec;
+            if (getFirst SaleChan where (( SpJoi.cRec == SaleChan.CHAN_CODE)) = tsOk )
+            {
+              #CheckInTableFieldWithIndexandReplaceWithValue(MSDiller, SHAN, SaleChan.NRec, cReplaceRec, 'MSDiller')
+              #CheckInTableFieldWithIndexandReplaceWithValue(MrkSales, SALE_CHAN, SaleChan.NRec, cReplaceRec, 'MrkSales')
+              #CheckInTableFieldWithIndexandReplaceWithValue(MrkSd, SALE_CHAN, SaleChan.NRec, cReplaceRec, 'MrkSd')
+              if (delete current SaleChan <> tsOk) MSGform('SaleChan', SaleChan.nRec, 2);
+            }
+          }
+          else
+          {
+            if (getFirst SaleChan where (( SpJoi.cRec == SaleChan.CHAN_CODE)) = tsOk )
+            {
+              SaleChan.CHAN_CODE := JoiHead.cRec;
+              if (update current SaleChan <> tsOk) MSGform('SaleChan', SaleChan.nRec, 1);
+            }
+          }
+          InsExecTime(SpJoi.cRec,JoiHead.cRec,'SaleChan', m_tTimeBeg,Cur_Time);
+          //..Исправляется таблица Supplier CountTable 41
+          if Not(NextVisual) Obbreak;
+          m_tTimeBeg := cur_time;
+          if (getFirst Supplier where (( JoiHead.cRec == Supplier.KATOrGNREC)) = tsOk )
+          {
+            cReplaceRec := Supplier.Nrec;
+            if (getFirst Supplier where (( SpJoi.cRec == Supplier.KATOrGNREC)) = tsOk )
+            {
+              #CheckInTableFieldWithIndexandReplaceWithValue(SuplGood, SUPPL_CODE, Supplier.NRec, cReplaceRec, 'SuplGood')
+              if (delete current Supplier <> tsOk) MSGform('Supplier', Supplier.nRec, 2);
+            }
+          }
+          else
+          {
+            if (getFirst Supplier where (( SpJoi.cRec == Supplier.KATOrGNREC)) = tsOk )
+            {
+              Supplier.KATOrGNREC := JoiHead.cRec;
+              if (update current Supplier <> tsOk) MSGform('Supplier', Supplier.nRec, 1);
+            }
+          }
+          InsExecTime(SpJoi.cRec,JoiHead.cRec,'Supplier', m_tTimeBeg,Cur_Time);
+                     // ДОГОВОРА
+          //..Исправляется таблица dogovor  Counttable 42
+          if Not(NextVisual) Obbreak;
+          #StartVisualPartOne('dogovor', RecordsInTable(tndogovor))
+          m_tTimeBeg := cur_time;
+          _Loop dogovor
+          {
+            NextVisual;
+            ExistIntableWithNoIndexRecOrd := 0;
+            if (SpJoi.cRec = dogovor.cGrOtp)
+              ExistIntableWithNoIndexRecOrd := 1
+            else
+              if (SpJoi.cRec = dogovor.cGrPol)
+                ExistIntableWithNoIndexRecOrd := 1
+              else
+                if (SpJoi.cRec = dogovor.cMyOrg)
+                  ExistIntableWithNoIndexRecOrd := 1
+                else
+                 if (SpJoi.cRec = dogovor.cOrg)
+                   ExistIntableWithNoIndexRecOrd := 1
+                 else
+                   if (SpJoi.cRec = dogovor.cPlat)
+                      ExistIntableWithNoIndexRecOrd := 1
+                    else
+                      if (SpJoi.cRec = dogovor.cPol)
+                        ExistIntableWithNoIndexRecOrd := 1
+                      else ExistIntableWithNoIndexRecOrd := 0;
+            if (ExistIntableWithNoIndexRecOrd = 1)
+              InsertMarker(MyMarker, dogovor.nRec);
+
+            if (Dogovor.viddog <> 14) continue;
+            #UpdateSpDocs(cMcUsl, cgDoc_0400)
+            #UpdateSpDocs(cMcUsl, cgDoc_0401)
+            #UpdateSpDocs(cUks, cgDoc_0400)
+            #UpdateSpDocs(cUks, cgDoc_0401)
+            #UpdateSpDocs(cGrMcUsl, cgDoc_0400)
+            #UpdateSpDocs(cGrMcUsl, cgDoc_0401)
+          }
+          CountMarker := GetMarkerCount(MyMarker);
+          #StartVisualPartTwo('dogovor', CountMarker + 1)
+          for (lCycle := 0; lCycle <> CountMarker; lCycle := lCycle + 1)
+            if (getFirst dogovor where ((GetMarkerMy(MyMarker, lCycle) == dogovor.nRec)) = tsOk)
+            {
+              NextVisual;
+              if (SpJoi.cRec = dogovor.cGrOtp)
+                dogovor.cGrOtp := JoiHead.cRec;
+              if (SpJoi.cRec = dogovor.cGrPol)
+                dogovor.cGrPol := JoiHead.cRec;
+              if (SpJoi.cRec = dogovor.cMyOrg)
+                dogovor.cMyOrg := JoiHead.cRec;
+              if (SpJoi.cRec = dogovor.cOrg)
+                dogovor.cOrg := JoiHead.cRec;
+              if (SpJoi.cRec = dogovor.cPol)
+              {
+                dogovor.cPol := JoiHead.cRec;       //      "Код Получателя",
+                #ChangeBank(dogovor, cBankPol)
+              }
+              if (SpJoi.cRec = dogovor.cPlat)
+              {
+                dogovor.cPlat := JoiHead.cRec;
+                #ChangeBank(dogovor, cBankPlat)
+              }
+              if (update current dogovor <> tsOk) MSGform('dogovor', dogovor.nRec, 1);
+            }
+          InsExecTime(SpJoi.cRec,JoiHead.cRec,'dogovor', m_tTimeBeg,Cur_Time);
+          StopVisual('', 0);
+          clearMarker(MyMarker);
+
+          //..Исправляется таблица CalPlan  Counttable 43
+          if Not(NextVisual) Obbreak;
+          m_tTimeBeg := cur_time;
+          #StartVisualPartOne('CalPlan', RecordsInTable(tnCalPlan))
+          _Loop CalPlan
+          {
+            NextVisual;
+            ExistIntableWithNoIndexRecOrd := 0;
+            if (SpJoi.cRec = CalPlan.cGrOtp)
+              ExistIntableWithNoIndexRecOrd := 1
+            else
+              if (SpJoi.cRec = CalPlan.cGrPol)
+                ExistIntableWithNoIndexRecOrd := 1
+              else
+                if (SpJoi.cRec = CalPlan.cOrg)
+                  ExistIntableWithNoIndexRecOrd := 1
+                else
+                  if (SpJoi.cRec = CalPlan.cPlat)
+                    ExistIntableWithNoIndexRecOrd := 1
+                  else
+                    if (SpJoi.cRec = CalPlan.cPol)
+                      ExistIntableWithNoIndexRecOrd := 1
+                    else ExistIntableWithNoIndexRecOrd := 0;
+            if (ExistIntableWithNoIndexRecOrd = 1)
+              InsertMarker(MyMarker, CalPlan.nRec);
+          }
+          CountMarker := GetMarkerCount(MyMarker);
+          #StartVisualPartTwo('CalPlan', CountMarker + 1)
+          for (lCycle := 0; lCycle <> CountMarker; lCycle := lCycle + 1)
+            if (getFirst CalPlan where ((GetMarkerMy(MyMarker, lCycle) == CalPlan.nRec)) = tsOk)
+            {
+              NextVisual;
+              if (SpJoi.cRec = CalPlan.cGrOtp)
+                CalPlan.cGrOtp := JoiHead.cRec;
+              if (SpJoi.cRec = CalPlan.cGrPol)
+                CalPlan.cGrPol := JoiHead.cRec;
+              if (SpJoi.cRec = CalPlan.cOrg)
+                CalPlan.cOrg := JoiHead.cRec;
+              if (SpJoi.cRec = CalPlan.cPol)
+              {
+                CalPlan.cPol := JoiHead.cRec;       //      "Код Получателя",
+                #ChangeBank(CalPlan, cPolBank)
+              }
+              if (SpJoi.cRec = CalPlan.cPlat)
+              {
+                CalPlan.cPlat := JoiHead.cRec;
+                #ChangeBank(CalPlan, cPlatBank)
+              }
+              if (update current CalPlan <> tsOk) MSGform('CalPlan', CalPlan.nRec, 1);
+            }
+          StopVisual('', 0);
+          InsExecTime(SpJoi.cRec,JoiHead.cRec,'CalPlan', m_tTimeBeg,Cur_Time);
+          clearMarker(MyMarker);
+
+          //..Исправляется таблица NZakaz Counttable 44
+          #updateTable4FieldWithNoIndex(NZakaz, cContrib, cGrOtp, cOrg, cGrPol, 'NZakaz', RecordsInTable(tnNZakaz))
+          //..Исправляется таблица OtgOrder CountTable 45
+          #updateTable2FieldWithNoIndex(OtgOrder, cGrOtp, cOrgform, 'OtgOrder', RecordsInTable(tnOtgOrder))
+
+          //..Исправляется таблица PaySchem CountTable 46
+          if Not(NextVisual) Obbreak;
+          #StartVisualPartOne('PaySchem', RecordsInTable(tnPaySchem))
+          m_tTimeBeg := cur_time;
+          _Loop PaySchem
+          {
+            NextVisual;
+            ExistIntableWithNoIndexRecOrd := 0;
+            if (SpJoi.cRec = PaySchem.cPlat)
+              ExistIntableWithNoIndexRecOrd := 1
+            else
+              if (SpJoi.cRec = PaySchem.cPol)
+                ExistIntableWithNoIndexRecOrd := 1
+              else ExistIntableWithNoIndexRecOrd := 0;
+            if (ExistIntableWithNoIndexRecOrd = 1)
+              InsertMarker(MyMarker, PaySchem.nRec);
+          }
+          CountMarker := GetMarkerCount(MyMarker);
+          #StartVisualPartTwo('PaySchem', CountMarker + 1)
+          for (lCycle := 0; lCycle <> CountMarker; lCycle := lCycle + 1)
+            if (getFirst PaySchem where ((GetMarkerMy(MyMarker, lCycle) == PaySchem.nRec)) = tsOk)
+            {
+              NextVisual;
+              if (SpJoi.cRec = PaySchem.cPol)
+              {
+                PaySchem.cPol := JoiHead.cRec;       //      "Код Получателя",
+                #ChangeBank(PaySchem, cPolBank)
+              }
+              if (SpJoi.cRec = PaySchem.cPlat)
+              {
+                PaySchem.cPlat := JoiHead.cRec;
+                #ChangeBank(PaySchem, cPlatBank)
+              }
+              if (update current PaySchem <> tsOk) MSGform('PaySchem', PaySchem.nRec, 1);
+            }
+          StopVisual('', 0);
+          InsExecTime(SpJoi.cRec,JoiHead.cRec,'PaySchem', m_tTimeBeg,Cur_Time);
+          clearMarker(MyMarker);
+
+          // исправляется модуль "Управление бюджетом" CountTable 47
+          if Not(NextVisual) Obbreak;
+          m_tTimeBeg := cur_time;
+          pExtFpModAn.ReMoveAnMean(cgKau_KatOrg, SpJoi.cRec, JoiHead.cRec);
+          InsExecTime(SpJoi.cRec, JoiHead.cRec,'интерфейс ExtFpModAn', m_tTimeBeg, Cur_Time);
+
+          // объединения в "Каталоге соответствия аналитик"
+          if Not(NextVisual) Obbreak;
+          m_tTimeBeg := cur_time;
+          pExtFpImpRelJoin.JoinAnMean(cgKau_KatOrg, SpJoi.cRec, JoiHead.cRec);
+          InsExecTime(SpJoi.cRec, JoiHead.cRec,'интерфейс ExtFpImpRelJoin', m_tTimeBeg, Cur_Time);
+
+          //..Исправляется таблица Org  CountTable 48
+          IF Not(NextVisual) ObBreak;
+          m_tTimeBeg := cur_time;
+          _Loop Org where ((SpJoi.cRec == Org.cKatOrg))
+            InsertMarker(MyMarker, Org.Atl_nRec);
+          CountMarker := GetMarkerCount(MyMarker);
+          StartNewVisual(vtDownVisual, vfTimer, 'Обработка таблицы Org', CountMarker + 1);
+          For (lCycle := 0; lCycle <> CountMarker; lCycle := lCycle + 1)
+            if (GetFirst Org where ((GetMarkerMy(MyMarker, lCycle) == Org.Atl_nRec)) = tsOk)
+            {
+              NextVisual;
+              Org.cKatOrg := JoiHead.cRec;
+              if (Update current Org <> tsOk) MSGForm('Org', Org.Atl_nRec, 1);
+            }
+          StopVisual('', 0);
+            InsExecTime(SpJoi.cRec,JoiHead.cRec,'Org', m_tTimeBeg,Cur_Time);
+          ClearMarker(MyMarker);
+
+          // Касса \ =Н= \ Нормативные значения расходов
+          #updateTable2FieldWithNoIndex(NormRash, cOrg, cOrg_Card, 'NormRash', RecordsInTable(#NormRash))
+
+          // Касса \ Документы \ Приказы на командировки
+          m_tTimeBeg := Cur_Time;
+          if Not(NextVisual) ObBreak;
+          StartNewVisual(vtDownVisual, vfTimer, 'Обработка таблицы Prikaz', RecordsInTable(#Prikaz));
+          _Loop Prikaz
+          {
+            NextVisual;
+            ExistIntableWithNoIndexRecord := 0;
+            //поле cOrgIs для типа 2 не является ссылкой на организацию
+            if (SpJoi.cRec = Prikaz.cOrgIs) and (Prikaz.TIPDOC <> 2)
+            {
+              Prikaz.cOrgIs := JoiHead.cRec;
+              ExistIntableWithNoIndexRecord := 1;
+            }
+            if (SpJoi.cRec = Prikaz.cOrg)
+            {
+              Prikaz.cOrg := JoiHead.cRec;
+              ExistIntableWithNoIndexRecord := 1;
+            }
+            if (ExistIntableWithNoIndexRecord = 1)
+              if (update current Prikaz <> tsOk) { MSGForm('Prikaz', Prikaz.nRec, 1); };
+          }
+          InsExecTime(SpJoi.cRec,JoiHead.cRec,'Prikaz', m_tTimeBeg,Cur_Time);
+          StopVisual('', 0);
+
+          // Векселя и кредиты \ =Н= \ Настройка ограничений
+          #updateTable4FieldWithNoIndex(FilVeksl, cPlat, cPl, cDerg, cPolh, 'FilVeksl', RecordsInTable(#FilVeksl))
+
+          // ФРО \ =Н= \ Классификатор КПП
+          #UpdateTableTwoFieldFindOnFieldWithValue(KatKod,cOrg1,cOrg2,cgKatKod_KppFRO,wType,'KatKod with type 1')
+          // Подразделения =Н= \ Классификатор ГНИ
+          #UpdateTableOneFieldOnTwoFieldWithIndex(KatKod,cOrg3,wType,cgKatKod_GNI,'KatKod with type 2')
+
+          // ФРО \ =Н= \ Организации и расчетные счета \ Лок.меню "Список автоподстановки контрагентов"
+          #UpdateTableTwoFieldFindOnFieldWithValue(KatKod,cOrg1,cGroup,cgKatKod_FitPl,wType,'KatKod with type 20')
+          #UpdateTableTwoFieldFindOnFieldWithValue(KatKod,cOrg1,cGroup,cgKatKod_FitPol,wType,'KatKod with type 21')
+
+          // ФРО \ =Н= \ Классификатор Платежных средств
+          #UpdateTableOneFieldNoIndex(SpGrPlat,cOrg,'SpGrPlat')
+
+          // прайсы
+          #UpdateTableOneFieldWithIndex(KLPrice,cOrg,'KLPrice')
+
+          if Not(NextVisual) Obbreak;
+          StartNewVisual(vtNumericVisual, vfTimer, 'Обработка таблицы Cashbank', 0);
+          m_tTimeBeg := cur_time;
+          _Loop KatBankCashbank where ((SpJoi.cRec == KatBankCashbank.cOrg))
+          {
+            nextvisual;
+            _loop CashBank
+            {
+              if(   ((CashBank.Razdel <> 2)
+                 and (CashBank.Razdel <> 3))
+                 or (KatBankCashbank.Nrec <> CashBank.cPodr))  continue;// после консультации с Германом пр. 102.38816
+              nextvisual;
+              // меняю расчетный счет по следующему принципу
+              // сначала ищу расчет счет с аналогичными параметрами
+              // если не нашел подставляю счет по умолчанию. если нет по умолчанию подставляю любой .
+              // если нет любого заменяю на 0
+              var cNeedRec : comp; cNeedRec := comp(0);
+              _loop katbankTmp where ((JoiHead.cRec == katbankTmp.cOrg))
+              {
+                if (    (katbankTmp.MFO1 = KatBankCashbank.MFO1)
+                    and (katbankTmp.Schet1 =  KatBankCashbank.Schet1))
+                {
+                  cNeedRec := katbankTmp.Nrec;
+                  break;
+                }
+              }
+
+              if (cNeedRec = comp(0))
+                cNeedRec := cBank;
+              if (GetFirst CashBankTmp where ((CashBank.Nrec == CashBankTmp.Nrec)) = tsOk)
+              {
+                CashBankTmp.cPodr := cNeedRec;
+                if (update current CashBankTmp <> tsOk) MSGform('CashBank with field cPodr', CashBankTmp.nRec, 1);
+              }
+            }
+          }
+          stopvisual('', 0);
+          InsExecTime(SpJoi.cRec,JoiHead.cRec,'Cashbank', m_tTimeBeg,Cur_Time);
+          clearmarker(mymarker);
+
+          FinishStage (1);
+        }                       // Конец первого этапа объединения
+        else
+          NNextVisual(iCountTableStep1);
+
+      // Второй этап объединения -------------------------------------------------------------
+      if (SpJoi.Step < word(2))
+      {
+        //..Исправляется таблица MarkPay  CountTable 2
+        #updateTableOneFieldWithIndex(MarkPay, VEND_CODE, 'MarkPay')
+        //..Исправляется таблица MarkDPar CountTable 3
+        #updateTableOneFieldNoIndex(MarkDPar, FIRM_CODE, 'MarkDPar')
+        //..Исправляется таблица Tabledoc CountTable 4
+        #updateTableOneFieldWithIndex(Tabledoc, cKatOrg, 'Tabledoc')
+        //..Исправляется таблица StOrRep CountTable 5
+        #updateTableOneFieldNoIndex(StOrREp, cKatOrg, 'StOrREp')
+        //---------------------- Зарплата  ------------------------------
+        //..Исправляется таблица Shtraf CountTable 6
+        if Not(NextVisual) Obbreak;
+        #StartVisualPartOne('Shtraf', RecordsInTable(tnShtraf))
+        m_tTimeBeg := cur_time;
+        _Loop Shtraf
+        {
+          NextVisual;
+          ExistIntableWithNoIndexRecOrd := 0;
+          if (SpJoi.cRec = Shtraf.cPol)       ExistIntableWithNoIndexRecOrd := 1
+          else if (SpJoi.cRec = Shtraf.cPodr) ExistIntableWithNoIndexRecOrd := 1;
+          if (ExistIntableWithNoIndexRecOrd = 1)
+            InsertMarker(MyMarker, Shtraf.nRec);
+        }
+        CountMarker := GetMarkerCount(MyMarker);
+        #StartVisualPartTwo('Shtraf', CountMarker + 1)
+        for (lCycle := 0; lCycle <> CountMarker; lCycle := lCycle + 1)
+        {
+          if (getFirst Shtraf where ((GetMarkerMy(MyMarker, lCycle) == Shtraf.nRec)) <> tsOk) continue;
+          NextVisual;
+          if (Shtraf.cPol = SpJoi.cRec)
+          {
+            Shtraf.cPol := JoiHead.cRec;         //  Код Получателя",
+            if (JoiHead.rComp = comp(1))
+            {
+              if (findBank( Shtraf.cBankPol))
+              {
+                Shtraf.cBankPol := cVremBank;        //  Код Банка пол-теля",
+                Shtraf.SCHPOL1  := KatBankS.Schet1;   //  Счет получателя 1   ",
+                Shtraf.SCHPOL2  := KatBankS.Schet2;   //  Счет получателя 2   ",
+              }
+              else
+              {
+                Shtraf.cBankPol := cBank;            //  Код Банка пол-теля",
+                Shtraf.SCHPOL1  := KatBank.Schet1;   //  Счет получателя 1   ",
+                Shtraf.SCHPOL2  := KatBank.Schet2;   //  Счет получателя 2   ",
+              }
+            }
+          }
+          if (Shtraf.cPodr = SpJoi.cRec)
+          {
+            Shtraf.cPodr := JoiHead.cRec;         //  Код Получателя",
+            if (JoiHead.rComp = comp(1))
+            {
+              if (findBank( Shtraf.CPODRAL))
+                Shtraf.CPODRAL := cVremBank;        //  Код Банка пол-теля",
+              else
+                Shtraf.CPODRAL := cBank;            //  Код Банка пол-теля",
+            }
+          }
+          if (update current Shtraf <> tsOk) MSGform('Shtraf', Shtraf.nRec, 1);
+        }
+        StopVisual('', 0);
+        InsExecTime(SpJoi.cRec,JoiHead.cRec,'Shtraf',m_tTimeBeg,Cur_Time);
+        clearMarker(MyMarker);
+
+        //...Исправляется таблица XarPred CountTable 7
+        if Not(NextVisual) Obbreak;
+        m_tTimeBeg := cur_time;
+        _Loop XarPred where ((SpJoi.cRec == XarPred.cPol))
+          InsertMarker(MyMarker, XarPred.nRec);
+        CountMarker := GetMarkerCount(MyMarker);
+        StartNewVisual(vtdownVisual, vfTimer, 'Обработка таблицы XarPred', CountMarker + 1);
+        for (lCycle := 0; lCycle <> CountMarker; lCycle := lCycle + 1)
+          if (getFirst XarPred where ((GetMarkerMy(MyMarker, lCycle) == XarPred.nRec)) = tsOk)
+          {
+            NextVisual;
+            XarPred.cPol     :=  JoiHead.cRec;        // "Код Получателя",
+            if (JoiHead.rComp = comp(1))
+            {
+              if (findBank( XarPred.cBankPol))
+                XarPred.cBankPol :=  cVremBank;        // "Код Банка пол-теля",
+              else
+                XarPred.cBankPol :=  cBank;           // "Код Банка пол-теля",
+            }
+            if (update current XarPred <> tsOk) MSGform('XarPred', XarPred.nRec, 1);
+          }
+        StopVisual('', 0);
+        InsExecTime(SpJoi.cRec,JoiHead.cRec,'XarPred',m_tTimeBeg,Cur_Time);
+        clearMarker(MyMarker);
+
+        //..Исправляется таблица dogPodr CountTable 8
+        if Not(NextVisual) Obbreak;
+        m_tTimeBeg := cur_time;
+        _Loop dogpodr where ((SpJoi.cRec == dogpodr.cOrg))
+          InsertMarker(MyMarker, dogpodr.nRec);
+        CountMarker := GetMarkerCount(MyMarker);
+        StartNewVisual(vtdownVisual, vfTimer, 'Обработка таблицы dogpodr', CountMarker + 1);
+        for (lCycle := 0; lCycle <> CountMarker; lCycle := lCycle + 1)
+          if (getFirst dogpodr where ((GetMarkerMy(MyMarker, lCycle) == dogpodr.nRec)) = tsOk)
+          {
+            NextVisual;
+            dogpodr.cOrG   := JoiHead.cRec;   //      "код контрагента",
+            #ChangeBank(dogpodr, cBANK)
+            if (update current dogpodr <> tsOk) MSGform('dogpodr', dogpodr.nRec, 1);
+          }
+        StopVisual('', 0);
+        InsExecTime(SpJoi.cRec,JoiHead.cRec,'dogpodr',m_tTimeBeg,Cur_Time);
+        clearMarker(MyMarker);
+
+        //..Исправляется таблица Perech CountTable 9
+        if Not(NextVisual) Obbreak;
+        m_tTimeBeg := cur_time;
+        _Loop perech where ((SpJoi.cRec == perech.cPol))
+          InsertMarker(MyMarker, perech.nRec);
+        CountMarker := GetMarkerCount(MyMarker);
+        StartNewVisual(vtdownVisual, vfTimer, 'Обработка таблицы perech', CountMarker + 1);
+        for (lCycle := 0; lCycle <> CountMarker; lCycle := lCycle + 1)
+          if (getFirst perech where ((GetMarkerMy(MyMarker, lCycle) == perech.nRec)) = tsOk)
+          {
+            NextVisual;
+            perech.cPol     :=  JoiHead.cRec;        // "Код Получателя",
+            if (JoiHead.rComp = comp(1))
+            {
+              if (findBank( perech.cBankPol))
+                perech.cBankPol :=  cVremBank;  //  "Код Банка пол-теля",
+              else
+                perech.cBankPol :=  cBank;           // "Код Банка пол-теля",
+            }
+            if (update current perech <> tsOk) MSGform('perech', perech.nRec, 1);
+          }
+        StopVisual('', 0);
+        InsExecTime(SpJoi.cRec,JoiHead.cRec,'perech',m_tTimeBeg,Cur_Time);
+        clearMarker(MyMarker);
+
+        //..Исправляется таблица DanPlz count Table 10
+        if Not(NextVisual) Obbreak;
+        #StartVisualPartOne('DanPlz', RecordsInTable(tnDanPlz))
+        m_tTimeBeg := cur_time;
+        _Loop DanPlz
+        {
+          NextVisual;
+          ExistIntableWithNoIndexRecOrd := 0;
+          if (SpJoi.cRec = DanPlz.cPol)
+            ExistIntableWithNoIndexRecOrd := 1
+          else
+            if (SpJoi.cRec = DanPlz.cPlat)
+              ExistIntableWithNoIndexRecOrd := 1
+            else  ExistIntableWithNoIndexRecOrd := 0;
+          if (ExistIntableWithNoIndexRecOrd = 1)
+            InsertMarker(MyMarker, DanPlz.nRec);
+        }
+        CountMarker := GetMarkerCount(MyMarker);
+        #StartVisualPartTwo('DanPlz', CountMarker + 1)
+        for (lCycle := 0; lCycle <> CountMarker; lCycle := lCycle + 1)
+          if (getFirst DanPlz where ((GetMarkerMy(MyMarker, lCycle) == DanPlz.nRec)) = tsOk)
+          {
+            NextVisual;
+            if (SpJoi.cRec = DanPlz.cPol)
+            {
+              DanPlz.cPol     :=  JoiHead.cRec;
+              #ChangeBank(DanPlz, cBankPol)
+            }
+            if ( SpJoi.cRec = DanPlz.cPlat )
+            {
+              DanPlz.cPlat     :=  JoiHead.cRec;
+              #ChangeBank(DanPlz, cBankPlat)
+            }
+            if (update current DanPlz <> tsOk) MSGform('DanPlz', DanPlz.nRec, 1);
+          }
+        StopVisual('', 0);
+        InsExecTime(SpJoi.cRec,JoiHead.cRec,'DanPlz',m_tTimeBeg,Cur_Time);
+        clearMarker(MyMarker);
+        //..Исправляется таблица Kluder CountTable 11
+        if Not(NextVisual) Obbreak;
+        m_tTimeBeg := cur_time;
+        _Loop kluder where ((SpJoi.cRec == kluder.cPol))
+          InsertMarker(MyMarker, kluder.nRec);
+        CountMarker := GetMarkerCount(MyMarker);
+        StartNewVisual(vtdownVisual, vfTimer, 'Обработка таблицы kluder', CountMarker + 1);
+        for (lCycle := 0; lCycle <> CountMarker; lCycle := lCycle + 1)
+          if (getFirst kluder where ((GetMarkerMy(MyMarker, lCycle) == kluder.nRec)) = tsOk)
+          {
+            NextVisual;
+            kluder.cPol     :=  JoiHead.cRec;
+            if ( JoiHead.rComp = comp(1) )
+            {
+              if ( findBank( kluder.cBankPol) )
+              {
+                kluder.cBankPol :=  cVremBank;       //  "Код Банка пол-теля",
+                kluder.SCHPOL1  :=  KatBankS.Schet1; // "Счет плательщика    ",
+                kluder.SCHPOL2  :=  KatBankS.Schet2;
+              }
+              else
+              {
+                kluder.cBankPol :=  cBank;
+                kluder.SCHPOL1  :=  KatBank.Schet1;
+                kluder.SCHPOL2  :=  KatBank.Schet2;
+              }
+            }
+            if (update current kluder <> tsOk) MSGform('kluder', kluder.nRec, 1);
+          }
+        StopVisual('', 0);
+        InsExecTime(SpJoi.cRec,JoiHead.cRec,'kluder',m_tTimeBeg,Cur_Time);
+        clearMarker(MyMarker);
+
+        //..Исправляется таблица GRSopr CounTable 12
+        #updateTable3FieldWithNoIndex(GrSopr, cOrg, cGruzFrom, cGruzTO, 'GrSopr', RecordsInTable(tnGrSopr))
+        //..Исправляется таблица dover CountTable 13
+        if Not(NextVisual) Obbreak;
+        #StartVisualPartOne('dover', RecordsInTable(tndover))
+        m_tTimeBeg := cur_time;
+        _Loop dover
+        {
+          NextVisual;
+          ExistIntableWithNoIndexRecOrd := 0;
+          if (SpJoi.cRec = dover.cUser)
+            ExistIntableWithNoIndexRecOrd := 1
+          else
+            if (SpJoi.cRec = dover.cPay)
+              ExistIntableWithNoIndexRecOrd := 1
+            else
+              if (SpJoi.cRec = dover.cPost)
+                ExistIntableWithNoIndexRecOrd := 1
+              else ExistIntableWithNoIndexRecOrd := 0;
+          if (ExistIntableWithNoIndexRecOrd = 1)
+            InsertMarker(MyMarker, dover.nRec);
+        }
+
+        CountMarker := GetMarkerCount(MyMarker);
+        #StartVisualPartTwo('dover', CountMarker + 1)
+        for (lCycle := 0; lCycle <> CountMarker; lCycle := lCycle + 1)
+          if (getFirst dover where ((GetMarkerMy(MyMarker, lCycle) == dover.nRec)) = tsOk)
+          {
+            NextVisual;
+            if ( SpJoi.cRec = dover.cUser )
+              dover.cUser     :=  JoiHead.cRec;
+            if ( SpJoi.cRec = dover.cPay )
+            {
+              dover.cPay     :=  JoiHead.cRec;
+              #Changebank(dover, cBank)
+            }
+            if ( SpJoi.cRec = dover.cPost )
+              dover.cPost     :=  JoiHead.cRec;
+            if (update current dover<>tsOk) MSGform('dover', dover.nRec, 1);
+          }
+        StopVisual('', 0);
+        InsExecTime(SpJoi.cRec,JoiHead.cRec,'dover',m_tTimeBeg,Cur_Time);
+        clearMarker(MyMarker);
+
+        //..Исправляется таблица AppVeks CountTable 14
+        #updateTableOneFieldWithIndex(AppVeks, cOrg, 'AppVeks')
+        //..Исправляется таблица Veksl  CountTable 15          // Векселя и кредиты \ Документы \ Картотека векселей
+        #updateTable6FieldWithNoIndex(Veksl, cPlat, cPl, cPol, cPlh, cPolh, cDerg, 'Veksl', RecordsInTable(#Veksl))
+        //..Исправляется таблица Aval CountTable 16
+        if Not(NextVisual) ObBreak;
+        StartNewVisual(vtDownVisual, vfTimer, 'Обработка таблицы Aval', RecordsInTable(tnAval));
+        m_tTimeBeg := cur_time;
+        _Loop Aval
+        {
+          NextVisual;
+          ExistIntableWithNoIndexRecord := 0;
+          if     (SpJoi.cRec = Aval.cAval)
+             and ((Aval.TipOrg = 0) or (Aval.TipOrg = 1))// для 0-аваль 1-акцепт это орг . для других договор
+          {
+            Aval.cAval := JoiHead.cRec;
+            ExistIntableWithNoIndexRecord := 1;
+          }
+          if (SpJoi.cRec = Aval.cOrg)
+          {
+            Aval.cOrg := JoiHead.cRec;
+            ExistIntableWithNoIndexRecord := 1;
+          }
+          if (ExistIntableWithNoIndexRecord = 1)
+            if (update current Aval <> tsOk) { MSGForm('Aval', Aval.nRec, 1); };
+        }
+        StopVisual('', 0);
+        InsExecTime(SpJoi.cRec,JoiHead.cRec,'Aval',m_tTimeBeg,Cur_Time);
+        //..Исправляется таблица KatPodr CountTable 17
+        #updateTableOneFieldNoIndex(KatPodr, cUser, 'KatPodr')
+
+        #updateTableOneFieldWithIndex(KatPodr, cOrg, 'KatPodr')
+
+        #UpdateTableTune('TPROV.CURFILIALASKATORG')
+        //..Исправляется таблица GroupParty CountTable 18
+        #updateTableOneFieldNoIndex(GroupParty, cOrgPar, 'GroupParty')
+        //..Исправляется таблица SpCurRep CountTable 19
+        #updateTableOneFieldNoIndex(SpCurRep, cOrg, 'SpCurRep')
+        //..Исправляется таблица PutGSM CountTable 20
+        if Not(NextVisual) Obbreak;
+        m_tTimeBeg := cur_time;
+        _loop PutGSM where ((    word(0)    == PutGsm.TipInfo
+                             and SpJoi.cRec == PutGSM.cOrg))
+          InsertMarker(MyMarker, PutGSM.nRec);
+
+        _Loop PutGSM where ((    word(1)    == PutGsm.TipInfo
+                             and SpJoi.cRec == PutGSM.cOrg))
+          InsertMarker(MyMarker, PutGSM.nRec);
+
+        CountMarker := GetMarkerCount(MyMarker);
+        StartNewVisual(vtdownVisual,vfTimer, 'Обработка таблицы PutGSM', CountMarker + 1);
+        for (lCycle := 0; lCycle <> CountMarker; lCycle := lCycle + 1)
+        if (getFirst PutGSM where ((GetMarkerMy(MyMarker, lCycle) == PutGSM.nRec)) = tsOk)
+        {
+          NextVisual;
+          PutGSM.cOrg     :=  JoiHead.cRec;
+          if (update current PutGSM <> tsOk) MSGform('PutGSM', PutGSM.nRec, 1);
+        }
+        StopVisual('', 0);
+        InsExecTime(SpJoi.cRec,JoiHead.cRec,'PutGSM',m_tTimeBeg,Cur_Time);
+        clearMarker(MyMarker);
+
+        //..Исправляется таблица rzKutPrih Counttable 21
+        #updateTableOneFieldNoIndex(rzKutPrih, cOrg, 'rzKutPrih')
+        //..Исправляется таблица rzdoc Counttable 22
+        #updateTableOneFieldNoIndex(rzdoc,cOrg,'rzdoc')
+        //..Исправляется таблица rzSpdoc Counttable 23
+        #updateTableOneFieldNoIndex(rzSpdoc, cOrg, 'rzSpdoc')
+        //..Исправляется таблица TTNdoC CountTable 24
+        #updateTable3FieldWithNoIndex(TTNdoC, cOrgAvt, cPunROrg, cPunPOrg, 'TTNdoC', RecordsInTable(tnTTNdoC))
+        update AttrVal where((cTTNDocOrgName == AttrVal.cAttrNam and KatOrg1.Name == AttrVal.vString)) set
+          AttrVal.vString:=KatOrgTmp.Name;
+        //..Исправляется таблица Waydoc  CountTable 25
+        #updateTableOneFieldNoIndex(Waydoc, cOrg, 'Waydoc')
+        //..Исправляется таблица Autodoc CountTable 26
+        #updateTableOneFieldNoIndex(Autodoc, cOrg, 'Autodoc')
+        //..Исправляется таблица WayItem CountTable 27
+        #updateTable3FieldWithNoIndex(WayItem, cOrg, cOrgFrom, cOrgTo, 'WayItem', RecordsInTable(tnWayItem))
+        //..Исправляется таблица MarRel CountTable 28
+        #updateTable2FieldWithNoIndex(MarRel, cOrgTo, cOrgFrom, 'MarRel', RecordsInTable(tnMarRel))
+
+        //..Исправляется таблица TranInf  CountTable 29
+        if Not(NextVisual) Obbreak;
+        m_tTimeBeg := cur_time;
+        _Loop TranInf where ((    word(0)    == TranInf.InfTr11
+                              and SpJoi.cRec == TranInf.cOrg))
+          InsertMarker(MyMarker,TranInf.nRec);
+        CountMarker := GetMarkerCount(MyMarker);
+        StartNewVisual(vtdownVisual, vfTimer, 'Обработка таблицы TranInf', CountMarker + 1);
+        for (lCycle := 0; lCycle <> CountMarker; lCycle := lCycle + 1)
+        if (getFirst TranInf where ((GetMarkerMy(MyMarker, lCycle) == TranInf.nRec)) = tsOk)
+        {
+          NextVisual;
+          TranInf.cOrg     :=  JoiHead.cRec;
+          if (update current TranInf <> tsOk) MSGform('TranInf', TranInf.nRec, 1);
+        }
+        StopVisual('', 0);
+        InsExecTime(SpJoi.cRec,JoiHead.cRec,'TranInf',m_tTimeBeg,Cur_Time);
+        clearMarker(MyMarker);
+
+        //..Исправляется таблица LimZapH CountTable 30,31
+        #updateTableOneFieldWithIndex(LimZapH, cOrg, 'LimZapH')
+        #updateTable2FieldWithNoIndex(LimZapH, cOrgTo, cOrgFrom, 'LimZapH', RecordsInTable(tnLimZapH))
+
+        //CountTable 32
+        if Not(NextVisual) Obbreak;
+        m_tTimeBeg := cur_time;
+        AmalgamateBook(word(cgKau_KatOrg), SpJoi.cRec, JoiHead.cRec, 0 );
+        InsExecTime(SpJoi.cRec,JoiHead.cRec,'интерфейс AmalgamateBookings', m_tTimeBeg,Cur_Time);
+        m_tTimeBeg := cur_time;
+        AmalgamateNorm(word(cgKau_KatOrg), SpJoi.cRec, JoiHead.cRec, 0);
+        InsExecTime(SpJoi.cRec,JoiHead.cRec,'интерфейс AmalgamateNormas', m_tTimeBeg,Cur_Time);
+        m_tTimeBeg := cur_time;
+        AmalgamateXCh(word(cgKau_KatOrg), SpJoi.cRec, JoiHead.cRec, 0);
+        InsExecTime(SpJoi.cRec,JoiHead.cRec,'интерфейс AmalgamateXChange', m_tTimeBeg,Cur_Time);
+        m_tTimeBeg := cur_time;
+        AmalgamatePlan(word(cgKau_KatOrg), SpJoi.cRec, JoiHead.cRec, 0);
+        InsExecTime(SpJoi.cRec,JoiHead.cRec,'интерфейс AmalgamatePlaning', m_tTimeBeg,Cur_Time);
+        // объединение организаций CountTable 33
+        if Not(NextVisual) Obbreak;
+        m_tTimeBeg := cur_time;
+        if not piOfpOrg.OrgJoining(SpJoi.cRec, JoiHead.cRec) {};
+        InsExecTime(SpJoi.cRec, JoiHead.cRec,'интерфейс iOfpOrg', m_tTimeBeg, Cur_Time);
+        //..Исправляется таблица AktOfp, DocReq CountTable 34,35
+        #updateTableOneFieldNoIndex(AktOfp, cOrg, 'AktOfp')
+        #updateTableOneFieldNoIndex(DocReq, cOrg, 'DocReq')
+
+        // TblNum = 36 : MoveOs
+        if Not(NextVisual) ObBreak;
+        #StartVisualPartOne('MoveOs', RecordsInTable(tnMoveOs))
+        m_tTimeBeg := cur_time;
+        _Loop MoveOs
+        {
+          if (   (MoveOS.SysOper = cgOs_1_Post)
+              Or (MoveOS.SysOper = cgOs_3_IzmStm)
+              Or (MoveOS.SysOper = cgOs_4_Vybyt))
+            if (SpJoi.cRec = MoveOS.cNewPodr) InsertMarker(MyMarker, MoveOS.nRec);
+        }
+        CountMarker := GetMarkerCount(MyMarker);
+        #StartVisualPartTwo('MoveOs', CountMarker + 1)
+        For (lCycle:=0; lCycle<>CountMarker; lCycle:=lCycle+1)
+          if (GetFirst MoveOs where ((GetMarkerMy(MyMarker,lCycle) == MoveOs.nRec))= tsOk)
+          {
+            NextVisual;
+            MoveOs.cNewPodr := JoiHead.cRec;
+            if (Update current MoveOs <> tsOk) MSGForm('MoveOs',MoveOs.nRec,1);
+          }
+        Stopvisual('',0);
+        InsExecTime(SpJoi.cRec, JoiHead.cRec, 'MoveOs', m_tTimeBeg, Cur_Time);
+        ClearMarker(MyMarker);
+
+        // TblNum = 37 : Lschet - обработка поля cPodr - без индекса (поля Kau
+        // обрабатываются отдельно в процедуре обработки Kau.
+        // так сделано потому как на эти поля есть индексы в данной таблице)
+        #updateTableOneFieldNoIndex(Lschet, cPodr, 'Lschet')
+
+        // TblNum = 38 : SoprHoz - обработка поля cOrg
+        // так сделано потому как на эти поля есть индексы в данной таблице)
+        #updateTableOneFieldNoIndex(SoprHoz, cOrg, 'SoprHoz')
+        #UpdateTableOneFieldNoIndex(DSIO,cKatOrg,'DSIO')
+        #UpdateTableOneFieldOnTwoFieldWithIndex2(FPCO,cMean,coTable,cgKau_KatOrg,'FPCO')
+        #updateTableOneFieldNoIndex(Theme, cOrg, 'Theme')
+        FinishStage(2);
+      }                       // Конец второго этапа объединения
+      else
+        NNextVisual(iCountTableStep2);
+//-----------------------------------------------------------------------
+//------------------------------K A U -----------------------------------
+      if (SpJoi.Step < word(3))   // Третий этап объединения
+      {
+        updateKau(SpJoi.cRec, JoiHead.cRec, cgKau_KatOrg, true, KatOrg.Name);
+        FinishStage(3);
+      }                         // Конец третьего этапа объединения
+      else
+        NNextVisual (iCountTableStep3);
+//-----------------------------------------------------------------------
+      // Если этап завершен без ошибок для одной рез. организации
+      if (_nMsgFrm = m_lErrOrSp)
+      {
+        SpJoi.Status := word(3);
+        DelSaldRest(SpJoi.cRec);
+      }
+      else                       SpJoi.Status := word(4);
+      update current SpJoi;
+      if (m_lErrorSp <> _nMsgFrm)
+      {
+        ErrObAll.PutEventById (febreak, fcCycleOfErrOrAll);
+        ErrObAll.write(_nMsgFrm - m_lErrorSp);
+      }
+      m_lErrorSp := _nMsgFrm;
+    } while (GetNext SpJoi where ((    JoiHead.nRec == SpJoi.cJoiHead
+                                   and (word(3)<>SpJoi.Status) )) = tsOk);
+    m_bWriteInfoSpJoi := false;
+
+    if (m_lErrorJoi <> _nMsgFrm)
+    {
+      ErrObAll.PutEventById (febreak, fcCycleOfObAll);
+      ErrObAll.write(_nMsgFrm - m_lErrorJoi);
+    }
+    // Если объединение без ошибок
+        if (_nMsgFrm = m_lErrorJoi)
+    {
+      JoiHead.Status := word(3); // статус "Завершено"
+      InsertMarker(OrgMarker, JoiHead.cRec);
+    }
+    else                        JoiHead.Status := word(4);// статус "Завершено с ошибками"
+    update Current JoiHead;
+
+    m_lErrorJoi := _nMsgFrm;
+    m_lErrOrSp := m_lErrorJoi;
+
+
+
+  } while (    (GetNext JoiHead where ((    m_wCgObedValue == JoiHead.TypeEvent
+                                        and UserName() == JoiHead.UserName )) = tsOk)
+           and (m_bBreak = false));
+  // завершение сессии объединения в "Каталоге соответствия аналитик"
+  pExtFpImpRelJoin.Session_End;
+
+  doneMarker(OrgMarker, 'KatOrg');
+  // Полный перерасчет сальдовых таблиц с предварительным удалением всех данных
+  interface_KONTRBAL.FullReCalcKontrBal(word(1));
+
+  if (_nMsgFrm > 0)
+  {
+    ErrObAll.PutEventById (febreak, fcCycleOfResAll);
+    ErrObAll.write(_nMsgFrm);
+  }
+
+  m_wParamOb := 0;
+  doneMarker (MyMarker,'');
+  if (m_lcount_vis <> 0)
+  {
+    StopVisual('', 0);
+    if (_nMsgFrm > 0)  // Если были ошибки во время объединения
+    {
+      message('Во время объединения произошли ошибки !'
+              + chr(13) + 'Просмотрите протокол ошибок и если необходимо,'
+              + chr(13) + 'запустите процедуру объединения организаций еще раз.' + chr(13));
+      ErrObAll.ShowFile;
+    }
+  }
+  Message('Объединение завершено.');
+}
+
+browse OrgJoi;
+show at (,,, 6);
+Table JoiHead;
+  recMarker = m_pMarkerUp {JoiHead.Nrec};
+  fields
+    sObName          'Наим. организ. (рез.объединения)'
+                     ('', hcNastrAdmWOb, sci1378EscInsPMBrigadeDuty) : [32], Protect;
+    strFilial        'филиал','───────'('',hcNastrAdmWOb,sci1Esc) : [7], Protect;
+    strJoiStatus     'Статус'
+                     ('', hcNastrAdmWOb, sci1Esc) : [14], Protect;
+    strJoiBank       'Зам. банк'
+                     ('Изменяется при нажатии на <F3>', hcNastrAdmWOb, sci13Esc) : [9], #protectedcentered;
+    JoiHead.UserName 'Пользователь'('', hcNastrAdmWOb, sci13Esc) : [12], Protect;
+    strJoiCOrpo      '№ офиса','───────'('',hcNastrAdmWOb,sci1Esc) : [7], Protect;
+end;
+
+TableEvent Table JoiHead;
+cmSetDefault :
+{
+  JoiHead.TypeEvent := m_wCgObedValue;
+  JoiHead.Status := word(0);
+  JoiHead.UserName := UserName();
+  JoiHead.dDate := Cur_Date;
+}
+
+cmInsertRecord : insert current JoiHead;
+cmUpdateRecord : update current JoiHead;
+
+cmInsert :
+{
+  case curfield of
+  #sObName :
+  {
+    if (RunInterface('GetKatOr', m_cChoiceNrec, comp(0), false, comp(0), comp(0)) <> cmCancel)
+    {
+      if (not FindExistObj(m_cChoiceNrec)) putCommand(cmValue1);
+      else abort;
+    }
+    else abort;
+  }
+  end;
+}
+
+cmMarkDelete :
+{
+  if (curtable = #JoiHead)
+  {
+    m_bDeleteByMarker := false;
+    if (m_pMarkerUp.Count <> 0)
+    {
+      if (message('Удалить помеченные записи?', yesno + mfSwapButtons + confirmation) = cmYes)
+      {
+        m_bDeleteByMarker := true;
+        stop;
+      }
+      else abort;
+    }
+  }
+}
+
+cmdeleteRecord :
+{
+  if not(isValid(tnJoiHead)) exit;
+  if (not m_bDeleteByMarker) m_bExistDel := false; // инициализация переменной в случае когда пометки нет для случая обычного удаления
+  //#5578 >>>>>>>>>>>>>>>>>
+  var _boDiffUser : boolean = (JoiHead.UserName <> UserName());
+  if _boDiffUser
+    if (not m_bDeleteByMarker)
+      if pr_CurUserAdmin
+      { if message(lMsgOdebdifferenceUser
+          +chr(13)+'Продолжить?' , YesNo)=cmYes
+        { _boDiffUser:=false
+
+        }
+      }
+  //#5578 <<<<<<<<<<<<<<<<<<<<<<<<<
+  if _boDiffUser
+  {
+    if (not m_bDeleteByMarker)
+      message(lMsgOdebdifferenceUser
+        +chr(13)+'обратитесь к администратору БД', Warning);
+    if (m_bExistDel and ((not m_bDeleteByMarker) or (m_bDeleteByMarker and m_pMarkerUp.Count = 0)))
+      message('Удаление из каталога контрагентов произведено.', Information + OkButton);
+    exit;
+  }
+
+  var bRun : boolean; bRun := true;
+  if (not m_bDeleteByMarker)
+    bRun := message('Удалить запись?', yesno + mfSwapButtons + confirmation) = cmYes;
+
+  if (bRun)
+  {
+    if (    (JoiHead.Status = word(3))
+         Or (JoiHead.Status = word(4)))
+    {
+      if (getFirst SpJoi where ((    JoiHead.nRec == SpJoi.cJoiHead
+                                 and byte(1)      == SpJoi.isDel
+                                 and byte(4)      == SpJoi.Status )) = tsOk)
+      {
+        var bDelFromCatalog : boolean; bDelFromCatalog := false;
+        if (not m_bDeleteByMarker)
+          bDelFromCatalog := message('Удалять из каталога контрагентов, объединение'
+                    + chr(13) + 'которых завершено с ошибками?',
+                    yesno + mfSwapButtons + Confirmation) = cmYes;
+
+        if (bDelFromCatalog)
+          update SpJoi where ((    JoiHead.nRec == SpJoi.cJoiHead
+                               and byte(1)      == SpJoi.isDel
+                               and byte(4)      == SpJoi.Status)) set Status := 3;
+      }
+
+      _loop SpJoi where ((    JoiHead.nRec == SpJoi.cJoiHead
+                          and byte(1)      == SpJoi.isDel
+                          and byte(3)      == SpJoi.Status))
+      {
+        // Проверка на учитываемость в каталогах бюджетирования
+        if (not m_bDeleteByMarker)
+          if (pExtFpModAn.GetIsBudgetUsedAnMean(cgKau_KatOrg, SpJoi.cRec) )
+          { // Организация учитывается в бюджетировании
+
+            // позиционируем
+            if (getFirst KatOrg1 <> tsOk)  {continue}
+
+            // спрашиваем
+            if (message('Организация "' + KatOrg1.Name + '"' + chr(13)
+                      + 'используется в модуле "Управление бюджетом".' +chr(13)
+                      + 'Удалить организацию?', YesNo + mfSwapButtons + Confirmation) <> cmYes)
+            { continue; }
+
+            // удаление организации из учитываемых в бюджетировании
+            pExtFpModAn.DelBudAnMeanAfterReMove(cgKau_KatOrg, SpJoi.cRec);
+
+          } // Организация учитывается в бюджетировании
+
+        // Удаление организации
+        _loop ExClassVal where ((    m_wCodeTable == ExClassVal.wTable
+                                 and SpJoi.cRec   == ExClassVal.cRec ))
+        {
+          delete ExClassIer where ((ExClassVal.cClassSeg == ExClassIer.cGroup));
+        }
+
+        delete ExClassVal where ((    m_wCodeTable == ExClassVal.wTable
+                                  and SpJoi.cRec   == ExClassVal.cRec ));
+        delete Katbank where ((SpJoi.cRec == Katbank.cOrg));
+
+
+        _loop KatOrgDescr  where ((SpJoi.cRec == KatOrgDescr.cRec))
+        {
+          delete KontrIer where (( KatOrgDescr.Nrec == KontrIer.cRecDs));
+        }
+
+        delete KatOrgDescr where ((SpJoi.cRec == KatOrgDescr.cRec));
+        delete KontrVid where ((SpJoi.cRec == KontrVid.cKontr));
+        delete KatOrgTmp where ((SpJoi.cRec == KatOrgTmp.nrec));
+        m_bExistDel := true;
+      }
+    }
+    delete SpJoi where ((JoiHead.nRec == SpJoi.cJoiHead));
+    delete current JoiHead;
+    if (m_bExistDel and ((not m_bDeleteByMarker) or (m_bDeleteByMarker and m_pMarkerUp.Count = 0)))
+      message('Удаление из каталога контрагентов произведено.', Information + OkButton);
+  } else Abort;
+}  //cmdeleteRecOrd :
+
+end;
+
+handleevent
+cmValue1 :
+{
+  set JoiHead.rComp := comp(1);
+  set JoiHead.cRec := m_cChoiceNrec;
+  UpdateTable;
+  SetFilialInNastrObed(coJoiHead, KatOrg.Name, KatOrg.Atl_Branch);
+  ReDrawPanel(#JoiHead);
+}
+
+cmPick :
+{
+  #Check_Pick(JoiHead)
+
+  case curfield of
+  //-----------
+  #sObName :
+  {
+    if (JoiHead.Status <> 0) exit;
+    m_cChoiceNrec := JoiHead.cRec;
+    if (RunInterface('GetKatOr', m_cChoiceNrec, comp(0), false, comp(0), comp(0)) <> cmCancel)
+    {
+      #CheckChoiceValueForJoiHeadOnPick
+      set JoiHead.rComp := comp(1);
+      UpDateTable;
+      SetFilialInNastrObed(coJoiHead, KatOrg.Name, KatOrg.Atl_Branch);
+      ReReadRecord(#JoiHead);
+      ReDrawPanel(#JoiHead);
+    }
+  }
+  //------------
+  #strJoiBank :
+  {
+    if (JoiHead.nRec <> comp(0))
+    {
+      if (JoiHead.rComp = comp(1)) set JoiHead.rComp := comp(0);
+      else                         set JoiHead.rComp := comp(1);
+    }
+  }
+  end;
+}
+end; // hanldeevent
+
+browse OrgSpJoi;
+show at (,7,,17);
+Table SpJoi;
+  fields
+    sOb1Name        'Наим. организаций, подлежащих объединению'
+                    ('', hcNastrAdmWOb, sci1378Esc): [41], Protect;
+    strFilial1      'филиал','───────'('',hcNastrAdmWOb, sci1Esc) : [7], Protect;
+    strSpJoiStatus  'Статус'
+                    ('', hcNastrAdmWOb, sci1Esc)   : [15], Protect;
+    cSpJoiDel       'Удалять'
+                    ('Изменяется при нажатии на <F3>', hcNastrAdmWOb, sci13Esc)
+                                                            : [7], #protectedcentered;
+end;
+
+tableEvent Table SpJoi;
+cmInsert:
+{
+  if (JoiHead.UserName <> UserName())
+  {
+    message (lMsgOdebdifferenceUser, Warning);
+    abort; exit;
+  }
+
+  if (JoiHead.Status <> 0) {abort; exit;}
+
+  delete Pick where ((lPickConst == Pick.wList));
+
+  if (RunInterface('GetSomeKontr', false) <> Cancel)
+  {
+    var cMyOrg : comp; cMyOrg := coGetTune('MyOrg');
+    _loop Pick where ((lPickConst == Pick.wList))
+    {
+      if (FindExistObj(Pick.cRec)) continue;
+
+      if (getFirst Pick where ((    lPickConst == Pick.wList
+                                and cMyOrg     == Pick.cRec)) = tsOK)
+      {
+        message('Вы выбрали собственную организацию, а ее нельзя '
+                + 'использовать в качестве источника.', Warning + OkButton);
+        continue;
+      }
+      ClearBuffer (#SpJoi);
+      SpJoi.cJoiHead := JoiHead.nRec;
+      SpJoi.cRec := Pick.cRec;
+      SpJoi.Status := word(0);
+      SpJoi.IsDel := word(1);
+      Insert current SpJoi;
+      SetFilialInNastrObed(coSpJoi, KatOrg1.Name, KatOrg1.Atl_Branch);
+    }
+    ReReadRecord(#SpJoi);
+    ReDrawPanel(#SpJoi);
+  }
+  abort;
+}
+
+cmdeleteRecord :
+{
+  if (JoiHead.UserName <> UserName())
+  {
+    message (lMsgOdebdifferenceUser, Warning);
+    exit;
+  }
+
+  if (JoiHead.Status = 0)
+    if (message('Удалить запись?', yesno + mfSwapButtons + Confirmation) = cmYes)
+      delete current SpJoi;
+}
+
+end;
+
+handleevent
+cmPick :
+{
+  #Check_Pick(SpJoi)
+
+  case curfield of
+  #sOb1Name :
+  {
+    if (JoiHead.Status <> 0) exit;
+    m_cChoiceNrec := SpJoi.cRec;
+    if (RunInterface('GetKatOr', m_cChoiceNrec, comp(0), false, comp(0), comp(0)) <> cmCancel)
+    {
+      var cMyOrg : comp;
+      cMyOrg := coGetTune('MyOrg');
+      if (m_cChoiceNrec = cMyOrg)
+      {
+        message('Вы выбрали собственную организацию, а ее нельзя '
+              + 'использовать в качестве источника.', Warning + OkButton);
+        exit;
+      }
+      #CheckChoiceValueForSpJoiOnPick
+      clearBuffer(#SpJoi);
+      SpJoi.cJoiHead := JoiHead.nRec;
+      SpJoi.cRec     := m_cChoiceNrec;
+      SpJoi.Status   := word(0);
+      SpJoi.IsDel    := word(1);
+      insert current SpJoi;
+      SetFilialInNastrObed(coSpJoi, KatOrg1.Name, KatOrg1.Atl_Branch);
+      ReReadRecord(#SpJoi);
+      ReDrawPanel(#SpJoi);
+    }
+  }
+  #cSpJoiDel :
+  {
+    if (SpJoi.cRec <> comp(0))
+    {
+      if (SpJoi.IsDel = word(1)) SpJoi.IsDel := word(0);
+      else                       SpJoi.IsDel := word(1);
+      update current SpJoi;
+      RedrawPanel (#SpJoi);
+    }
+  }
+  end;
+}
+end; // handleevent
+
+// Экран с кнопками
+screen ButtonsList;
+  show at (, 18,, 24);
+  Fields
+    m_wFilterByUser ('Изменяется при нажатии на <Пробел>', hcNastrAdmWOb, sci1Esc) : , noprotect;
+    m_wNeedZarRun ('Изменяется при нажатии на <Пробел>',hcNastrAdmWOb,sci1Esc): noprotect;
+    m_wCheckTimeObedRep ('Изменяется при нажатии на <Пробел>',hcNastrAdmWOb,sci1Esc): noprotect;
+Buttons
+  cmObed, Default,,, hcNastrAdmWOb, sci1Esc;
+  cmCancel,,,, hcNastrAdmWOb, sci1Esc;
+
+<<
+  Показывать объединения         Включить в обработку таблицы модуля Заработная плата:
+  (.) всех пользователей`        [.] таблицы с архивной информацией`
+  (.) только свои       `        [.] таблицы с текущей информацией`
+
+                                 [.] Протокол по времени объединения`
+                      <.~О~бъединить .>         <. О~т~мена .>
+>>
+end; // screen
+
+handleevent
+
+cmCheckField :
+{
+  case curfield of
+  #m_wFilterByUser :
+  {
+    case m_wFilterByUser of
+    0 :  if (BoundActive(tbOnlyUser))     PopBounds (tbOnlyUser);
+    1 :  if (not BoundActive(tbOnlyUser)) PushBounds (tbOnlyUser);
+    end;
+    if (getFirst JoiHead = tsOk) {};
+
+    ReReadRecord(#JoiHead);
+    RescanPanel (#JoiHead);
+    RescanPanel (#SpJoi);
+    SelectPanel (#JoiHead);
+    SaveMyDsk (m_wFilterByUser, lFilterByUserOb);
+  }
+  #m_wNeedZarRun : SaveMyDsk (m_wNeedZarRun, lNeedZarRunOb);
+  #m_wCheckTimeObedRep : SaveMyDsk (m_wCheckTimeObedRep, lCheckTimeObedRepOb);
+  end; // case
+}
+
+cmInit :
+{
+  DisableCommand(cmFilterSave);
+  m_wCodeTable := coKatOrg;
+ // функцию можно запускать при выборе режима одного филиала
+  if (not CanMayRunObedInFilialDb)
+  {
+    CloseInterface(cmCancel);
+    exit;
+  }
+
+  _try {GetVipInterface(interface_KONTRBAL)}
+  _except
+    on ExObjifcNoLoad : {
+   message('нет объектного интерфейса KONTRBAL');
+   CloseInterface (cmCancel);
+   }
+  _finally  {} ;
+  LoadAmalgamate;// инициализация объектных интерфейсов производства
+  bDBPlatformType := GetDBPlatformType;// читаем тип СУБД
+  _try {GetVipInterface(piOfpOrg)}
+  _except
+    on ExObjifcNoLoad :
+    {
+      message('bad getvipInterface(piOfpOrg)');
+      CloseInterface (cmCancel);
+    }
+  _finally  {} ;
+  m_wCgObedValue := cgObedKontr;// присвоение должно быть раньше кода, где используется переменная m_wCgObedValue
+  delete Pick where ((lPickConst == Pick.wList));
+
+  if (not ReadMyDsk (m_wNeedZarRun, lNeedZarRunOb, true)) m_wNeedZarRun := 3;
+  if (not ReadMyDsk (m_wFilterByUser, lFilterByUserOb, true)) m_wFilterByUser := 0;
+  if (not ReadMyDsk (m_wCheckTimeObedRep, lCheckTimeObedRepOb, true)) m_wCheckTimeObedRep := 0;
+  if (m_wFilterByUser = 1) PushBounds (tbOnlyUser);
+
+  m_wParamOb := 0;
+
+  m_bCOrpo := InCorpo(m_wCgObedValue);
+  if (m_bCOrpo)
+  {
+    DelOutCOrpo(m_wCgObedValue);
+    CorpoforUser(m_wCgObedValue);
+  }
+
+  if (getFirst tmpJoiHead where ((    m_wCgObedValue == tmpJoiHead.TypeEvent
+                                  and UserName()        == tmpJoiHead.UserName
+                                  and (word(1)=tmpJoiHead.Status) )) = tsOk )
+  {
+    m_wParamOb := word(1);
+    if (message('Обнаружено незавершенное объединение организаций'
+                + chr(13) + 'рекомендуется немедленно продолжить это объединение.'
+                + chr(13) + chr(13) + 'Запустить незавершенное объединение?',yesno + Confirmation) = cmYes)
+      PutCommand(cmObed);
+    else
+      CloseInterface (cmCancel);
+  }
+}
+
+cmdone :
+{
+  FreeVipInterface(interface_KONTRBAL);
+  FreeVipInterface(piOfpOrg          );
+  FreeVipInterface(pExtFpModAn       );
+  UnLoadAmalgamate; // освобождение памяти (объектные интерфейсы производства)
+}
+
+cmDefault :
+{
+  abort;
+}
+
+cmHotKeys :
+{
+  PutHotCommand(RunMenu('Obedorg_HotKeys_Print'));
+}
+
+cmPrintdoc :
+{
+  if (frmObedAll.errOr)
+  {
+    frmObedAll.abortform;
+    message('Ошибка при формировании протокола соответствия.' + chr(13)
+           +'Возможно, формы ObedAll нет в ресурсе.', CancelButton);
+    exit;
+  }
+  else
+    #PrintRelation(KatOrg1, KatOrg, Name, 'контрагентов')
+}
+
+cmObed :
+{
+  _try
+  {
+    SetFilialBdToStandart;// обработка филиальности (перевод с филиальности в стандарт)
+    mtClear(#ExecTime, mfNormal);
+    if (m_wParamOb <> 1)
+    {
+      _loop tmpJoiHead where ((    m_wCgObedValue == tmpJoiHead.TypeEvent
+                               and UserName()        == tmpJoiHead.UserName))
+      {
+        if (getFirst tmpSpJoi where ((tmpJoiHead.nRec == tmpSpJoi.cJoiHead)) <> tsOk)
+        {
+          var sObjName : string; sObjName := lNotDefine;
+          if (getFirst KatOrgTmp where (( tmpJoiHead.cRec == KatOrgTmp.nrec)) = tsOk )
+            sObjName := trim(KatOrgTmp.Name);
+          message ('Для результата объединения' + chr(13)
+                 + '"' + sObjName + '"' + chr(13)
+                 + 'не выбраны организации, которые необходимо объединять.', CancelButton);
+          SetStandartBdToFilial;// обработка филиальности (перевод со стандартной в филиальную)
+          exit;
+        }
+      }
+
+      if (getFirst tmpJoiHead where ((    m_wCgObedValue == tmpJoiHead.TypeEvent
+                                      and UserName()        == tmpJoiHead.UserName
+                                      and (word(4) = tmpJoiHead.Status) )) = tsOk )
+        if (message('Хотите повторять объединение для' + chr(13)
+                  + 'завершенных с ошибками организаций?', YesNo + Confirmation) = cmNo)
+          m_wParamOb := 2;
+    }
+    if (IsNotExistNastroikiFromOtherFilials(m_wCgObedValue, m_wCodeTable)) updateObj;
+  }
+  _finally
+  {
+    SetStandartBdToFilial;// обработка филиальности (перевод со стандартной в филиальную)
+  }
+  ReReadRecord(#JoiHead);
+  ReDrawPanel(#JoiHead);
+  ReReadRecord(#SpJoi);
+  ReDrawPanel(#SpJoi);
+  if ((m_wCheckTimeObedRep = 1) and m_bShowRepTime)
+    #MakeTimeProt('организаций');
+}
+
+end;
+end.  // Interface
+Obedorg_HotKeys_Print Menu
+{
+- 'Печать', cmPrintdoc, 'Печать соответствия объединения',, 'Ctrl+P', kbCtrlP, scMenuCtx;
+}

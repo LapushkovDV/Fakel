@@ -1,0 +1,91 @@
+//********************************************************************************
+//                                                        (c) корпорация Галактика
+// Галактика 7.12 - Настройка
+// Выдача сообщения о пришедших по корпо объединениях 
+//********************************************************************************
+
+// Вызывается из интерфейса StartCrTune 
+
+#doc
+<brief>
+  Интерфейс реализует уведомление о пришедших по корпо объединениях. 
+</brief>
+#end
+
+Interface MesJoi 'Уведомление о пришедших по корпо объединениях';
+Create view
+as select *
+from 
+   KatMc
+ , KatOrg
+ , X$REGISTERTABLES
+ , EvJoiHead
+ , JoiHead 
+;
+HandleEvent
+cmInit :
+{
+
+Var curOffice : word;
+Var isKatMc, isKatOrg : boolean;
+
+  curOffice := OfficeNo();
+	if curOffice = 0 { abort;   exit; }
+
+
+  if getFirst X$RegisterTables where ((coKatMc == X$RegisterTables.TABLECODE)) = tsOk
+     if X$RegisterTables.FORCORPO = 1 
+				isKatMC := true;
+
+  if getFirst X$RegisterTables where ((coKatOrg == X$RegisterTables.TABLECODE)) = tsOk
+     if X$RegisterTables.FORCORPO = 1 
+				isKatOrg := true;
+
+  if (not iskatMC) and (not isKatOrg)
+		{ abort;   exit; }
+
+
+
+  //----------------------------------------------------------------------------
+  // Проверка таблицы EvJoiHead
+	if isKatMc
+	{
+		 _loop EvJoiHead where ((1 == EvJoiHead.TypeEvent))
+       if EvJoiHead.Filialno <> CurOffice 
+          Message('Из другого офиса пришли задания на объединение каталога МЦ!', OkButton + Information);
+ 	}
+
+	if isKatOrg
+	{
+		 _loop EvJoiHead where ((2 == EvJoiHead.TypeEvent))
+       if EvJoiHead.Filialno <> CurOffice 
+          Message('Из другого офиса пришли задания на объединение каталога организаций!', OkButton + Information);
+ 	}
+
+
+  //----------------------------------------------------------------------------
+  // Проверка таблицы JoiHead}
+
+	if isKatMc
+	{
+		 _loop JoiHead where ((1  == JoiHead.TypeEvent and
+		                       '' == JoiHead.UserName))
+       if JoiHead.PrCorpo <> 0  
+          Message('Из другого офиса пришли задания на объединение каталога МЦ!', OkButton + Information);
+ 	}
+
+
+	if isKatOrg
+	{
+		 _loop JoiHead where ((2  == JoiHead.TypeEvent and
+		                       '' == JoiHead.UserName))
+       if JoiHead.PrCorpo <> 0  
+          Message('Из другого офиса пришли задания на объединение каталога организаций!', OkButton + Information);
+ 	}
+
+
+  abort;
+  exit;
+}
+end;
+end. // интерфейс

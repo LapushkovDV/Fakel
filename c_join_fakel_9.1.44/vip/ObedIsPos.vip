@@ -1,0 +1,752 @@
+//------------------------------------------------------------------------------
+//                                                      (c) корпорация Галактика
+// Галактика 8.10 - Настройка
+// Объединение признаков использования ОС/НМА
+//------------------------------------------------------------------------------
+#include marker.vih // описание объекта и объявление интерфейса
+                    // marker c реализацией по умолчанию
+
+#include exectime.dic  // таблица  для хранения результатов по времени объединения
+#include filial_macro.vpp// макросы для обработки филиальности
+#include MacOb.vpp //макросы (для таблиц, не содержащих кау, и общие)
+#define UseGetMarkerMy
+
+#doc
+Объединение признаков использования ОС/НМА
+#end
+Interface IspOsOb EscClose, cyan;
+  show at (,,80,25);
+
+const
+  lMsgOdebdifferenceUser = 'Этим объединением занимается другой пользователь.';
+  lFilterByUserOb        = 'FilterByUserObIsPos';
+  lNeedZarRunOb          = 'NeedZarRunObIsPos';
+  lCheckTimeObedRepOb    = 'CheckTimeObedRepObIsPos';
+  lNotDefine             = 'Удаленный признак использования';
+end;
+
+Create View
+#INCLUDE obed.var //объявление переменных
+  CountRecord  : integer;
+  NameFileMy   : string;
+  IError       : integer;
+  CountRecOrdInProcess :integer; //количество записей для визуализации vtDownVisual
+  m_sTitleRep : string;
+  wOSorNMA : word;
+  sOsOrNma : string;
+as Select
+  #Strorka_sObName(isPos,lNotDefine + sOsOrNma,NameIs )
+  #Strorka_sOb1Name(isPos1,lNotDefine,NameIs)
+//----------------------------------------------------------------------------------
+  #InternalFields
+//----------------------------------------------------------------------------------
+  , string(NRec2ONo(isPos.NRec)) (fieldname = strOfficeJoiHead)
+  , string(NRec2ONo(isPos1.NRec)) (fieldname = strOfficeSpJoi)
+//----------------------------------------------------------------------------------
+  #InternalFieldsForShowFilial
+From
+  ExecTime,
+  isPos,
+  isPos isPos1,
+  isPos isPosTmp,
+  ARCIZNOS,
+  SpKatOS,
+  NastrOS,
+  JoiHead,
+  SpJoi,
+  EvJoiHead,
+  EvJoiHead EvJoiHead1
+  #TableForFilial,
+  JoiHead   tmpJoiHead,
+  SpJoi     tmpSpJoi
+  #include iTable.vpp
+
+
+Where
+((
+  m_wCgObedValue   == JoiHead.TypeEvent And
+  JoiHead.cRec     == isPos.nRec        And
+  JoiHead.nRec     == SpJoi.cJoiHead    And
+  SpJoi.cRec       == isPos1.nRec
+  #WhereForFilial
+))
+Bounds OnlyUser =
+      m_wCgObedValue == JoiHead.TypeEvent And UserName() == JoiHead.UserName;
+
+Parameters wOSorNMA ;
+File MemoFile;
+File FileProtocol;
+
+Const
+  iCountTableStep  = 3;
+  iCountTableStep3 = 3 * 40 + 70;
+end;
+
+var
+  m_pMarkerUp   : IMarker(marker) new;
+
+form ErrObAll ('ErrObIsPos.OUT','ErrObAll') with NoVisual;
+form frmObedAll('obedIsPos.out','obedAll') with novisual;
+form frmExchngTime('ExchngTime.out', 'ExchngTime') with novisual;
+
+// Прерывание объединения
+Procedure ObBreak;
+var
+  lcount_out : longint;
+{
+  lcount_out := VisualCount();
+  message('Для прекращения объединения придется'
+          + chr(13) + 'подождать до окончания замены на'
+          + chr(13) + '"' + trim (isPosTmp.NameIs) + '".', Information + OkButton);
+
+  ReStartVisual('Идет замещение признака использования на'#13'' + '"' + trim(isPosTmp.NameIs)
+                +'"' + ''#13'', m_lcount_vis);
+  NNextVisual (lcount_out);
+  m_bBreak := true;
+}
+
+#include obedtime.vpp //процедуры и фукнции по работе с таблицей информации по времени объединения
+#include ErrObAll.vpp    // Пакет ошибок
+#include Cor_Kau.vpp   // KAU
+#include printrelat.vpp // отчет замен
+#include filial_func.vpp // проверка филиальности
+
+//процедуры и функции обрабатывающие приход реплики с объединеннями  из другого офиса
+#include ObFCorpo.vpp
+function GetPrintName(cRec : comp) : string;
+var
+  sResult : string;
+{
+  sResult := 'Удален';
+  If (GetFirst isPosTmp where ((cRec == isPosTmp.Nrec)) = tsOk)
+    sResult := isPosTmp.NameIs;
+  result := sResult;
+}
+
+Function CheckObj : boolean;
+{
+  #Check_Obj(isPosTmp)
+}
+
+Function FindExistObj(cNRecisPos : comp) : boolean;
+var
+  sObjUp, sObjDown : string[80];
+{
+  #FindObj(m_wCgObedValue, isPosTmp, NameIs, lNotDefine + sOsOrNma, 'признак использования' + sOsOrNma, cNRecisPos, 2)
+}
+
+Function UpdateObj : boolean;
+var   lCount_sin : longint;
+{
+  m_bBreak    := False;
+  result := False;
+  m_bShowRepTime := true;
+  _nMsgFrm  := 0;          // Общее число ошибок
+  m_lErrOrJoi  := 0;
+  m_lErrOrSp   := 0;
+  lCount_sin   := 0;
+  m_lCount_vis := 0;
+
+  _loop JoiHead where ((    m_wCgObedValue == JoiHead.TypeEvent
+                        and UserName()        == JoiHead.UserName ))
+  {
+    case JoiHead.Status of
+    word(0) : if (m_wParamOb = word(1)) continue;
+    word(1) : {};
+    word(3) :  continue;
+    word(4) : if (m_wParamOb <> word(0)) continue;
+    end;
+
+    if (JoiHead.prCOrpo <> byte(0))
+      if (CheckObj)
+      {
+        message ('Одно из объединений, присланное по Corpo обмену'
+                 + chr(13) + 'будет отложено, поскольку не существует признака использования,'
+                 + chr(13) + 'в который необходимо производить объединение.');
+        continue;
+      }
+
+
+    _Loop KatKau where ((     0           ==  KatKau.isActive
+                       and  cgKau_IspOs   ==  KatKau.UpGroup ))
+      lCount_sin := lCount_sin + 1;
+
+    _loop SpJoi where ((    JoiHead.nRec == SpJoi.cJoiHead
+                        and (word(3) <> SpJoi.Status) ))
+      m_lCount_vis := iCountTableStep + ( lCount_sin + 1 ) * iCountTableStep3;
+  }
+
+  if (m_lcount_vis <> 0)
+  {
+    if (message('Если Вы не сохранили данные, еще раз рекомендуем это сделать.' + chr(13)
+              + 'Запустить объединение признаков использования?', YesNo + mfSwapButtons + Confirmation) = cmNo)
+    {
+      m_bShowRepTime := false;
+      exit;
+    }
+    StartNewVisual(vtIndicatOrVisual, vfTimer + vfbreak + vfConfirm,''#13#13#13'', m_lcount_vis);
+  }
+  else
+  {
+    message ('Нет заданий на объединение.');
+    m_wParamOb := 0;
+    m_bShowRepTime := false;
+    exit;
+  }
+  MyMarker:=InitMarker('', 8, 50, 50, false);
+
+  // Цикл по результирующей
+  If (GetFirst JoiHead Where ((m_wCgObedValue == JoiHead.TypeEvent And
+                               UserName()        == JoiHead.UserName )) = tsOk )
+  do
+  {
+    case JoiHead.Status of
+    word(0) : if (m_wParamOb = word(1)) continue;
+    word(1) : {};
+    word(3) :  continue;
+    word(4) : if (m_wParamOb <> word(0)) continue;
+    end;
+
+    if (JoiHead.prCOrpo <> byte(0))
+      if (CheckObj) continue;
+    // Пересылка если COrpo
+    if (    (m_bCOrpo)
+        and (JoiHead.prCOrpo = byte(0))
+        and (JoiHead.Status = word(0)))
+    {
+      ClearBuffer (#EvJoiHead);
+      EvJoiHead.FilialNo := OfficeNo();
+      EvJoiHead.TypeEvent := m_wCgObedValue;
+      EvJoiHead.cRec := JoiHead.cRec;
+      EvJoiHead.dDate := Cur_date();
+      MemoFile.OpenMemo (EvJoiHead.EvSp);
+      MemoFile.Write(JoiHead.rComp);
+      _loop SpJoi where ((JoiHead.nRec == SpJoi.cJoiHead))
+      {
+        MemoFile.Write(SpJoi.cRec);
+        MemoFile.Write(SpJoi.Num);
+        MemoFile.Write(SpJoi.isDel);
+/*
+        If (GetFirst isPosTmp where ((SpJoi.cRec == isPosTmp.nRec)) = tsOk)
+          MemoFile.Write(isPosTmp.NameIs);
+        Else
+          MemoFile.Write(lNotDefine + sOsOrNma);
+*/
+      }
+      MemoFile.Close;
+      insert current EvJoiHead;
+    }
+
+    JoiHead.Status := wOrd(1);  // Делаем статус "Начата"
+    Update Current JoiHead;
+
+    If ( GetFirst isPosTmp where (( JoiHead.cRec == isPosTmp.nrec)) = tsOk ) {};
+
+    iNextVisual('Идет замещение признаков использования '+sOsOrNma +'на'#13''+'"'+ trim(isPosTmp.NameIs)+'"' +
+                ''#13'');
+    m_bWriteInfoSpJoi := True;
+
+     //  Цикл по объединяемым
+    If (GetFirst SpJoi where ((JoiHead.nRec == SpJoi.cJoiHead And (word(3)<>SpJoi.Status))) = tsOk)
+    do
+    {
+      SpJoi.Status := wOrd(1);
+      Update current SpJoi;
+      //SPKATOS
+      _Loop NastrOs where ((wOSorNMA == NastrOs.TiDk))
+      {
+        #UpdateTableOneFieldOnTwoFieldWithIndex(SpKatOS,cIsp,cNastrOs,NastrOs.nRec,'SpKatOS')
+      }
+      //ArcIznos
+      #UpdateTableOneFieldNoIndex(ARCIZNOS,CISP,'ARCIZNOS')
+      //IsPos
+      #UpdateTableOneFieldNoIndex(IsPos,cIsp,'IsPos')
+      //OSCHGPAR
+      #UpdateTableOneFieldOnTwoFieldNoIndex(OSCHGPAR,cValue,ParCode,3,'OSCHGPAR')
+      //КАУ
+      if (wOSorNMA = 15)
+        UpdateKau(SpJoi.cRec,JoiHead.cRec,cgKau_IspOs,true, isPos.NameIs);
+      else
+        UpdateKau(SpJoi.cRec,JoiHead.cRec,cgKau_IspNMA,true, isPos.NameIs);
+      IF Not(NextVisual) ObBreak;
+      // Если этап завершен без ошибок
+      if (_nMsgFrm = m_lErrOrSp) SpJoi.Status := word(3);
+      else                       SpJoi.Status := word(4);
+      update current SpJoi;
+      if (m_lErrorSp <> _nMsgFrm)
+      {
+        ErrObAll.PutEventById (febreak, fcCycleOfErrOrAll);
+        ErrObAll.write(_nMsgFrm - m_lErrorSp);
+      }
+      m_lErrorSp := _nMsgFrm;
+    }while (GetNext SpJoi where ((    JoiHead.nRec == SpJoi.cJoiHead
+                                         and (word(3)<>SpJoi.Status) )) = tsOk);
+    m_bWriteInfoSpJoi := false;
+
+    if (m_lErrorJoi <> _nMsgFrm)
+    {
+      ErrObAll.PutEventById (febreak, fcCycleOfObAll);
+      ErrObAll.write(_nMsgFrm - m_lErrorJoi);
+    }
+    // Если объединение без ошибок
+    if (_nMsgFrm = m_lErrorJoi) JoiHead.Status := word(3); // статус "Завершено"
+    else                        JoiHead.Status := word(4);// статус "Завершено с ошибками"
+    update Current JoiHead;
+
+    m_lErrorJoi := _nMsgFrm;
+    m_lErrOrSp := m_lErrorJoi;
+  }
+   while ((GetNext JoiHead where ((    m_wCgObedValue == JoiHead.TypeEvent
+                                       and UserName() == JoiHead.UserName )) = tsOk)
+           and (m_bBreak = false));
+
+  If (_nMsgFrm > 0)
+  {
+    ErrObAll.PutEventById (feBreak, fcCycleOfResAll);
+    ErrObAll.write(_nMsgFrm);
+  }
+
+  m_wParamOb := 0;
+  DoneMarker (MyMarker, '');
+  if (m_lCount_vis <> 0)
+  {
+    StopVisual('',0);
+    if (_nMsgFrm > 0)// Если были ошибки во время объединения
+    {
+      message('Во время объединения произошли ошибки !'
+              + chr(13) + 'Просмотрите протокол ошибок и если необходимо,'
+              + chr(13) + 'запустите процедуру объединения еще раз.' + chr(13));
+      ErrObAll.ShowFile;
+    }
+  }
+  Message('Объединение завершено.');
+}
+
+browse IsPosJoi;
+show at (,,,6);
+Table JoiHead;
+    recMarker = m_pMarkerUp {JoiHead.Nrec};
+fields
+    strOfficeJoiHead 'Офис', '───' ('',hcNastrAdmWOb,sci1Esc): [5], protect;
+    sObName          'Наименование'
+                     ('', hcNastrAdmWOb, sci1378EscInsPMBrigadeDuty) : [32], Protect;
+    strFilial        'филиал','───────'('',hcNastrAdmWOb,sci1Esc) : [3], Protect;
+    strJoiStatus     'Статус'
+                     ('', hcNastrAdmWOb, sci1Esc) : [14], Protect;
+    JoiHead.UserName 'Пользователь'('', hcNastrAdmWOb, sci13Esc) : [12], Protect;
+    strJoiCOrpo      '№ офиса','───────'('',hcNastrAdmWOb,sci1Esc) : [7], Protect;
+end;
+
+TableEvent Table JoiHead;
+cmSetDefault :
+{
+  JoiHead.TypeEvent := m_wCgObedValue;
+  JoiHead.Status := word(0);
+  JoiHead.UserName := UserName();
+  JoiHead.dDate := Cur_Date;
+}
+
+cmInsertRecord : insert current JoiHead;
+cmUpdateRecord : update current JoiHead;
+
+cmInsert :
+{
+  case curfield of
+  #sObName :
+  {
+    if (RunInterface('IsPos',wOSorNMA,m_cChoiceNrec,0, comp(0))<>cmCancel)
+    {
+      if (not FindExistObj(m_cChoiceNrec)) putCommand(cmValue1);
+      else abort;
+    }
+    else abort;
+  }
+  end;
+}
+
+cmMarkDelete :
+{
+  if (curtable = #JoiHead)
+  {
+    m_bDeleteByMarker := false;
+    if (m_pMarkerUp.Count <> 0)
+    {
+      if (message('Удалить помеченные записи?', yesno + mfSwapButtons + confirmation) = cmYes)
+      {
+        m_bDeleteByMarker := true;
+        stop;
+      }
+      else abort;
+    }
+  }
+}
+
+cmDeleteRecord :
+{
+  if not(isValid(tnJoiHead)) exit;
+  if (not m_bDeleteByMarker) m_bExistDel := false; // инициализация переменной в случае когда пометки нет для случая обычного удаления
+
+  //#5578 >>>>>>>>>>>>>>>>>
+  var _boDiffUser : boolean = (JoiHead.UserName <> UserName());
+  if _boDiffUser
+    if (not m_bDeleteByMarker)
+      if pr_CurUserAdmin
+      { if message(lMsgOdebdifferenceUser
+          +chr(13)+'Продолжить?' , YesNo)=cmYes
+        { _boDiffUser:=false
+
+        }
+      }
+  //#5578 <<<<<<<<<<<<<<<<<<<<<<<<<
+  if _boDiffUser
+  {
+    if (not m_bDeleteByMarker)
+      message(lMsgOdebdifferenceUser
+        +chr(13)+'обратитесь к администратору БД', Warning);
+    if (m_bExistDel and ((not m_bDeleteByMarker) or (m_bDeleteByMarker and m_pMarkerUp.Count = 0)))
+      message('Удаление из каталога МЦ произведено.', Information + OkButton);
+    exit;
+  }
+
+  var bRun : boolean; bRun := true;
+  if (not m_bDeleteByMarker)
+    bRun := message('Удалить запись?', yesno + mfSwapButtons + confirmation) = cmYes;
+
+  if (bRun)
+  {
+    if (    (JoiHead.Status = word(3))
+         Or (JoiHead.Status = word(4)))
+    {
+      if (getFirst SpJoi where ((    JoiHead.nRec == SpJoi.cJoiHead
+                                 and byte(1)      == SpJoi.isDel
+                                 and byte(4)      == SpJoi.Status )) = tsOk)
+      {
+        var bDelFromCatalog : boolean; bDelFromCatalog := false;
+        if (not m_bDeleteByMarker)
+          bDelFromCatalog := message('Удалять из каталога признаки использования объединение'
+                    + chr(13) + 'которых завершено с ошибками?',
+                    yesno + mfSwapButtons + Confirmation) = cmYes;
+        if (bDelFromCatalog)
+          update SpJoi where ((    JoiHead.nRec == SpJoi.cJoiHead
+                               and byte(1)      == SpJoi.isDel
+                               and byte(4)      == SpJoi.Status)) set Status := 3;
+      }
+
+      _loop SpJoi where ((    JoiHead.nRec == SpJoi.cJoiHead
+                          and byte(1)      == SpJoi.isDel
+                          and byte(3)      == SpJoi.Status))
+      {
+        delete isPosTmp where ((SpJoi.cRec == isPosTmp.nrec));
+        m_bExistDel := true;
+      }
+    }
+    delete SpJoi where ((JoiHead.nRec == SpJoi.cJoiHead));
+    delete current JoiHead;
+    if (m_bExistDel and ((not m_bDeleteByMarker) or (m_bDeleteByMarker and m_pMarkerUp.Count = 0)))
+      message('Операция удаления завершена.', Information + OkButton);
+  }
+  else
+    Abort;
+}
+end;
+
+HandleEvent
+
+cmValue1 :
+{
+  set JoiHead.rComp := comp(1);
+  set JoiHead.cRec := m_cChoiceNrec;
+  UpdateTable;
+  SetFilialInNastrObed(coJoiHead, isPos.NameIs, isPos.Atl_Branch);
+  ReDrawPanel(#JoiHead);
+}
+
+cmPick :
+{
+  #Check_Pick(JoiHead)
+  case curfield of
+  //-----------
+  #sObName :
+  {
+    if (JoiHead.Status <> 0) exit;
+    m_cChoiceNrec := JoiHead.cRec;
+    if (RunInterface('IsPos',wOSorNMA,m_cChoiceNrec,0, comp(0))<>cmCancel)
+    {
+      #CheckChoiceValueForJoiHeadOnPick
+      set JoiHead.rComp := comp(1);
+      UpDateTable;
+      SetFilialInNastrObed(coJoiHead, isPos.NameIs, isPos.Atl_Branch);
+      ReReadRecOrd(#JoiHead);
+      ReDrawPanel(#JoiHead);
+    }
+  }
+  end;
+}
+end; // hanldeevent
+
+browse IsPosSpJoi;
+show at (,7,,17);
+Table SpJoi;
+fields
+    strOfficeSpJoi 'Офис', '───' ('',hcNastrAdmWOb,sci1Esc): [5], protect;
+    sOb1Name        'Наименование'
+                    ('', hcNastrAdmWOb, sci1378Esc): [41], Protect;
+    strFilial1      'филиал','───────'('',hcNastrAdmWOb, sci1Esc) : [3], Protect;
+    strSpJoiStatus  'Статус'
+                    ('', hcNastrAdmWOb, sci1Esc)   : [15], Protect;
+    cSpJoiDel       'Удалять'
+                    ('Изменяется при нажатии на <F3>', hcNastrAdmWOb, sci13Esc)
+                                                            : [7], #protectedcentered;
+end;
+
+tableEvent Table SpJoi;
+cmInsert:
+{
+  if (JoiHead.UserName <> UserName())
+  {
+    message (lMsgOdebdifferenceUser, Warning);
+    abort; exit;
+  }
+
+  if (JoiHead.Status <> 0) {abort; exit;}
+    if (RunInterface('IsPos',wOSorNMA,m_cChoiceNrec,0, comp(0))<>cmCancel)
+  {
+    if (FindExistObj(m_cChoiceNrec))
+    {
+      abort;
+      exit;
+    }
+    ClearBuffer (#SpJoi);
+    SpJoi.cJoiHead := JoiHead.nRec;
+    SpJoi.cRec := m_cChoiceNrec;
+    SpJoi.Status := WOrd(0);
+    SpJoi.IsDel := wOrd(1);
+    Insert current SpJoi;
+    SetFilialInNastrObed(coSpJoi, isPos1.NameIs, isPos1.Atl_Branch);
+    ReReadRecord(#SpJoi);
+    ReDrawPanel(#SpJoi);
+  }
+  abort;
+}
+
+cmDeleteRecOrd :
+{
+  if (JoiHead.UserName <> UserName())
+  {
+    message (lMsgOdebdifferenceUser, Warning);
+    exit;
+  }
+
+  if (JoiHead.Status = 0)
+    if (message('Удалить запись?', yesno + mfSwapButtons + Confirmation) = cmYes)
+      delete current SpJoi;
+}
+end;
+
+HandleEvent
+cmPick :
+{
+  #Check_Pick(SpJoi)
+
+  case CurField of
+  #sOb1Name :
+  {
+    if (JoiHead.Status <> 0) exit;
+    m_cChoiceNrec := SpJoi.cRec;
+    if (RunInterface('IsPos',wOSorNMA,m_cChoiceNrec,0, comp(0))<>cmCancel)
+    {
+      #CheckChoiceValueForSpJoiOnPick
+      ClearBuffer (#SpJoi);
+      SpJoi.cJoiHead := JoiHead.nRec;
+      SpJoi.cRec := m_cChoiceNrec;
+      SpJoi.Status := WOrd(0);
+      SpJoi.IsDel := wOrd(1);
+      Insert current SpJoi;
+      SetFilialInNastrObed(coSpJoi, isPos1.NameIs, isPos1.Atl_Branch);
+      ReReadRecord(#SpJoi);
+      ReDrawPanel(#SpJoi);
+    }
+  }
+  #cSpJoiDel :
+  {
+    if (SpJoi.cRec <> comp(0))
+    {
+      if (SpJoi.IsDel = word(1)) SpJoi.IsDel := word(0);
+      else                       SpJoi.IsDel := word(1);
+      update current SpJoi;
+      RedrawPanel (#SpJoi);
+    }
+  }
+  end;
+}
+end; // HandleEvent
+
+// Экран с кнопками
+screen ButtonsList;
+  show at (,18,,24);
+  Fields
+    m_wFilterByUser ('Изменяется при нажатии на <Пробел>', hcNastrAdmWOb, sci1Esc) : , noprotect;
+    m_wNeedZarRun ('Изменяется при нажатии на <Пробел>',hcNastrAdmWOb,sci1Esc): noprotect;
+    m_wCheckTimeObedRep ('Изменяется при нажатии на <Пробел>',hcNastrAdmWOb,sci1Esc): noprotect;
+Buttons
+  cmObed,Default,,,hcNastrAdmWOb,sci1Esc;
+  cmCancel,,,,hcNastrAdmWOb,sci1Esc;
+
+<<
+  Показывать объединения         Включить в обработку таблицы модуля Заработная плата:
+  (.) всех пользователей`        [.] таблицы с архивной информацией`
+  (.) только свои       `        [.] таблицы с текущей информацией`
+
+                                 [.] Протокол по времени объединения`
+                      <.~О~бъединить .>         <. О~т~мена .>
+>>
+
+end; // screen
+
+HandleEvent
+cmCheckField:
+{
+  case curfield of
+  #m_wFilterByUser :
+  {
+    case m_wFilterByUser of
+    0 :  if (BoundActive(tbOnlyUser))     PopBounds (tbOnlyUser);
+    1 :  if (not BoundActive(tbOnlyUser)) PushBounds (tbOnlyUser);
+    end;
+    if (getFirst JoiHead = tsOk) {};
+
+    ReReadRecord(#JoiHead);
+    RescanPanel (#JoiHead);
+    RescanPanel (#SpJoi);
+    SelectPanel (#JoiHead);
+    SaveMyDsk (m_wFilterByUser, lFilterByUserOb);
+  }
+  #m_wNeedZarRun : SaveMyDsk (m_wNeedZarRun, lNeedZarRunOb);
+  #m_wCheckTimeObedRep : SaveMyDsk (m_wCheckTimeObedRep, lCheckTimeObedRepOb);
+  end; // case}
+}
+
+cmInit:
+{
+  DisableCommand(cmFilterSave);
+  m_wCodeTable := coIsPos;
+ // функцию можно запускать при выборе режима одного филиала
+  if (not CanMayRunObedInFilialDb)
+  {
+    CloseInterface(cmCancel);
+    exit;
+  }
+
+  bDBPlatformType := GetDBPlatformType;// читаем тип СУБД
+  if (wOSorNMA = 15)
+  {
+    sOsOrNma := 'OC';
+    m_wCgObedValue := cgObedsIsPosOs;// присвоение должно быть раньше кода, где используется переменная m_wCgObedValue
+  }
+  else
+  {
+    sOsOrNma := 'НМА';
+    m_wCgObedValue := cgObedsIsPosNma;// присвоение должно быть раньше кода, где используется переменная m_wCgObedValue
+  }
+
+  SetTitle('Признаки использования '+ sOsOrNma);
+  if (not ReadMyDsk (m_wNeedZarRun, lNeedZarRunOb, true)) m_wNeedZarRun := 3;
+  if (not ReadMyDsk (m_wFilterByUser, lFilterByUserOb, true)) m_wFilterByUser := 0;
+  if (not ReadMyDsk (m_wCheckTimeObedRep, lCheckTimeObedRepOb, true)) m_wCheckTimeObedRep := 0;
+  if (m_wFilterByUser = 1) PushBounds (tbOnlyUser);
+
+  m_wParamOb := 0;
+  m_bCOrpo := InCorpo(m_wCgObedValue);
+
+  if (m_bCOrpo)
+  {
+    DelOutCOrpo(m_wCgObedValue);
+    CorpoForUser(m_wCgObedValue);
+  }
+
+  if (getFirst tmpJoiHead where ((    m_wCgObedValue == tmpJoiHead.TypeEvent
+                                  and UserName()        == tmpJoiHead.UserName
+                                  and (word(1)=tmpJoiHead.Status) )) = tsOk )
+  {
+    m_wParamOb := word(1);
+    if (message('Обнаружено незавершенное объединение признаков использования.'
+                + chr(13) + 'Рекомендуется немедленно продолжить это объединение.'
+                + chr(13) + chr(13) + 'Запустить незавершенное объединение?',yesno + Confirmation) = cmYes)
+      PutCommand(cmObed);
+    else
+      CloseInterface (cmCancel);
+  }
+}
+
+cmDefault:
+  AbOrt;
+
+cmHotKeys :
+  PutHotCommAnd(RunMenu('ObedIsPos_HotKeys_Print'));
+
+cmPrintDoc :
+{
+  if (frmObedAll.errOr)
+  {
+    frmObedAll.abortform;
+    message('Ошибка при формировании протокола соответствия.' + chr(13)
+           +'Возможно, формы ObedAll нет в ресурсе.', CancelButton);
+    exit;
+  }
+  else
+    #PrintRelation(isPos1,isPos,NameIs,'Признак использования ' + sOsOrNma)
+}
+
+cmObed :
+{
+  _try
+  {
+    SetFilialBdToStandart;// обработка филиальности (перевод с филиальности в стандарт)
+    mtClear (#ExecTime, mfNormal);
+    If m_wParamOb <> 1
+    {
+      _loop tmpJoiHead where ((    m_wCgObedValue == tmpJoiHead.TypeEvent
+                               and UserName()        == tmpJoiHead.UserName))
+      {
+        if (getFirst tmpSpJoi where ((tmpJoiHead.nRec == tmpSpJoi.cJoiHead)) <> tsOk)
+        {
+          var sObjName : string; sObjName := lNotDefine + sOsOrNma;
+          If (GetFirst isPosTmp where (( tmpJoiHead.cRec == isPosTmp.nrec)) = tsOk )
+            sObjName := trim(isPosTmp.NameIs);
+          message ('Для результата объединения' + chr(13)
+                 + '"' + sObjName + '"' + chr(13)
+                 + 'не выбраны признаки использования., которые необходимо объединять.', CancelButton);
+          SetStandartBdToFilial;// обработка филиальности (перевод со стандартной в филиальную)
+          exit;
+        }
+      }
+
+      if (getFirst tmpJoiHead where ((    m_wCgObedValue == tmpJoiHead.TypeEvent
+                                      and UserName()        == tmpJoiHead.UserName
+                                      and (word(4) = tmpJoiHead.Status) )) = tsOk )
+        if (message('Хотите повторять объединение для' + chr(13)
+                  + 'завершенных с ошибками ?', YesNo + Confirmation) = cmNo)
+          m_wParamOb := 2;
+     }
+     if (IsNotExistNastroikiFromOtherFilials(m_wCgObedValue, m_wCodeTable)) UpdateObj;
+  }
+  _finally
+  {
+    SetStandartBdToFilial;// обработка филиальности (перевод со стандартной в филиальную)
+  }
+  ReReadRecOrd(#JoiHead);
+  ReDrawPanel(#JoiHead);
+  ReReadRecOrd(#SpJoi);
+  ReDrawPanel(#SpJoi);
+  if ((m_wCheckTimeObedRep = 1) and m_bShowRepTime)
+    #MakeTimeProt('признаков использования' + sOsOrNma);
+}
+
+
+end;
+end.  // Interface
+
+ObedIsPos_HotKeys_Print Menu
+{
+- 'Печать',cmPrintDoc,'Печать соответствия объединения',, 'Ctrl+P', kbCtrlP, scMenuCtx;
+}

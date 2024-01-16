@@ -1,0 +1,554 @@
+//********************************************************************************
+//                                                        (c) корпорация Галактика
+// Галактика 7.12 - Настройка
+// Таблицы замены КАУ 
+//********************************************************************************
+
+#include Getkau.vih
+#include ShowKau.vpp
+#include Contexts.vih  // Контексты
+#include GtKauTbl.vih  // Объектный интерфейс выбора кау (только для вызовов через RunInterface в 80)
+
+#doc
+<brief>
+  Интерфейс реализует шаблоны замены аналитик.
+</brief><br>
+  Используется в объединении счетов.
+#end
+   
+Interface ReplaceKau 'Шаблоны замены Аналитик' ('Шаблоны замены Аналитик',
+                                            hcNastrIAdmServLinkBuhSchShabKAU,
+                                            sci1Esc) EscClose,Cyan,DoAccept;
+show at (,,,);
+
+#include GetKau.var
+#include ServKau.vih   // Регистрация контекста
+
+////////////////////////////////////////////////////////////////////////////////
+Create View vwReplKau
+var
+   KauOldFlt : word;
+   KauNewFlt : word;
+   NrecPick  : comp;
+   s : comp;//для выбора значения кау
+   nMarkers : string[30];
+   Markers   : TPtr;
+   IndexNo   : LongInt;
+   n, m : longint;
+   p : comp;
+   i:integer;
+   (
+    KauOther,
+    KauOld,
+    KauNew,
+    IsPickB                  // Выбрана ли запись
+   )
+as select
+   If (isValid(tnReplKau),ReplKau.CKAUOTHER,0),
+   if (isValid(tnReplKau),SReplKau.cKauOld,0),
+   if (isValid(tnReplKau),SReplKau.cKauNew,0),
+   // IsPickB
+   SearchMarker(Markers, SReplKau.NRec, IndexNo),
+   *
+from
+   ReplKau,
+   SReplKau,
+   synonym SReplKau tmpSReplKau,
+   synonym ReplKau tmpReplKau,
+   synonym KatKau KatKauOld,
+   synonym KatKau KatKauNew
+where
+((
+   ReplKau.Nrec     == SReplKau.CREPLKAU and
+   ReplKau.wKauOld  == KatKauOld.KodGroup and
+   ReplKau.wKauNew  == KatKauNew.KodGroup
+))
+bounds ByKauOld       = KauOldFlt == ReplKau.wKauOld 
+
+bounds ByKauNew       = KauNewFlt == ReplKau.WKAUNEW
+
+bounds ByKauOldAndNew = KauOldFlt == ReplKau.wKauOld and 
+                        KauNewFlt == ReplKau.WKAUNEW
+;
+
+////////////////////////////////////////////////////////////////////////////////
+parameters KauOldFlt, KauNewFlt, NrecPick;
+
+////////////////////////////////////////////////////////////////////////////////
+browse brReplKau;
+  show at (,,,5);
+  table ReplKau;
+  fields
+    KatKauNew.Name 'Группа аналитики Новая'  ('Группа аналитики Новая' ,,sci14EnEsc): [30],protect;
+    KatKauOld.Name 'Группа аналитики Старая' ('Группа аналитики Старая',,sci14EnEsc): [30],protect;
+    [fKauOther] #ShowKau(ReplKau.WKAUNew,ReplKau.cKauOther)
+                   'Прочие объекты заменить на:'
+                   ('Прочие объекты заменить на:',,sci14EnEsc): [30],Protect;
+end;
+
+browse brSpReplKau;
+  show at (,6,,);
+  table SReplKau;
+  fields
+    [fKauOld] #ShowKau(Replkau.WKauOld,KauOld) 'Старое значение аналитики' ('Старое значение аналитики',,sci14EnEsc): [30],Protect;
+    [fKauNew] #ShowKau(Replkau.WKauNew,KauNew) 'Новое значение аналитики'  ('Новое значение аналитики' ,,sci14EnEsc): [30],Protect;
+end;
+
+////////////////////////////////////////////////////////////////////////////////
+#declare CheckRecMsg(fldchk, fldname, msg)
+  if(#fldchk=0)
+  {  Message(#msg,CancelButton);
+     SelectField(#fldname);
+     Abort;exit;
+  }
+#end
+////////////////////////////////////////////////////////////////////////////////
+Function ProverkaValidVvod:Boolean;
+{
+  ProverkaValidVvod := true;
+
+  if((ReplKau.WkauOld = 0) and
+     (ReplKau.WkauNew = 0) and 
+     (ReplKau.CKAUOTHER = 0))
+    exit;
+  if((ReplKau.WKauOld <> 0) and
+     (ReplKau.WkauNew <> 0) and 
+     (ReplKau.CKAUOTHER <> 0))
+   {}
+  else
+  if (ReplKau.WKauOld = 0)
+  { 
+    SelectField(#KatKauOld.Name);
+    message('Не задана старая группа аналитики');
+    ProverkaValidVvod := False;
+  }
+  else
+    if (ReplKau.wKauNew = 0) 
+    {
+      SelectField(#KatKauNew.Name);
+      message('Не задана новая группа аналитики ');
+      ProverkaValidVvod := false;
+    }
+    else
+      if (ReplKau.CKAUOTHER = 0)  
+      {
+        SelectField(#fKauOther);
+        message('Не задано значение аналитики по умолчанию');
+        ProverkaValidVvod := false;
+      }
+}
+
+/////////////////////////////////////////////////////////////////////////////
+window wiReplKau 'Редактирование Шаблона замены аналитики' 
+                 ('Редактирование Шаблона замены аналитики',
+                 hcNastrIAdmServLinkBuhSchShabKAUEdit,sci1Esc) escClose, Blue;
+show at (,,,);
+
+panel panReplKau
+show at (,,,5);
+table ReplKau;   
+screen scEditReplKau;
+show at (,,,5);
+table Replkau;
+  fields
+    KatKauOld.Name   ('Группа аналитики Старая',,sci1378Esc): Protect,PickButton;
+    KatKauNew.Name   ('Группа аналитики Новая' ,,sci1378Esc): Protect,PickButton;
+    fKauOther ('Прочие объекты заменить на:',,sci1378Esc): Protect,PickButton;
+<<
+  `Группа КАУ Старая` .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  `Группа КАУ Новая`  .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  `Прочие КАУ заменить на:` .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+>>
+end;
+HandleEvent
+cmCheckRecord :
+  { 
+    if ( not ProverkaValidVvod )
+     abort;
+  }
+cmSetDefault :
+  {      
+    SubBounds(tbByKauOldAndNew);
+    SubBounds(tbByKauOld);
+    SubBounds(tbByKauNew);
+    replKau.CKAUOTHER := 0;
+    ReplKau.WKauOld := 0;
+    ReplKau.WkauNew := 0; 
+  }
+
+cmUpDateRecord : 
+{ 
+  update current ReplKau;
+}
+cmDeleteRecord :
+{ 
+  if (message(''#3'Удалить таблицу замены аналитики "'+KatkauOld.Name+'"?',YesNo)=Yes)
+  {
+    delete all SReplKau where ((ReplKau.Nrec == SReplKau.CREPLKAU));
+    delete current ReplKau;
+    rereadrecord(#SReplKau);
+    rereadRecord(#Replkau);
+  }                          
+  else abort;
+}
+cmPick :
+{            
+  case CurField of
+  #KatKauOld.Name : 
+  {
+    Var a : Comp;
+    a := ReplKau.WKauOld;
+    if (RunInterface('GetKauTable',cgiPick,word(0),ReplKau.WKauOld,comp(0))<>cmCancel)
+    {
+      if(ReplKau.WkauNew <> ReplKau.WKauOld)
+      {
+        if((ReplKau.WKauNew<>0)and(ReplKau.WkauOld<>0))
+        {
+          if (GetFirst tmpReplKau where ((Replkau.WkauOld == tmpReplKau.WKauOld and
+                                          ReplKau.WkauNew == tmpReplKau.WKauNew)) = tsOk)
+          {
+            Message('Для указанной пары аналитик шаблон уже задан',CancelButton);
+            Set ReplKau.WKauOld := a;
+            Abort;
+          }
+          else
+          {
+            delete all SReplKau where ((ReplKau.Nrec == SReplKau.CREPLKAU));
+//                                      word(0)     == ZamKau.KodNew))
+            RereadRecord(#SReplKau);
+          }
+        }
+      }
+      else
+      {
+        Message('Сама аналитика в себя не может переходить',CancelButton);
+        Set ReplKau.WkauOld := a;
+        Abort;
+      }
+    }
+  }
+  #KatKauNew.Name :
+  {
+    Var a : Comp;
+    a := ReplKau.WKauNew;
+    if (RunInterface('GetKauTable',cgiPick,word(0),Replkau.WkauNew,comp(0))<> cmCancel)
+    {        
+      if(ReplKau.WkauNew <> ReplKau.wKauOld)
+      {
+        if((Replkau.WkauNew<>0)and(ReplKau.wkauOld<>0))
+        {
+          if (GetFirst tmpReplkau where ((Replkau.WKauOld == tmpReplKau.WKauOld and
+                                          ReplKau.WKauNew == tmpReplKau.WKauNew)) = tsOk)
+          {   
+            Message('Для указанной пары аналитик шаблон уже задан',CancelButton);
+            Set ReplKau.WKauNew := a;
+            Abort;
+          }
+          else
+          { 
+            if (ReplKau.CKAUOTHER <> 0)and(ReplKau.WKauNew <> a)
+            {
+              ReplKau.CKAUOTHER := 0;
+            }
+            _loop SReplkau where ((ReplKau.Nrec == SReplKau.CREPLKAU))
+            {
+              SReplKau.cKauNew := 0;
+              update Current SReplKau;   
+            }
+            RereadRecord(#SReplKau);
+            RescanPanel(#Replkau);
+          }
+        }
+      }
+      else
+      {
+        Message('Сама аналитика в себя не может переходить',CancelButton);
+        Set ReplKau.WKauNew := a;
+        Abort;
+      }  
+    }
+  } 
+  #fKauOther :
+  { 
+    if Replkau.WkauNew = 0
+      message('Не задана новая группа аналитика')
+    else
+    { 
+      s:=KauOther;
+      if iGetKau.GetCodeKau(cgiPick,ReplKau.WKauNew,Replkau.ckauOther) <> 0
+      {
+        RescanPanel(#ReplKau);
+        RereadRecord(#SReplKau);
+      }
+    }
+  }
+  end;
+  if ((ReplKau.WkauOld <> 0)and
+      (ReplKau.WKauNew <> 0)and
+      (ReplKau.CKauOther <> 0)) 
+  {
+    if IsNew 
+      insert current ReplKau
+    else
+      update current ReplKau;
+    rereadrecord(#ReplKau);
+  }
+}
+end;//handleevent
+end;//panel
+
+procedure MarkUnMarkValue;
+{
+   InvertMarker(Markers, SReplKau.NRec);
+   RedrawCurrentAndGo (GetCurrentFormat,true);
+}
+
+/* Пометить все записи */
+procedure MarkAllValues;
+{
+   P := SReplKau.NRec;
+
+   StartNewVisual(vtRotateVisual, vfTimer + vfBreak + vfConfirm, 'Помечаю весь список ...', 1);
+   _loop SReplKau
+   {
+      NextVisual;
+      InsertMarker(Markers, SReplKau.NRec);
+   }
+   StopVisual('', 0);
+
+   if (GetFirst SReplKau Where ((P == SReplKau.NRec)) ) = tsOk {};
+   ReScanPanel(#SReplKau);
+}
+
+/* Снять пометки со всех записей */
+procedure UnMarkAllValues;
+{
+   ClearMarker(Markers);
+   ReScanPanel(#SReplKau);
+}
+
+/* Инвертировать все пометки для проектов */
+procedure InvertMarkValues;
+{
+   P := SReplKau.NRec;
+   StartNewVisual(vtRotateVisual, vfTimer + vfBreak + vfConfirm, 'Инвертирование пометок ...', 1);
+
+   _loop SReplKau
+   {
+     InvertMarker(Markers, SReplKau.NRec);
+     NextVisual;
+   }
+   StopVisual('', 0);
+
+   if (GetFirst SReplKau Where ((P == SReplKau.NRec)) ) = tsOk {};
+   ReScanPanel(#SReplKau);
+}
+
+panel panSReplKau;
+show at (,6,,);
+table SReplKau;
+browse brEditSReplKau;
+show at (,6,,);
+  fields
+    fKauOld  'Старое значение аналитики ' ('Старое значение аналитики',,sci178InsPM): [30],Protect,{Font={Bold=IsPickB}};
+    fKauNew  'Новое значение аналитики'  ('Новое значение аналитики' ,,sci13Esc): [30],Protect;
+end;
+HandleEvent
+cmPick:
+{
+  case CurField of 
+  #fKauNew :
+  {
+    If (not IsValid(tnSReplKau))
+    {
+      message('Не задано старое значение аналитики');
+    }
+    else
+    {
+      s:=KauNew;
+      if (iGetKau.GetCodeKau(cgiPick,ReplKau.WKauNew,s) <> 0)
+      { 
+         if GetMarkerCount(Markers) <> 0 then
+         {
+           N := GetMarkerCount(Markers); m:=0;
+           StartNewVisual(vtIndicatorVisual, vfTimer + vfBreak + vfConfirm,
+                          'Идет создание ' +string(m)+ ' настройки шаблона из ' + string(N),
+                          N);
+           while ((M < N) and (NextVisual)) do
+           {
+             GetMarker(Markers, M, P);
+             SetVisualHeader('Идет создание ' +string(m)+ ' настройки шаблона из ' + string(N));           
+             if (GetFirst SReplKau Where ((P == SReplKau.NRec)) = tsOk) then
+             {
+               SReplKau.cKauNew := s;
+               update current SReplKau;
+               M := M + 1;
+             }  
+           }
+           StopVisual('', 0);  
+           ClearMarker(Markers);
+         }
+         else
+         {
+           SReplKau.cKauNew := s;
+           update current SReplKau;         	
+         }  
+      }
+      rereadrecord(#SReplKau);
+    }      
+  };
+  end;
+}
+cmDeleteRecord:
+{
+  if isValid(tnSReplKau)
+  {
+    delete current SReplKau;
+  }
+}
+end;
+end; //panel
+
+HandleEvent
+cmDelOnProtect:
+{
+  case CurField of 
+  #fKauNew :
+  {
+    SReplKau.cKauNew := 0;
+    update current SReplKau;
+  }
+  end;
+}
+
+cmInsert:
+{       
+  case CurField of
+  #fKauOld:
+  {
+    if iGetKau.GetCodeKau(cgiPickMult, ReplKau.WKauOld, KauOld) <> 0
+    {
+      var UnikMarker : TPtr;
+      var cRec : Comp;
+      nMarkers := '';
+      nMarkers := iGetKau.GetMarkerName(Replkau.WKauOld);
+      UnikMarker := InitMarker(nMarkers,8,200,100,false);
+      FOR (i := 0; i <= GetMarkerCount(UnikMarker)-1; i:=i+1)
+      { 
+        GetMarker(UnikMarker, i, cRec);
+        If (GetFirst tmpSReplKau where ((ReplKau.Nrec == tmpSReplkau.cReplKau and
+                                         cRec         == tmpSReplKau.cKauOld))<>tsOk)
+        { 
+          clearbuffer(#tmpSReplkau);
+          tmpSReplKau.cKauOld := cRec;
+          tmpSReplKau.cReplKau := ReplKau.Nrec;
+          insert current tmpSReplKau;
+        }
+      }
+      clearmarker(unikMarker);
+      donemarker(unikMarker, nMarkers);
+    }
+    rereadRecord(#SReplKau);
+    abort;exit;
+  }
+  end;
+}
+cmDone:
+{  
+  if ProverkaValidVvod
+  { 
+    delete all SReplKau where ((ReplKau.Nrec == SReplKau.cReplKau and
+                                 word(0)     == SReplKau.ckauNew));
+    rereadRecord(#SReplkau);
+    Rereadrecord(#Replkau);
+  }
+  else
+    Abort;
+}
+cmCancel:
+{ 
+  if (not ProverkaValidVvod)
+    Abort;
+}
+
+cmSelectAll    :{
+  if Message('Пометить весь список?', YesNo) = Yes
+    MarkAllValues;
+}    
+
+cmUnSelectAll  :
+{
+  if Message('Снять все пометки?', YesNo) = Yes
+    UnMarkAllValues;
+}
+cmInvertAll :
+{
+  if Message('Инвертировать все пометки?', YesNo) = Yes
+    InvertMarkValues;
+}    
+    
+cmMarkUnMark :
+{
+  MarkUnMarkValue;
+}  
+end;
+
+end; //window
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+HandleEvent//interface
+cmInit:
+  {
+    // Инициализация маркеров
+    Markers := InitMarker('', 8, 1000, 100);
+    if ((KauOldFlt = KauNewFlt)and(KauNewFlt<>0))
+    {
+      Message('Нельзя передавать одинаковые группы аналитик для замены');
+      CloseInterface(cmDefault);exit;
+    }
+
+  // ограничения на просмотр
+    if( (KauOldFlt<>0) and (KauNewFlt<>0) )
+    { 
+       AddBounds(tbByKauOldAndNew);
+    } else
+    if( KauOldFlt<>0 )
+    {  AddBounds(tbByKauOld);
+    } else
+    if( KauNewFlt<>0 )
+    {  AddBounds(tbByKauNew);
+    }
+    i := 0;
+    _loop Replkau
+    {
+      i:=i+1;
+    }
+    if (i = 0) and (KauOldFlt <> 0)and (KauNewFlt <> 0) 
+    {
+      clearbuffer(#Replkau);
+      ReplKau.WKauOld := KauOldFlt;
+      ReplKau.WKauNew := KauNewFlt;
+      ReplKau.cKauOther := NRecPick;
+      insert current ReplKau;
+    } 
+    if i = 0
+    { 
+      PutCommand(cmEdit);
+    }
+  }
+
+cmDone:
+{
+  DoneMarker (Markers,'');
+}
+
+
+cmEdit :
+{
+  RunWindow(wiReplKau);
+}
+end;
+
+end.

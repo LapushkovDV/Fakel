@@ -1,0 +1,291 @@
+/*
+ ษอออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออป
+ บ                     (c) 1994,97 ชฎเฏฎเ ๆจ๏ €€’€                      บ
+ บ เฎฅชโ        : €€’€                                                 บ
+ บ ‘จแโฅฌ        : €€’€                                                 บ
+ บ ฅเแจ๏        : 5.80                                                      บ
+ บ  งญ ็ฅญจฅ    :  ฌฅญ  €“ คซ๏ ฎก๊ฅคจญฅญจ๏ ฃเใฏฏ                        บ
+ บ โขฅโแโขฅญญ๋ฉ :  ญชฅขจ็ ฌจโเจฉ ข ญฎขจ็ (Daemon)                        บ
+ บ  เ ฌฅโเ๋     : …แโ์                                                      บ
+ ศอออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออผ
+*/
+#declare UpdateKauDeclareNoIndexWithIndex(Tabl,Tbl,Kau,IndexNo)
+      IF Not(NextVisual) {};
+      _LOOP #Tabl Where ((wKodTbl==#Tabl.#Tbl[#IndexNo] (noindex)and cKauFind==#Tabl.#Kau[#IndexNo](NoIndex)))
+        InsertMarker(MyMarker,#Tabl.nRec);
+      CountMarker := GetMarkerCount(MyMarker);
+      For (lCycle:=0; lCycle<>CountMarker; lCycle:=lCycle+1)
+        if (GetFirst #Tabl where ((GetMarkerMy(MyMarker,lCycle)==#Tabl.nRec))= tsOk)
+          {
+          #Tabl.#Kau[#IndexNo]:= cKauRepl;
+          if (Update current #Tabl)<>tsOk {};
+          }
+      ClearMarker(MyMarker);
+#end
+
+    #declare UpdateKauDeclare(Tabl,Tbl,Kau)
+    IF Not(NextVisual) {};
+    _LOOP #Tabl Where ((wKodTbl==#Tabl.#Tbl[1] and cKauFind==#Tabl.#Kau[1]))
+      InsertMarker(MyMarker,#Tabl.nRec);
+    CountMarker := GetMarkerCount(MyMarker);
+    For (lCycle:=0; lCycle<>CountMarker; lCycle:=lCycle+1)
+      if (GetFirst #Tabl where ((GetMarkerMy(MyMarker,lCycle)==#Tabl.nRec))= tsOk)
+        {
+        #Tabl.#Kau[1]:= cKauRepl;
+        if (Update current #Tabl)<>tsOk {};
+        }
+    ClearMarker(MyMarker);
+
+    IF Not(NextVisual) {};
+    _LOOP #Tabl Where ((wKodTbl==#Tabl.#Tbl[2] and cKauFind==#Tabl.#Kau[2]))
+      InsertMarker(MyMarker,#Tabl.nRec);
+    CountMarker := GetMarkerCount(MyMarker);
+    For (lCycle:=0; lCycle<>CountMarker; lCycle:=lCycle+1)
+      if (GetFirst #Tabl where ((GetMarkerMy(MyMarker,lCycle)==#Tabl.nRec))= tsOk)
+        {
+        #Tabl.#Kau[2]:= cKauRepl;
+        if (Update current #Tabl)<>tsOk {};
+        }
+    ClearMarker(MyMarker);
+
+    IF Not(NextVisual) {};
+    _LOOP #Tabl Where ((wKodTbl==#Tabl.#Tbl[3] and cKauFind==#Tabl.#Kau[3]))
+      InsertMarker(MyMarker,#Tabl.nRec);
+    CountMarker := GetMarkerCount(MyMarker);
+    For (lCycle:=0; lCycle<>CountMarker; lCycle:=lCycle+1)
+      if (GetFirst #Tabl where ((GetMarkerMy(MyMarker,lCycle)==#Tabl.nRec))= tsOk)
+        {
+        #Tabl.#Kau[3]:= cKauRepl;
+        if (Update current #Tabl)<>tsOk {};
+        }
+    ClearMarker(MyMarker);
+
+    IF Not(NextVisual) {};
+    _LOOP #Tabl Where ((wKodTbl==#Tabl.#Tbl[4] and cKauFind==#Tabl.#Kau[4]))
+      InsertMarker(MyMarker,#Tabl.nRec);
+    CountMarker := GetMarkerCount(MyMarker);
+    For (lCycle:=0; lCycle<>CountMarker; lCycle:=lCycle+1)
+      if (GetFirst #Tabl where ((GetMarkerMy(MyMarker,lCycle)==#Tabl.nRec))= tsOk)
+        {
+        #Tabl.#Kau[4]:= cKauRepl;
+        if (Update current #Tabl)<>tsOk {};
+        }
+    ClearMarker(MyMarker);
+
+    IF Not(NextVisual) {};
+    _LOOP #Tabl Where ((wKodTbl==#Tabl.#Tbl[5] and cKauFind==#Tabl.#Kau[5]))
+      InsertMarker(MyMarker,#Tabl.nRec);
+    CountMarker := GetMarkerCount(MyMarker);
+    For (lCycle:=0; lCycle<>CountMarker; lCycle:=lCycle+1)
+      if (GetFirst #Tabl where ((GetMarkerMy(MyMarker,lCycle)==#Tabl.nRec))= tsOk)
+        {
+        #Tabl.#Kau[5]:= cKauRepl;
+        if (Update current #Tabl)<>tsOk {};
+        }
+    ClearMarker(MyMarker);
+
+    IF Not(NextVisual) {};
+    _LOOP #Tabl Where ((wKodTbl==#Tabl.#Tbl[6] and cKauFind==#Tabl.#Kau[6]))
+      InsertMarker(MyMarker,#Tabl.nRec);
+    CountMarker := GetMarkerCount(MyMarker);
+    For (lCycle:=0; lCycle<>CountMarker; lCycle:=lCycle+1)
+      if (GetFirst #Tabl where ((GetMarkerMy(MyMarker,lCycle)==#Tabl.nRec))= tsOk)
+        {
+        #Tabl.#Kau[6]:= cKauRepl;
+        if (Update current #Tabl)<>tsOk {};
+        }
+    ClearMarker(MyMarker);
+    #end
+    #declare UpdateKauDeclareNoIndex(Tabl,Tbl,Kau)
+    IF Not(NextVisual) {};
+    _LOOP #Tabl Where ((wKodTbl==#Tabl.#Tbl[1](NoIndex) and cKauFind==#Tabl.#Kau[1](NoIndex)))
+      InsertMarker(MyMarker,#Tabl.nRec);
+    CountMarker := GetMarkerCount(MyMarker);
+    For (lCycle:=0; lCycle<>CountMarker; lCycle:=lCycle+1)
+      if (GetFirst #Tabl where ((GetMarkerMy(MyMarker,lCycle)==#Tabl.nRec))= tsOk)
+        {
+        #Tabl.#Kau[1]:= cKauRepl;
+        if (Update current #Tabl)<>tsOk {};
+        }
+    ClearMarker(MyMarker);
+
+    IF Not(NextVisual) {};
+    _LOOP #Tabl Where ((wKodTbl==#Tabl.#Tbl[2](NoIndex) and cKauFind==#Tabl.#Kau[2](NoIndex)))
+      InsertMarker(MyMarker,#Tabl.nRec);
+    CountMarker := GetMarkerCount(MyMarker);
+    For (lCycle:=0; lCycle<>CountMarker; lCycle:=lCycle+1)
+      if (GetFirst #Tabl where ((GetMarkerMy(MyMarker,lCycle)==#Tabl.nRec))= tsOk)
+        {
+        #Tabl.#Kau[2]:= cKauRepl;
+        if (Update current #Tabl)<>tsOk {};
+        }
+    ClearMarker(MyMarker);
+
+    IF Not(NextVisual) {};
+    _LOOP #Tabl Where ((wKodTbl==#Tabl.#Tbl[3] (NoIndex) and cKauFind==#Tabl.#Kau[3](NoIndex)))
+      InsertMarker(MyMarker,#Tabl.nRec);
+    CountMarker := GetMarkerCount(MyMarker);
+    For (lCycle:=0; lCycle<>CountMarker; lCycle:=lCycle+1)
+      if (GetFirst #Tabl where ((GetMarkerMy(MyMarker,lCycle)==#Tabl.nRec))= tsOk)
+        {
+        #Tabl.#Kau[3]:= cKauRepl;
+        if (Update current #Tabl)<>tsOk {};
+        }
+    ClearMarker(MyMarker);
+
+    IF Not(NextVisual) {};
+    _LOOP #Tabl Where ((wKodTbl==#Tabl.#Tbl[4](NoIndex) and cKauFind==#Tabl.#Kau[4](NoIndex)))
+      InsertMarker(MyMarker,#Tabl.nRec);
+    CountMarker := GetMarkerCount(MyMarker);
+    For (lCycle:=0; lCycle<>CountMarker; lCycle:=lCycle+1)
+      if (GetFirst #Tabl where ((GetMarkerMy(MyMarker,lCycle)==#Tabl.nRec))= tsOk)
+        {
+        #Tabl.#Kau[4]:= cKauRepl;
+        if (Update current #Tabl)<>tsOk {};
+        }
+    ClearMarker(MyMarker);
+
+    IF Not(NextVisual) {};
+    _LOOP #Tabl Where ((wKodTbl==#Tabl.#Tbl[5](NoIndex) and cKauFind==#Tabl.#Kau[5](NoIndex)))
+      InsertMarker(MyMarker,#Tabl.nRec);
+    CountMarker := GetMarkerCount(MyMarker);
+    For (lCycle:=0; lCycle<>CountMarker; lCycle:=lCycle+1)
+      if (GetFirst #Tabl where ((GetMarkerMy(MyMarker,lCycle)==#Tabl.nRec))= tsOk)
+        {
+        #Tabl.#Kau[5]:= cKauRepl;
+        if (Update current #Tabl)<>tsOk {};
+        }
+    ClearMarker(MyMarker);
+
+    IF Not(NextVisual) {};
+    _LOOP #Tabl Where ((wKodTbl==#Tabl.#Tbl[6](NoIndex) and cKauFind==#Tabl.#Kau[6](NoIndex)))
+      InsertMarker(MyMarker,#Tabl.nRec);
+    CountMarker := GetMarkerCount(MyMarker);
+    For (lCycle:=0; lCycle<>CountMarker; lCycle:=lCycle+1)
+      if (GetFirst #Tabl where ((GetMarkerMy(MyMarker,lCycle)==#Tabl.nRec))= tsOk)
+        {
+        #Tabl.#Kau[6]:= cKauRepl;
+        if (Update current #Tabl)<>tsOk {};
+        }
+    ClearMarker(MyMarker);
+    #end
+Function UpdateKau ( wKodTbl : word; cKauFind : comp; cKauRepl : comp): Boolean;
+{
+UpdateKau := False;
+#UpdateKauDeclareNoindex(ELDIAGRAM,TblOs,KauOs)
+#UpdateKauDeclare(GoNewPer,TblOs,KauOs)
+#UpdateKauDeclareNoindex(JornTune,TblOs,KauOs)
+#UpdateKauDeclare(HozObor,TblOs,cKauOs)
+#UpdateKauDeclare(HozObor,TblKs,cKauKs)
+#UpdateKauDeclareNoindexWithIndex(KAUCUTS,wKau,ckau,1)
+#UpdateKauDeclareNoindexWithIndex(KAUCUTS,wKau,ckau,2)
+#UpdateKauDeclareNoindexWithIndex(KAUCUTS,wKau,ckau,3)
+#UpdateKauDeclareNoindexWithIndex(KAUCUTS,wKau,ckau,4)
+#UpdateKauDeclareNoindexWithIndex(KAUCUTS,wKau,ckau,5)
+#UpdateKauDeclareNoindexWithIndex(KAUCUTS,wKau,ckau,6)
+#UpdateKauDeclareNoindexWithIndex(KAUCUTS,wKau,ckau,7)
+#UpdateKauDeclareNoindexWithIndex(KAUCUTS,wKau,ckau,8)
+#UpdateKauDeclareNoindexWithIndex(KAUCUTS,wKau,ckau,9)
+#UpdateKauDeclareNoindexWithIndex(KAUCUTS,wKau,ckau,10)
+
+IF Not(NextVisual) {};
+_LOOP OBORKAU Where ((wKodTbl==OBORKAU.WKAU and cKauFind==OBORKAU.CKAU(NoIndex)))
+  InsertMarker(MyMarker,OBORKAU.nRec);
+CountMarker := GetMarkerCount(MyMarker);
+For (lCycle:=0; lCycle<>CountMarker; lCycle:=lCycle+1)
+  if (GetFirst OBORKAU where ((GetMarkerMy(MyMarker,lCycle)==OBORKAU.nRec))= tsOk)
+  {
+    OBORKAU.WKAU:= cKauRepl;
+    if (Update current OBORKAU)<>tsOk then {};
+  }
+ClearMarker(MyMarker);
+
+#UpdateKauDeclare(Oborot,TblOs,KauOs)
+#UpdateKauDeclare(Oborot,TblKs,KauKs)
+#UpdateKauDeclare(SaldDay,TblOs,KauOs)
+#UpdateKauDeclare(SaldMoun,TblOs,KauOs)
+#UpdateKauDeclare(SALDOBL,TblOs,KauOs)
+#UpdateKauDeclareNoindex(SEBFACT,TblKau,cKau)
+#UpdateKauDeclareNoindex(SEBKAU,TblKau,cKau)
+#UpdateKauDeclareNoindex(SETBILL,TblKauK,cKauK)
+#UpdateKauDeclareNoindex(SETBILL,TblKauO,cKauO)
+#UpdateKauDeclareNoindex(SPBUHGT,TblOs,KauOs)
+#UpdateKauDeclareNoindex(SPCASH,TblOs,KauOs)
+#UpdateKauDeclareNoindex(SpJorn,TblOs,KauOs)
+#UpdateKauDeclareNoindexWithIndex(SPRASZTR,TBLOS,cKauOS,1)
+#UpdateKauDeclareNoindexWithIndex(SPRASZTR,TBLOS,cKauOS,2)
+#UpdateKauDeclareNoindexWithIndex(SPRASZTR,TBLOS,cKauOS,3)
+#UpdateKauDeclareNoindexWithIndex(SPRASZTR,TBLOS,cKauOS,4)
+#UpdateKauDeclareNoindexWithIndex(SPRASZTR,TBLOS,cKauOS,5)
+#UpdateKauDeclareNoindexWithIndex(SPRASZTR,TBLOS,cKauOS,6)
+#UpdateKauDeclareNoindexWithIndex(SPRASZTR,TBLOS,cKauOS,7)
+#UpdateKauDeclareNoindexWithIndex(SPRASZTR,TBLOS,cKauOS,8)
+#UpdateKauDeclareNoindexWithIndex(SPRASZTR,TBLOS,cKauOS,9)
+#UpdateKauDeclareNoindexWithIndex(SPRASZTR,TBLOS,cKauOS,10)
+#UpdateKauDeclareNoindexWithIndex(SPRASZTR,TBLKS,cKauKS,1)
+#UpdateKauDeclareNoindexWithIndex(SPRASZTR,TBLKS,cKauKS,2)
+#UpdateKauDeclareNoindexWithIndex(SPRASZTR,TBLKS,cKauKS,3)
+#UpdateKauDeclareNoindexWithIndex(SPRASZTR,TBLKS,cKauKS,4)
+#UpdateKauDeclareNoindexWithIndex(SPRASZTR,TBLKS,cKauKS,5)
+#UpdateKauDeclareNoindexWithIndex(SPRASZTR,TBLKS,cKauKS,6)
+#UpdateKauDeclareNoindexWithIndex(SPRASZTR,TBLKS,cKauKS,7)
+#UpdateKauDeclareNoindexWithIndex(SPRASZTR,TBLKS,cKauKS,8)
+#UpdateKauDeclareNoindexWithIndex(SPRASZTR,TBLKS,cKauKS,9)
+#UpdateKauDeclareNoindexWithIndex(SPRASZTR,TBLKS,cKauKS,10)
+#UpdateKauDeclare(Valut,TblOs,KauOs)
+#UpdateKauDeclare(Valut,TblKs,KauKs)
+#UpdateKauDeclare(Valut,TblKs1,KauKs1)
+//----------------------  เฏซ โ   ------------------------------
+#UpdateKauDeclareNoindex(AROTPUSK,TblD,cKauD)
+#UpdateKauDeclare(BLisNet,TblD,cKauD)
+#UpdateKauDeclare(DOPLATA,TblD,cKauD)
+#UpdateKauDeclareNoindex(KLFILTER,TblD,cKauD)
+#UpdateKauDeclareNoindex(KLFILTER,TblK,cKauK)
+#UpdateKauDeclare(Klvidopl,TblD,cKauD)
+#UpdateKauDeclare(Klvidopl,TblK,cKauK)
+#UpdateKauDeclare(Klvidud,TblD,cKauD)
+#UpdateKauDeclare(Klvidud,TblK,cKauK)
+#UpdateKauDeclare(LSchet,TblD,cKauD)
+#UpdateKauDeclareNoindex(LSTAB,TblD,cKauD)
+#UpdateKauDeclareNoindex(LSTAB,TblK,cKauK)
+#UpdateKauDeclareNoindex(NENACH,TblD,cKauD)
+#UpdateKauDeclareNoindex (NENACH,TblK,cKauK)
+// ชฎฌฅญโ เจซ ฏฎแซฅ เ งฃฎขฎเ  แ  แจซฅขแชฎฉ
+// UpdateKauDeclare(Nachisl,TblD,cKauD)
+// UpdateKauDeclare(Nachisl,TblK,cKauK)
+#UpdateKauDeclare(NarDop,TblD,cKauD)
+#UpdateKauDeclare(NormTmr,TblD,cKauD)
+#UpdateKauDeclare(OTPDOP,TblD,cKauD)
+#UpdateKauDeclare(Otpusk,TblD,cKauD)
+#UpdateKauDeclare(Otpusk,TblK,cKauK)
+#UpdateKauDeclare(Perech,TblK,cKauK)
+#UpdateKauDeclareNoindex(Perevod,TblD,cKauD)
+#UpdateKauDeclareNoindex(Perevod,TblK,cKauK)
+#UpdateKauDeclareNoindex(PEREVODTEK,TblD,cKauD)
+#UpdateKauDeclareNoindex(PEREVODTEK,TblK,cKauK)
+#UpdateKauDeclare(PEREXOD,TblD,cKauD)
+#UpdateKauDeclare(Prnaryad,TblD,cKauD)
+#UpdateKauDeclare(PrVidOpl,TblD,cKauD)
+#UpdateKauDeclare(PrVidOpl,TblK,cKauK)
+#UpdateKauDeclareNoindex(RASDOP,TblD,cKauD)
+#UpdateKauDeclare(RasOper,TblD,cKauD)
+#UpdateKauDeclare(Schpere,TblD,cKauD)
+#UpdateKauDeclare(Schpere,TblDN,cKauDN)
+#UpdateKauDeclare(Shtraf,TblK,cKauK)
+#UpdateKauDeclare(SmNaryad,TblD,cKauD)
+#UpdateKauDeclare(SumVidOP,TblD,cKauD)
+#UpdateKauDeclareNoindex(SUMVIDUD,TblD,cKauD)
+#UpdateKauDeclareNoindex(SUMVIDUD,TblK,cKauK)
+#UpdateKauDeclare(Sys_Dog,TblK,cKauK)
+#UpdateKauDeclare(Sys_Mbf,TblK,cKauK)
+#UpdateKauDeclare(Sys_Nar,TblK,cKauK)
+#UpdateKauDeclare(Sys_Uder,TblK,cKauK)
+#UpdateKauDeclare(UchRabvr,TblD,cKauD)
+// ชฎฌฅญโ เจซ ฏฎแซฅ เ งฃฎขฎเ  แ  แจซฅขแชฎฉ
+// UpdateKauDeclare(Uder,TblD,cKauD)
+// UpdateKauDeclare(Uder,TblK,cKauK)
+#UpdateKauDeclareNoindex(XarPred,TblK,cKauK)
+#UpdateKauDeclareNoindex(ZAROPER,TblD,cKauD)
+#UpdateKauDeclareNoindex(ZAROPER,TblK,cKauK)
+UpdateKau := True;
+}

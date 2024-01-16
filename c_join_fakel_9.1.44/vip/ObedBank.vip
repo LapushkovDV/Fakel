@@ -1,0 +1,819 @@
+//********************************************************************************
+//                                                        (c) корпорация Галактика
+// Галактика 7.12 - Объединения
+// Объединение банков
+//********************************************************************************
+#include marker.vih // описание объекта и объявление интерфейса
+                    // marker c реализацией по умолчанию
+
+
+#include exectime.dic  // таблица  для хранения результатов по времени объединения
+#include filial_macro.vpp// макросы для обработки филиальности
+#include MacOb.vpp //макросы (для таблиц, не содержащих кау, и общие)
+#define UseGetMarkerMy
+
+#doc
+Объединение банков
+#end
+Interface KatBOb 'Объединение банков'
+  ('Объединение банков', hcNastrAdmWOb, sci1Esc) EscClose, cyan;
+  show at (,,80,23);
+
+const
+  lMsgOdebdifferenceUser = 'Этим объединением занимается другой пользователь.';
+  lFilterByUserOb  = 'FilterByUserObKatB';
+  lNeedZarRunOb    = 'NeedZarRunObKatB';
+  lCheckTimeObedRepOb = 'CheckTimeObedRepObKatB';
+  lNotDefine = 'Удаленная банк';
+end;
+
+Create View
+#INCLUDE obed.var //объявление переменных
+  i            : integer;
+  bAbortDel : boolean;
+  CountRecOrdInProcess :integer; //количество записей для визуализации vtDownVisual
+  myMarkerSpikokbank : TPtr;     // Для работы с маркерами
+as Select
+  #Strorka_sObName(KatB,lNotDefine,Name)
+  #Strorka_sOb1Name(KatB1,lNotDefine,Name)
+//----------------------------------------------------------------------------------
+  #InternalFields
+//----------------------------------------------------------------------------------
+  , if(JoiHead.rComp = comp(1), '+', '') (fieldname = strJoiBank)
+//----------------------------------------------------------------------------------
+  #InternalFieldsForShowFilial
+From
+  ExecTime,
+  KatB,
+  KatBank,
+  JoiHead
+  #TableForFilial,
+  SpJoi,
+  KatState,
+  KatCity,
+  KatSopr,
+  EvJoiHead,
+  KatB KatB1,
+  KatB KatBTmp,
+  JoiHead   tmpJoiHead,
+  SpJoi     tmpSpJoi,
+  EvJoiHead EvJoiHead1
+Where
+((
+  m_wCgObedValue == JoiHead.TypeEvent And    // Банки
+  JoiHead.cRec     == KatB.nRec         And    // Объединение - Банки
+  JoiHead.nRec     == SpJoi.cJoiHead    And    // Объединение - спецификация
+  SpJoi.cRec       == KatB1.nRec        And    // Спецификация - Банки
+  KatB.cState      == KatState.NRec     And
+  KatB.cCity       == KatCity.NRec
+  #WhereForFilial
+))
+Bounds OnlyUser =
+      m_wCgObedValue == JoiHead.TypeEvent And UserName() == JoiHead.UserName;
+File MemoFile;
+
+form ErrObAll ('ErrObBank.OUT','ErrObAll') with NoVisual;
+form frmObedAll('obedBank.out','obedAll') with novisual;
+form frmExchngTime('ExchngTime.out', 'ExchngTime') with novisual;
+#include obedtime.vpp //процедуры и фукнции по работе с таблицей информации по времени объединения
+#include ErrObAll.vpp    // Пакет ошибок
+#include printrelat.vpp // отчет замен
+#include filial_func.vpp // проверка филиальности
+
+//процедуры и функции обрабатывающие приход реплики с объединеннями  из другого офиса
+#include ObFCorpo.vpp
+function GetPrintName(cRec : comp) : string;
+var
+  sResult : string;
+{
+  sResult := 'Удален';
+  If (GetFirst KatBTmp where ((cRec == KatBTmp.Nrec)) = tsOk)
+    sResult := KatBTmp.Name;
+  result := sResult;
+}
+
+Function CheckObj : boolean;
+{
+  #Check_Obj(KatBTmp)
+}
+
+var
+  m_pMarkerUp   : IMarker(marker) new;
+
+Procedure ObBreak;  // Прерывание объединения
+var
+  lcount_out : longint;
+{
+  lCount_out := VisualCount ();
+  Message('Для прекращения объединения придется' + chr(13)
+        + 'подождать до окончания замены на' + chr(13)
+        + '"' +trim (KatBTmp.Name)+'".', InfOrmation + OkButton);
+  ReStartVisual('Идет замещение организации на'#13''+'"'+ trim(KatBTmp.Name)+'"' +
+                ''#13'', m_lcount_vis);
+  NNextVisual (lCount_out);
+  m_bBreak := True;
+}
+
+Function FindExistObj(cNrecBank : comp) : boolean;  // Проверка не участвует ли уже
+                                                 // банк в объединении
+var
+  sObjUp, sObjDown : string[80];
+{
+  #FindObj(m_wCgObedValue, KatBTmp, Name, lNotDefine, 'Банк ', cNrecBank, 0)
+}
+
+Function updateObj : boolean;
+{
+  m_bBreak    := False;
+  result := False;
+  m_bShowRepTime := true;
+  _nMsgFrm  := 0;          // Общее число ошибок
+  m_lErrorJoi  := 0;
+  m_lErrorSp   := 0;
+  m_lcount_vis := 0;
+
+  _loop JoiHead where ((    m_wCgObedValue == JoiHead.TypeEvent
+                        and UserName() == JoiHead.UserName ))
+  {
+    case JoiHead.Status of
+    word(0) : if (m_wParamOb = word(1)) continue;
+    word(1) : {};
+    word(3) :  continue;
+    word(4) : if (m_wParamOb <> word(0)) continue;
+    end;
+    if (JoiHead.prCOrpo <> byte(0))
+      if (CheckObj)
+      {
+        Message ('Одно из объединений, присланное по Corpo обмену' + chr(13)
+               + 'будет отложено, поскольку не существует банка,' + chr(13)
+               + 'в которую необходимо производить объединение.');
+
+        continue;
+      }
+
+    _loop SpJoi where ((    JoiHead.nRec == SpJoi.cJoiHead
+                        and (word(3) <> SpJoi.Status) ))
+      m_lcount_vis := m_lcount_vis +1;
+  }
+
+  if (m_lcount_vis <> 0)
+  {
+    if (Message('Если Вы не сохранили данные, еще раз рекомендуем это сделать.' + chr(13)
+              + 'Запустить объединение банков?', YesNo + mfSwapButtons + confirmation) = cmNo)
+    {
+      m_bShowRepTime := false;
+      exit;
+    }
+    StartNewVisual(vtIndicatOrVisual, vfTimer + vfBreak + vfConfirm,''#13#13#13'', m_lcount_vis);
+  }
+  else
+  {
+    Message ('Нет заданий на объединение.');
+    m_wParamOb := 0;
+    m_bShowRepTime := false;
+    exit;
+  }
+  MyMarker := InitMarker('', 8, 50, 50, False);
+
+                // Цикл по результирующей
+  if (GetFirst JoiHead Where ((m_wCgObedValue == JoiHead.TypeEvent
+                           and UserName()       == JoiHead.UserName )) = tsOk )
+  do
+  {
+    case JoiHead.Status of
+    word(0) : if (m_wParamOb = word(1)) continue;
+    word(1) : {};
+    word(3) :  continue;
+    word(4) : if (m_wParamOb <> word(0)) continue;
+    end;
+
+    if (JoiHead.prCOrpo <> byte(0))
+      if (CheckObj) continue;
+
+    if (    (m_bCOrpo)
+        and (JoiHead.prCOrpo = byte(0))
+        and (JoiHead.Status = word(0)))
+    {
+      ClearBuffer (#EvJoiHead);
+      EvJoiHead.FilialNo := OfficeNo();
+      EvJoiHead.TypeEvent := m_wCgObedValue;
+      EvJoiHead.cRec := JoiHead.cRec;
+      EvJoiHead.dDate := Cur_date();
+      MemoFile.OpenMemo (EvJoiHead.EvSp);
+      MemoFile.Write(JoiHead.rComp);
+      _loop SpJoi where ((JoiHead.nRec == SpJoi.cJoiHead))
+      {
+        MemoFile.Write(SpJoi.cRec);
+        MemoFile.Write(SpJoi.Num);
+        MemoFile.Write(SpJoi.isDel);
+/*
+        If (GetFirst KatBtmp where ((SpJoi.cRec == KatBtmp.nRec)) = tsOk)
+          MemoFile.Write(KatBtmp.Name);
+        Else
+          MemoFile.Write(lNotDefine);
+*/
+      }
+      MemoFile.Close;
+      insert current EvJoiHead;
+    }
+
+    JoiHead.Status := wOrd(1);  // Делаем статус "Начата"
+    Update Current JoiHead;
+
+    If ( GetFirst KatBTmp where (( JoiHead.cRec == KatBTmp.nrec)) = tsOk ) {};
+
+    iNextVisual('Идет замещение банка на'#13''+'"'+ trim(KatBTmp.Name)+'"' +
+                ''#13'');
+    m_bWriteInfoSpJoi := True;
+
+                //  Цикл по объединяемым
+    if (GetFirst SpJoi where ((JoiHead.nRec == SpJoi.cJoiHead And (wOrd(3)<>SpJoi.Status))) = tsOk)
+      do
+      {
+        SpJoi.Status := wOrd(1);
+        Update current SpJoi;
+
+        IF Not(NextVisual) ObBreak;
+        m_tTimeBeg := cur_time;
+        _Loop KatBank where ((SpJoi.cRec == KatBank.cBank))
+          InsertMarker(MyMarker,KatBank.nRec);
+        CountMarker := GetMarkerCount(MyMarker);
+        StartNewVisual(vtDownVisual,vfTimer,'Обработка таблицы KatBank', CountMarker + 1);
+        For (lCycle:=0; lCycle<>CountMarker; lCycle:=lCycle+1)
+          if (GetFirst KatBank where ((GetMarkerMy(MyMarker,lCycle)==KatBank.nRec))= tsOk)
+          {
+            NextVisual;
+            KatBank.cBank := JoiHead.cRec;
+            if JoiHead.rComp = 1 //синхронизация справочника расчетных счетов по каталогу банков
+            {
+              KatBank.Name := KatB.Name;
+              KatBank.Remark := KatB.Remark;
+              case wGetTune('Pick.SynchAddrKatB') of
+              0: set KatBank.Addr := KatB.Addr;                                    // Адрес
+              1: set KatBank.Addr := if(isValid(#KatCity),KatCity.Name,'');         // Город
+              2: set KatBank.Addr := if(isValid(#KatState),KatState.Name,'');       // Страна
+              3: set KatBank.Addr := if(isValid(#KatCity),KatCity.Name+' ','')+KatB.Addr;    // Город+Адрес
+              4: set KatBank.Addr := if(isValid(#KatState),KatState.Name+' ','')
+                                      +if(isValid(#KatCity),KatCity.Name,' ');       // Страна+Город
+              5: set KatBank.Addr := if(isValid(#KatState),KatState.Name+' ','')+
+                                      if(isValid(#KatCity),KatCity.Name+' ','')+KatB.Addr;// Страна+Город+Адрес
+              end;
+
+              var isFil : boolean;
+              isFil := false;
+              if boGetTune('Fin.Doc.Filial')
+              {
+                if (KatB.cHigher <> 0)   //если филиал
+                  if (getfirst KatBtmp where ((KatB.cHigher == KatBtmp.Nrec)) = tsOk)
+                  {
+                    if (KatB.KorSchet = '')
+                    {
+                      isFil := true;
+                      KatBank.MFO1 := KatBtmp.MFO1;
+                      KatBank.Schet2 := KatBtmp.KorSchet;
+                    }
+                  }
+              }
+
+              if not isFil
+              {
+                KatBank.MFO1 := KatB.MFO1;
+                KatBank.Schet2 := KatB.KorSchet;
+              }
+              KatBank.MFO2 := KatB.MFO2;
+            }
+            if (Update current KatBank)<>tsOk then MSGForm('KatBank',KatBank.nRec,1);
+          }
+        StopVisual('',0);
+        #UpdateTableOneFieldOnTwoFieldNoIndex(KatSopr,cNMoveCell,VidSopr,cgDoc_0408,'KatSopr')
+        #UpdateTableOneFieldOnTwoFieldNoIndex(KatSopr,cNMoveCell,VidSopr,cgDoc_0409,'KatSopr')
+        InsExecTime(SpJoi.cRec,JoiHead.cRec,'KatBank', m_tTimeBeg,Cur_Time);
+        ClearMarker(MyMarker);
+        // Если этап завершен без ошибок для одной рез. МЦ
+        if (_nMsgFrm = m_lErrorSp) SpJoi.Status := wOrd(3);
+        else                       SpJoi.Status := wOrd(4);
+        Update current SpJoi;
+
+        if (m_lErrorSp <> _nMsgFrm)
+        {
+          ErrObAll.PutEventById (feBreak, fcCycleOfErrOrAll);
+          ErrObAll.write(_nMsgFrm - m_lErrorSp);
+        }
+
+        m_lErrorSp := _nMsgFrm;
+      } While (GetNext SpJoi where ((JoiHead.nRec == SpJoi.cJoiHead And (wOrd(3)<>SpJoi.Status))) = tsOk);
+    m_bWriteInfoSpJoi := False;
+
+    If (m_lErrorJoi <> _nMsgFrm)
+    {
+      ErrObAll.PutEventById (feBreak, fcCycleOfObAll);
+      ErrObAll.write(_nMsgFrm - m_lErrorJoi);
+    }
+    // Если объединение без ошибок
+    If (_nMsgFrm = m_lErrorJoi) JoiHead.Status := wOrd(3); // статус "Завершено"
+    else                        JoiHead.Status := wOrd(4);
+    Update Current JoiHead;      // статус "Завершено с ошибками"
+
+    m_lErrorJoi := _nMsgFrm;
+    m_lErrorSp := m_lErrorJoi;
+
+  } While (GetNext JoiHead where ((m_wCgObedValue == JoiHead.TypeEvent And
+                                   UserName() == JoiHead.UserName )) = tsOk And m_bBreak = False);
+
+  if (_nMsgFrm > 0)
+  {
+    ErrObAll.PutEventById (feBreak, fcCycleOfResAll);
+    ErrObAll.write(_nMsgFrm);
+  }
+
+  m_wParamOb := 0;
+  DoneMarker (MyMarker, '');
+  If (m_lcount_vis <> 0)
+  {
+    StopVisual('', 0);
+    if (_nMsgFrm > 0)  // Если были ошибки во время объединения
+    {
+      Message('Во время объединения произошли ошибки.' + chr(13)
+            + 'Просмотрите протокол ошибок и если необходимо,' + chr(13)
+            + 'запустите процедуру объединения банков еще раз.');
+      ErrObAll.ShowFile;
+    }
+  }
+  Message('Объединение завершено.');
+}
+
+browse BankJoi;
+show at (,,,6);
+Table JoiHead;
+  recMarker = m_pMarkerUp {JoiHead.Nrec};
+fields
+  sObName          'Наим. банка. (рез.объединения)'
+                   ('', hcNastrAdmWOb, sci1378EscInsPMBrigadeDuty) : [32], Protect;
+  strFilial        'филиал','───────'('',hcNastrAdmWOb,sci1Esc) : [7], Protect;
+  strJoiStatus     'Статус'
+                   ('', hcNastrAdmWOb, sci1Esc) : [14], Protect;
+  strJoiBank       'Зам. реквизитов р/c',
+                   ('Замена реквизитов банка в каталоге расчетных счетов. Изменяется при нажатии на <F3>',
+                    hcNastrAdmWOb,sci13Esc): [9], protect;
+  JoiHead.UserName 'Пользователь'('', hcNastrAdmWOb, sci13Esc) : [12], Protect;
+  strJoiCOrpo      '№ офиса','───────'('',hcNastrAdmWOb,sci1Esc) : [7], Protect;
+end;
+
+TableEvent Table JoiHead;
+cmSetDefault :
+{
+  JoiHead.TypeEvent := m_wCgObedValue;
+  JoiHead.Status := word(0);
+  JoiHead.UserName := UserName();
+  JoiHead.dDate := Cur_Date;
+}
+
+cmInsertRecord : insert current JoiHead;
+cmUpdateRecord : update current JoiHead;
+
+cmInsert :
+{
+  case curfield of
+  #sObName :
+  {
+    if (RunInterface('IBanks', word(0), m_cChoiceNrec) <> cmCancel)
+    {
+      if (not FindExistObj(m_cChoiceNrec)) putCommand(cmValue1);
+      else abort;
+    }
+    else abort;
+  }
+  end;
+}
+
+cmMarkDelete :
+{
+  bAbortDel := false;
+  if (curtable = #JoiHead)
+  {
+    m_bDeleteByMarker := false;
+    if (m_pMarkerUp.Count <> 0)
+    {
+      if (message('Удалить помеченные записи?', yesno + mfSwapButtons + confirmation) = cmYes)
+      {
+        m_bDeleteByMarker := true;
+        stop;
+      }
+      else abort;
+    }
+  }
+}
+
+cmDeleteRecOrd :
+{
+  if not(isValid(tnJoiHead)) exit;
+  if (not m_bDeleteByMarker) m_bExistDel := false; // инициализация переменной в случае когда пометки нет для случая обычного удаления
+
+  //#5578 >>>>>>>>>>>>>>>>>
+  var _boDiffUser : boolean = (JoiHead.UserName <> UserName());
+  if _boDiffUser
+    if (not m_bDeleteByMarker)
+      if pr_CurUserAdmin
+      { if message(lMsgOdebdifferenceUser
+          +chr(13)+'Продолжить?' , YesNo)=cmYes
+        { _boDiffUser:=false
+
+        }
+      }
+  //#5578 <<<<<<<<<<<<<<<<<<<<<<<<<
+  if _boDiffUser
+  {
+    if (not m_bDeleteByMarker)
+      message(lMsgOdebdifferenceUser
+        +chr(13)+'обратитесь к администратору БД', Warning);
+    if (m_bExistDel and ((not m_bDeleteByMarker) or (m_bDeleteByMarker and m_pMarkerUp.Count = 0)))
+      message('Удаление из каталога МЦ произведено.', Information + OkButton);
+    exit;
+  }
+
+  var bRun : boolean; bRun := true;
+  if (not m_bDeleteByMarker)
+  {
+    bRun := message('Удалить запись?', yesno + mfSwapButtons + confirmation) = cmYes;
+    bAbortDel := false;
+  }
+
+  if (bRun)
+  {
+    if (    (JoiHead.Status = word(3))
+         Or (JoiHead.Status = word(4)))
+    {
+      if (getFirst SpJoi where ((    JoiHead.nRec == SpJoi.cJoiHead
+                                 and byte(1)      == SpJoi.isDel
+                                 and byte(4)      == SpJoi.Status )) = tsOk)
+      {
+        var bDelFromCatalog : boolean; bDelFromCatalog := false;
+        if (not m_bDeleteByMarker)
+          bDelFromCatalog := message('Удалять из каталога банков, объединение'
+                    + chr(13) + 'которых завершено с ошибками?',
+                    yesno + mfSwapButtons + confirmation) = cmYes;
+
+        if (bDelFromCatalog)
+          update SpJoi where ((    JoiHead.nRec == SpJoi.cJoiHead
+                               and byte(1)      == SpJoi.isDel
+                               and byte(4)      == SpJoi.Status)) set Status := 3;
+      }
+
+      _loop SpJoi where ((    JoiHead.nRec == SpJoi.cJoiHead
+                          and byte(1)      == SpJoi.isDel
+                          and byte(3)      == SpJoi.Status))
+      {
+        if (KatB1.CHIGHER <> 0) and (GetFirst KatBTmp where ((KatB1.CHIGHER == KatBTmp.Nrec)) = tsOk)
+        {
+          if (not bAbortDel)
+            message('Удаление из каталога банков не произведено. Есть банки ссылающиеся на другие банки.', Information + OkButton);
+          bAbortDel := true;
+          exit;
+        }
+      }
+
+      _loop SpJoi where ((    JoiHead.nRec == SpJoi.cJoiHead
+                          and byte(1)      == SpJoi.isDel
+                          and byte(3)      == SpJoi.Status))
+      {
+        delete KatBTmp where ((SpJoi.cRec == KatBTmp.nrec));
+        m_bExistDel := true;
+      }
+    }
+    delete SpJoi where ((JoiHead.nRec == SpJoi.cJoiHead));
+    delete current JoiHead;
+    if (m_bExistDel and ((not m_bDeleteByMarker) or (m_bDeleteByMarker and m_pMarkerUp.Count = 0)))
+      message('Удаление из каталога банков произведено.', Information + OkButton);
+  } else Abort;
+}
+end;
+
+hAndleevent
+cmValue1 :
+{
+  set JoiHead.rComp := comp(1);
+  set JoiHead.cRec := m_cChoiceNrec;
+  UpdateTable;
+  SetFilialInNastrObed(coJoiHead, KatB.Name, KatB.Atl_Branch);
+  ReDrawPanel(#JoiHead);
+}
+
+cmPick :
+{
+  #Check_Pick(JoiHead)
+
+  case CurField of
+  #sObName :
+  {
+    if (JoiHead.Status <> 0) exit;
+    m_cChoiceNrec := JoiHead.cRec;
+    if (RunInterface('IBanks', word(0), m_cChoiceNrec) <> cmCancel)
+    {
+      #CheckChoiceValueForJoiHeadOnPick
+      set JoiHead.rComp := comp(1);
+      UpDateTable;
+      SetFilialInNastrObed(coJoiHead, KatB.Name, KatB.Atl_Branch);
+      ReReadRecOrd(#JoiHead);
+      ReDrawPanel(#JoiHead);
+    }
+  }
+  //------------
+  #strJoiBank :
+  {
+    if (JoiHead.nRec <> comp(0))
+    {
+      if (JoiHead.rComp = comp(1)) set JoiHead.rComp := comp(0);
+      else                         set JoiHead.rComp := comp(1);
+    }
+  }
+  end;
+}
+end; // hanldeevent
+
+browse BankSpJoi;
+show at (,7,,17);
+Table SpJoi;
+fields
+    sOb1Name        'Наим. банков, подлежащих объединению'
+                    ('', hcNastrAdmWOb, sci1378Esc): [41], Protect;
+    strFilial1      'филиал','───────'('',hcNastrAdmWOb, sci1Esc) : [7], Protect;
+    strSpJoiStatus  'Статус'
+                    ('', hcNastrAdmWOb, sci1Esc)   : [15], Protect;
+    cSpJoiDel       'Удалять'
+                    ('Изменяется при нажатии на <F3>', hcNastrAdmWOb, sci13Esc)
+                                                            : [7], #protectedcentered;
+end;
+
+tableEvent Table SpJoi;
+cmInsert:
+{
+  if (JoiHead.UserName <> UserName())
+  {
+    message (lMsgOdebdifferenceUser, Warning);
+    abort; exit;
+  }
+
+  if (JoiHead.Status <> 0) {abort; exit;}
+
+  if (RunInterface('IBanks', word(0), m_cChoiceNrec) <> cmCancel)
+  {
+    myMarkerSpikokbank := InitMarker('KatBMarkers', 8, 200, 100);
+    if (GetMarkerCount(myMarkerSpikokbank)<> 0)
+    {
+      for (i := 0; i < GetMarkerCount(myMarkerSpikokbank); i := i + 1)
+      {
+        GetMarker(myMarkerSpikokbank, i, m_cChoiceNrec);
+        if (FindExistObj(m_cChoiceNrec)) continue;
+        ClearBuffer (#SpJoi);
+        SpJoi.cJoiHead := JoiHead.nRec;
+        SpJoi.cRec := m_cChoiceNrec;
+        SpJoi.Status := WOrd(0);
+        SpJoi.IsDel := wOrd(1);
+        Insert current SpJoi;
+        SetFilialInNastrObed(coSpJoi, KatB1.Name, KatB1.Atl_Branch);
+      }
+    }
+    else
+    {
+      if (not FindExistObj(m_cChoiceNrec))
+      {
+        ClearBuffer (#SpJoi);
+        SpJoi.cJoiHead := JoiHead.nRec;
+        SpJoi.cRec := m_cChoiceNrec;
+        SpJoi.Status := WOrd(0);
+        SpJoi.IsDel := wOrd(1);
+        Insert current SpJoi;
+      }
+    }
+    ClearMarker(myMarkerSpikokbank);
+    Donemarker(myMarkerSpikokbank, 'KatBMarkers');
+    ReReadRecOrd(#SpJoi);
+    ReDrawPanel(#SpJoi);
+  }
+  abort;
+}
+
+cmdeleteRecord :
+{
+  if (JoiHead.UserName <> UserName())
+  {
+    message (lMsgOdebdifferenceUser, Warning);
+    exit;
+  }
+
+  if (JoiHead.Status = 0)
+    if (message('Удалить запись?', yesno + mfSwapButtons + Confirmation) = cmYes)
+      delete current SpJoi;
+}
+end;
+
+handleevent
+cmPick :
+{
+  #Check_Pick(SpJoi)
+
+  case curfield of
+  #sOb1Name :
+  {
+    if (JoiHead.Status <> 0) exit;
+    m_cChoiceNrec := SpJoi.cRec;
+    if (RunInterface('IBanks', word(0), m_cChoiceNrec) = cmDefault)
+    {
+      //myMarkerSpikokbank := InitMarker('KatBMarkers', 8, 200, 100);
+/*      if (GetMarkerCount(myMarkerSpikokbank)<> 0)
+      {
+        for (i := 0; i < GetMarkerCount(myMarkerSpikokbank); i := i + 1)
+        {
+          GetMarker(myMarkerSpikokbank, i, m_cChoiceNrec);
+          if (FindExistObj(m_cChoiceNrec)) continue;
+          ClearBuffer (#SpJoi);
+          SpJoi.cJoiHead := JoiHead.nRec;
+          SpJoi.cRec := m_cChoiceNrec;
+          SpJoi.Status := WOrd(0);
+          SpJoi.IsDel := wOrd(1)
+          Insert current SpJoi;
+         SetFilialInNastrObed(coSpJoi, KatB1.Name, KatB1.Atl_Branch);
+        }
+      }
+      else      */
+      {
+        #CheckChoiceValueForSpJoiOnPick
+        ClearBuffer (#SpJoi);
+        SpJoi.cJoiHead := JoiHead.nRec;
+        SpJoi.cRec := m_cChoiceNrec;
+        SpJoi.Status := WOrd(0);
+        SpJoi.IsDel := wOrd(1);
+        Insert current SpJoi;
+        SetFilialInNastrObed(coSpJoi, KatB1.Name, KatB1.Atl_Branch);
+        ReReadRecord(#SpJoi);
+        ReDrawPanel(#SpJoi);
+      }
+      //ClearMarker(myMarkerSpikokbank);
+      //Donemarker(myMarkerSpikokbank, 'KatBMarkers');
+    }
+  }
+  #cSpJoiDel :
+  {
+    if (SpJoi.cRec <> comp(0))
+    {
+      if (SpJoi.IsDel = word(1)) SpJoi.IsDel := word(0);
+      else                       SpJoi.IsDel := word(1);
+      update current SpJoi;
+      RedrawPanel (#SpJoi);
+    }
+  }
+  end;
+}
+end; // hAndleevent
+
+// Экран с кнопками
+screen ButtonsList;
+  show at (,18,,22);
+  Fields
+    m_wFilterByUser ('Изменяется при нажатии на <Пробел>', hcNastrAdmWOb, sci1Esc) : , noprotect;
+    m_wCheckTimeObedRep ('Изменяется при нажатии на <Пробел>',hcNastrAdmWOb,sci1Esc): noprotect;
+Buttons
+  cmObed,Default,,,hcNastrAdmWOb,sci1Esc;
+  cmCancel,,,,hcNastrAdmWOb,sci1Esc;
+
+<<
+  Показывать объединения
+  (.) всех пользователей`       [.] Протокол по времени объединения`
+  (.) только свои       `
+                              <.~О~бъединить .>         <. О~т~мена .>
+>>
+
+end; // screen
+
+hAndleevent
+
+cmCheckField:
+{
+  case curfield of
+  #m_wFilterByUser :
+  {
+    case m_wFilterByUser of
+    0 :  if (BoundActive(tbOnlyUser))     PopBounds (tbOnlyUser);
+    1 :  if (not BoundActive(tbOnlyUser)) PushBounds (tbOnlyUser);
+    end;
+    if (getFirst JoiHead = tsOk) {};
+
+    ReReadRecord(#JoiHead);
+    RescanPanel (#JoiHead);
+    RescanPanel (#SpJoi);
+    SelectPanel (#JoiHead);
+    SaveMyDsk (m_wFilterByUser, lFilterByUserOb);
+  }
+  //#m_wNeedZarRun : SaveMyDsk (m_wNeedZarRun, lNeedZarRunOb);
+  #m_wCheckTimeObedRep : SaveMyDsk (m_wCheckTimeObedRep, lCheckTimeObedRepOb);
+  end; // case
+}
+
+cmInit:
+{
+  DisableCommand(cmFilterSave);
+  m_wCodeTable := coKatBank;
+// функцию можно запускать при выборе режима одного филиала
+  if (not CanMayRunObedInFilialDb)
+  {
+    CloseInterface(cmCancel);
+    exit;
+  }
+  m_wCgObedValue := cgObedBank;// присвоение должно быть раньше кода, где используется переменная m_wCgObedValue
+  if (not ReadMyDsk (m_wNeedZarRun, lNeedZarRunOb, true)) m_wNeedZarRun := 3;
+  if (not ReadMyDsk (m_wFilterByUser, lFilterByUserOb, true)) m_wFilterByUser := 0;
+  if (not ReadMyDsk (m_wCheckTimeObedRep, lCheckTimeObedRepOb, true)) m_wCheckTimeObedRep := 0;
+  if (m_wFilterByUser = 1) PushBounds (tbOnlyUser);
+
+  m_wParamOb := 0;
+  m_bCOrpo := InCorpo(m_wCgObedValue);
+
+  if (m_bCOrpo)
+  {
+    DelOutCOrpo(m_wCgObedValue);
+    CorpoForUser(m_wCgObedValue);
+  }
+
+  if (getFirst tmpJoiHead where ((    m_wCgObedValue == tmpJoiHead.TypeEvent
+                                  and UserName()       == tmpJoiHead.UserName
+                                  and (word(1)=tmpJoiHead.Status) )) = tsOk )
+  {
+    m_wParamOb := word(1);
+    if (Message('Обнаружено незавершенное объединение банков' + chr(13)
+              + 'рекомендуется немедленно продолжить это объединение.' + chr(13)
+              + 'Запустить незавершенное объединение?', yesno + confirmation) = cmYes)
+      PutCommAnd(cmObed);
+    else
+     CloseInterface (cmCancel);
+  }
+}
+
+cmDefault:
+  AbOrt;
+
+cmHotKeys :
+  PutHotCommAnd(RunMenu('ObedBank_HotKeys_Print'));
+
+cmPrintDoc :
+{
+  If (frmObedAll.errOr)
+  {
+    frmObedAll.AbOrtFOrm;
+    message('Ошибка при формировании протокола соответствия.' + chr(13)
+          + 'Возможно, формы ObedAll нет в ресурсе.', CancelButton);
+    exit;
+  }
+  else
+    #PrintRelation(KatB1, KatB, Name, 'банков')
+}
+
+cmObed :
+{
+  _try
+  {
+    SetFilialBdToStandart;// обработка филиальности (перевод с филиальности в стандарт)
+    mtClear(#ExecTime, mfNormal);
+    if (m_wParamOb <> 1)
+    {
+      _loop tmpJoiHead where ((    m_wCgObedValue == tmpJoiHead.TypeEvent
+                               and UserName()       == tmpJoiHead.UserName))
+      {
+        if (getFirst tmpSpJoi where ((tmpJoiHead.nRec == tmpSpJoi.cJoiHead)) <> tsOk)
+        {
+          var sObjName : string; sObjName := lNotDefine;
+          if (GetFirst KatBTmp where (( tmpJoiHead.cRec == KatBTmp.nrec)) = tsOk )
+            sObjName := trim(KatBTmp.Name);
+          message ('Для результата объединения' + chr(13)
+                 + '"' + sObjName + '"' + chr(13)
+                 + 'не выбраны банки, которые необходимо объединять.', CancelButton);
+          SetStandartBdToFilial;// обработка филиальности (перевод со стандартной в филиальную)
+          exit;
+        }
+      }
+      if (getFirst tmpJoiHead where ((    m_wCgObedValue == tmpJoiHead.TypeEvent
+                                      and UserName()       == tmpJoiHead.UserName
+                                      and (word(4) = tmpJoiHead.Status) )) = tsOk )
+        if (message('Хотите повторять объединение для' + chr(13)
+                  + 'завершенных с ошибками банков?', YesNo + Confirmation) = cmNo)
+          m_wParamOb := 2;
+    }
+    if (IsNotExistNastroikiFromOtherFilials(m_wCgObedValue, m_wCodeTable)) updateObj;
+  }
+  _finally
+  {
+    SetStandartBdToFilial;// обработка филиальности (перевод со стандартной в филиальную)
+  }
+  ReReadRecOrd(#JoiHead);
+  ReDrawPanel(#JoiHead);
+  ReReadRecOrd(#SpJoi);
+  ReDrawPanel(#SpJoi);
+  if ((m_wCheckTimeObedRep = 1) and m_bShowRepTime)
+    #MakeTimeProt('банков');
+}
+end;
+end.  // Interface
+
+ObedBank_HotKeys_Print Menu
+{
+- 'Печать',cmPrintDoc,'Печать соответствия объединения',, 'Ctrl+P', kbCtrlP, scMenuCtx;
+}

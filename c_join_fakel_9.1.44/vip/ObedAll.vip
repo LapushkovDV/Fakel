@@ -1,0 +1,12 @@
+#include obedAll.vih
+
+VipInterface ObedAllExample implements iObedAll licensed(free);
+
+Interface ObedAllExample;
+
+Function JoinAll(wType : word; cRec1, cRec2 : comp; sParam : string = '') : boolean;
+{
+  result := false;
+}
+
+end.

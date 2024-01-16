@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding="windows-1251"?>
+<Viper Version="5005020000">
+	<ProjectManager>
+		<ProjectName>c_join_fakel</ProjectName>
+		<ProjectVarList>
+			<ProjectVar Name="$[GalExe]" Value="C:\Galaktika\GAL\exe\"/>
+			<ProjectVar Name="$[Tmp]" Value="C:\Temp\Viper\"/>
+			<ProjectVar Name="$[GalSrc]" Value="C:\Galaktika\GAL\Frm\"/>
+		</ProjectVarList>
+		<CoreVip>
+			<VipParameters>
+				<AtlDir>C:\Galaktika\Viper\bin\5.5.40.0\Exe</AtlDir>
+				<StrictVip>True</StrictVip>
+				<ClearResource>True</ClearResource>
+				<DebugInfo>False</DebugInfo>
+				<LocalInfo>False</LocalInfo>
+			</VipParameters>
+			<VipDebug>
+				<ActiveConfigure>по умолчанию</ActiveConfigure>
+				<DebugConfigList>
+					<DebugConfig Name="по умолчанию"/>
+				</DebugConfigList>
+			</VipDebug>
+			<VipFiles>
+				<OutputResource>$[ProjectPath]\$[ProjectName]$[ExtRes]</OutputResource>
+				<SubServientResource>$[ProjectPath]\Atlantis.res</SubServientResource>
+				<ConfWorkResource>$[ProjectPath]\Viper.crf</ConfWorkResource>
+				<OutputDirectory>$[ProjectPath]\$[ProjectName]</OutputDirectory>
+				<TemporaryDirectory>$[Tmp]</TemporaryDirectory>
+				<IncludeList>
+					$[GalSrc]\*
+					$[AtlPath]\*
+					$[PROJECTPATH]\*
+					..\..\..\..\..\..\galaktika\GAL\Viper 5.5\Sources\src\*
+					..\Z_M_L_F_C_20230112\*
+				</IncludeList>
+				<ResourceList>
+					$[GalExe]\C_ExtFun.res
+					$[GalExe]\C_JOIN.res
+					$[GalExe]\C_StatLine.res
+					$[GalExe]\C_Common.res
+					$[GalExe]\C_Tune.res
+					$[GalExe]\C_ExpImp.res
+					$[GalExe]\F_UserReport.res
+					$[GalExe]\F_KATDOC.res
+					$[GalExe]\L_SOPRDOC.res
+					$[GalExe]\L_COMMON.res
+					$[GalExe]\C_EXTCLASS.res
+					$[GalExe]\m_mnplan.res
+					$[GalExe]\z_staff.res
+					..\..\..\sup\exe\Support.res
+				</ResourceList>
+			</VipFiles>
+			<VipMessages>
+				<VerboseMake>True</VerboseMake>
+			</VipMessages>
+			<VipDatabase>
+				<Name>по умолчанию</Name>
+			</VipDatabase>
+			<VipFR>
+				<PackFR>True</PackFR>
+			</VipFR>
+		</CoreVip>
+		<ActiveIndex>1</ActiveIndex>
+		<ProjectItems>
+			<ProjectCompileFile FileName="C_join.prj" Priority="0">
+				<CoreVip>
+					<VipParameters>
+						<StrictVip>True</StrictVip>
+					</VipParameters>
+				</CoreVip>
+			</ProjectCompileFile>
+		</ProjectItems>
+		<DatabaseConfiguration>
+			<ConfigurationList>
+				<VipDatabase>
+					<Name>по умолчанию</Name>
+					<DatabaseName>..\..\GAL910\DATA_EM</DatabaseName>
+					<DatabaseDriver>1</DatabaseDriver>
+					<DatabaseID>RUSSIA</DatabaseID>
+					<SqlServerParameters>ncacn_ip_tcp:localhost[32777]</SqlServerParameters>
+					<HwKeyTransport>1</HwKeyTransport>
+					<HwKeyDirectory>localhost:55555</HwKeyDirectory>
+					<LicFileName>..\..\..\..\..\..\galaktika\sup\exe\License.lic</LicFileName>
+				</VipDatabase>
+			</ConfigurationList>
+		</DatabaseConfiguration>
+		<FileList>
+			<File Name="C_join.prj" PosX="6" PosY="26" OpenEditor="True" Active="True"/>
+			<File Name="C_JOIN.ver" PosX="27" PosY="22" OpenEditor="True"/>
+			<File Name="vip\KPODROB.VIP" PosX="31" PosY="1970" OpenEditor="True"/>
+			<File Name="vip\Cor_Kau.vpp" PosX="3" PosY="317" OpenEditor="True"/>
+			<File Name="vip\obedsch.vip" PosX="21" PosY="7" OpenEditor="True"/>
+			<File Name="..\..\..\..\..\..\GALAKTIKA\GAL\Frm\Inc\galaktika.vil" PosX="37" PosY="29" OpenEditor="True"/>
+		</FileList>
+		<DebugOptions StopOnStartup="False"/>
+		<MarkerList>
+			<Marker FileName="Vip\GP_File_hRef.Vip" Caption="Нумерованная закладка 1" Line="213" NumIndex="1" MarkerType="mtNumBookmark"/>
+			<Marker FileName="Vip\GP_DocFieldsStateService.vip" Caption="Нумерованная закладка 1" Line="676" NumIndex="1" MarkerType="mtNumBookmark" Comment="if (getfirst fastfirstrow mFields"/>
+			<Marker FileName="Vip\GP_DocFieldsStateService.vip" Caption="Нумерованная закладка 2" Line="172" NumIndex="2" MarkerType="mtNumBookmark" Comment="inner join r_WorkPlace on r_WorkPlace.cUsers = :(pR_Users) // r_Users.NRec"/>
+			<Marker FileName="SOURCE\COMMON\MR_StatusPickAndEdit.vip" Caption="Нумерованная закладка 1" Line="117" NumIndex="1" MarkerType="mtNumBookmark" Comment="Status := New(MR_Status, InitForTypeDoc(RoleGroups.GetGroupByName(RoleGroupName),));"/>
+			<Marker FileName="SOURCE\COMMON\MR_StatusAccessEdit.vip" Caption="Нумерованная закладка 1" Line="239" NumIndex="1" MarkerType="mtNumBookmark" Comment="if"/>
+			<Marker FileName="SOURCE\COMMON\MR_TypeDocs.vip" Caption="Нумерованная закладка 1" Line="151" NumIndex="1" MarkerType="mtNumBookmark" Comment="message('NOT IsValid(tnMR_RoleGroups) ',error);"/>
+			<Marker FileName="SOURCE\Report\NASTRFORMREP.vip" Caption="Нумерованная закладка 1" Line="297" NumIndex="1" MarkerType="mtNumBookmark"/>
+			<Marker FileName="SOURCE\MR_Base.Vip" Caption="Нумерованная закладка 1" Line="196" NumIndex="1" MarkerType="mtNumBookmark" Comment="LoadVipRef(DataProtector, 'C_COMMON::PROTECTOR');"/>
+			<Marker FileName="SOURCE\MR_Base.Vip" Caption="Нумерованная закладка 2" Line="195" NumIndex="2" MarkerType="mtNumBookmark"/>
+			<Marker FileName="SOURCE\COMMON\MR_StatusAndRolesAccessEdit.vip" Caption="Нумерованная закладка 1" Line="161" NumIndex="1" MarkerType="mtNumBookmark" Comment="_loop"/>
+			<Marker FileName="SOURCE\FilesRef\MR_File_hRef.Vip" Caption="Нумерованная закладка 2" Line="478" NumIndex="2" MarkerType="mtNumBookmark"/>
+			<Marker FileName="SOURCE\FilesRef\MR_File_hRef.Vip" Caption="Нумерованная закладка 1" Line="281" NumIndex="1" MarkerType="mtNumBookmark" Comment="FillPS1_MR_FILEHREF_#parameter(_sFile, _sfileRES, #par1);"/>
+			<Marker FileName="SOURCE\NewRas\ViewPerShbl.vip" Caption="Нумерованная закладка 1" Line="1011" NumIndex="1" MarkerType="mtNumBookmark" Comment=",coKatSopr //_wTable    : word; указать код таблицы документа системы"/>
+			<Marker FileName="Source\SHK_VIP.vip" Caption="Нумерованная закладка 1" Line="299" NumIndex="1" MarkerType="mtNumBookmark" Comment="if getfirst"/>
+			<Marker FileName="Source\SHK_InOut_KatMC.vpp" Caption="Нумерованная закладка 1" Line="149" NumIndex="1" MarkerType="mtNumBookmark" Comment="var iRes : IResultSet = GetResultQueryForKatMC(GetTMPLTByName(_ActionName), _pIdent);"/>
+			<Marker FileName="..\..\..\..\GAL9\!Gal_Source\Z_M_L_F_C_5539_20211025\SRC\CompSrc\L\L_SoprDoc\vip\CanEditDocument.vpp" Caption="Нумерованная закладка 1" Line="32" NumIndex="1" MarkerType="mtNumBookmark" Comment="var cUser : comp = m_objDescriptors.GetXUserByDescr(sDescr);"/>
+			<Marker FileName="Source\SHK_InOut_KatBoxSaldo.vpp" Caption="Нумерованная закладка 1" Line="383" NumIndex="1" MarkerType="mtNumBookmark" Comment="if (getfirst _tElements where ((_npp == _tElements.npp)) and _tElements.name = _SpecFieldIDName) = tsOK"/>
+			<Marker FileName="Source\shk_barcodeFunc.vip" Caption="Нумерованная закладка 1" Line="47" NumIndex="1" MarkerType="mtNumBookmark" Comment="if (getfirst shk_barcodeLink where ((tmp == shk_barcodelink.barcode(length = 250))) = tsOk) {"/>
+			<Marker FileName="Source\Algoritm_shk_barcode_Generate_Setup.vip" Caption="Нумерованная закладка 1" Line="199" NumIndex="1" MarkerType="mtNumBookmark" Comment="var __ShkTidkGalOld : word = __ShkTidkGal;"/>
+			<Marker FileName="Source\Algoritm_shk_barcode_Generate.vip" Caption="Нумерованная закладка 1" Line="129" NumIndex="1" MarkerType="mtNumBookmark"/>
+			<Marker FileName="Source\shk_barcode_Print.vip" Caption="Нумерованная закладка 1" Line="355" NumIndex="1" MarkerType="mtNumBookmark" Comment="if getfirst _fillValue"/>
+			<Marker FileName="Source\SHK_InOut_KatSopr.vpp" Caption="Нумерованная закладка 1" Line="513" NumIndex="1" MarkerType="mtNumBookmark" Comment=", 28 // 28  для НОП - 168"/>
+			<Marker FileName="Source\SHK_InOut_KatSopr.vpp" Caption="Нумерованная закладка 2" Line="439" NumIndex="2" MarkerType="mtNumBookmark" Comment="MakeMoveForESB(  cKatSopr"/>
+			<Marker FileName="Source\SHK_InOut_KatSopr.vpp" Caption="Нумерованная закладка 2" Line="502" NumIndex="2" MarkerType="mtNumBookmark" Comment="MakeMoveForESB(  cKatSopr"/>
+			<Marker FileName="Source\SHK_TEMPLATES.pan" Caption="Нумерованная закладка 1" Line="128" NumIndex="1" MarkerType="mtNumBookmark" Comment="Fill_fieldArray()"/>
+			<Marker FileName="Source\SHK_TEMPLATES.vip" Caption="Нумерованная закладка 2" Line="50" NumIndex="2" MarkerType="mtNumBookmark" Comment="function Get"/>
+			<Marker FileName="Source\SHK_ADMIN_PANEL.vip" Caption="Нумерованная закладка 1" Line="116" NumIndex="1" MarkerType="mtNumBookmark" Comment="if not checkDestPathfromTune then processtext(_JSONfile, vfNewTitle Or vfMacroSize, 'Сгенерированный JSON OBJECTVALUES');"/>
+			<Marker FileName="Source\SHK_InOut.pan" Caption="Нумерованная закладка 1" Line="48" NumIndex="1" MarkerType="mtNumBookmark"/>
+			<Marker FileName="SHK_VIP.prj" Caption="Нумерованная закладка 1" Line="95" NumIndex="1" MarkerType="mtNumBookmark" Comment="coTypeDocBoxSaldo = 101423 ;//100000+1430 Сальдо по ячейкам хранения"/>
+			<Marker FileName="Source\Algoritm_shk_barcode_setParam.vip" Caption="Нумерованная закладка 1" Line="188" NumIndex="1" MarkerType="mtNumBookmark" Comment="set _etable :=  getTableCodeByViddoc()"/>
+			<Marker FileName="Source\shk_barcode_Generate.pan" Caption="Нумерованная закладка 1" Line="182" NumIndex="1" MarkerType="mtNumBookmark" Comment="cfsSetProp('c_BRSSHK_BARCODELINK_SHK_TSD.NAME_ТСД'          ,'Visible',(wgettune('SHK.CONNECTIONTYPE') = 1));"/>
+			<Marker FileName="Source\SHK_Base.vip" Caption="Нумерованная закладка 1" Line="120" NumIndex="1" MarkerType="mtNumBookmark" Comment="Procedure Fill_fieldArray(_viddoc: word; var _fieldArray : string);//array[1..24] of string);"/>
+			<Marker FileName="Source\SHK_InOut.vip" Caption="Нумерованная закладка 2" Line="1085" NumIndex="2" MarkerType="mtNumBookmark" Comment="if _pIdent = co_BatchMode and"/>
+			<Marker FileName="Source\shk_barcode_Generate.vip" Caption="Нумерованная закладка 1" Line="270" NumIndex="1" MarkerType="mtNumBookmark" Comment="procedure SelectKatBoxs;"/>
+			<Marker FileName="Source\SHK_TEMPLATES.vip" Caption="Нумерованная закладка 1" Line="95" NumIndex="1" MarkerType="mtNumBookmark" Comment="if runwindowmodal(winSelObjActions) = cmDefault {"/>
+			<Marker FileName="Source\SHK_USB_export_saldobox.vip" Caption="Нумерованная закладка 1" Line="83" NumIndex="1" MarkerType="mtNumBookmark" Comment="set _cSHKObj := _iSHK_TEMPLATES.fnSelObjActions(coTypeDocBoxSaldo);"/>
+			<Marker FileName="Source\SHK_InOut.vip" Caption="Нумерованная закладка 1" Line="1314" NumIndex="1" MarkerType="mtNumBookmark" Comment="}"/>
+		</MarkerList>
+		<BreakPointList>
+			<BreakPoint FileName="Vip.prj" Line="90"/>
+			<BreakPoint FileName="SOURCE\MR_RolesAndUsers.vip" Line="13"/>
+			<BreakPoint FileName="Source\shk_barcodeFunc.vip" Line="212"/>
+		</BreakPointList>
+		<CompileMessengerList>
+			<CompileMessenger Name="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\C_join.prj" DateTimeStart="45307,7053541088" DateTimeCompile="0,000687557869241573" StateHistory="False">
+				<CompileMessageList>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная NeedOrNoRunObBreak:Boolean интерфейса C_JOIN::KATORGOB, объявленная в C:\USERS\ДМИТРИЙ\YANDEXDISK\WORK\!GAL_SOURCE\C_JOIN_FAKEL_9.1.44\VIP\COR_KAU.VPP(11), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\KPODROB.VIP" SourceLine="1971" SourceColumn="5"/>
+					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;ANALSXEM&quot;, включенная в главную логическую таблицу интерфейса &quot;KATORGOB&quot;, не была явно использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\KPODROB.VIP" SourceLine="1971" SourceColumn="5"/>
+					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;CALCPRED&quot;, включенная в главную логическую таблицу интерфейса &quot;KATORGOB&quot;, не была явно использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\KPODROB.VIP" SourceLine="1971" SourceColumn="5"/>
+					<CompileMessage MessageType="mtWarning" MessageText="Переменная isKatMc не была инициализирована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\MesJoi.vip" SourceLine="89" SourceColumn="1"/>
+					<CompileMessage MessageType="mtWarning" MessageText="Переменная isKatOrg не была инициализирована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\MesJoi.vip" SourceLine="89" SourceColumn="1"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Метод интерфейса &quot;KATACCOUNTOB.GetMarkerMy&quot;, объявленный в C:\USERS\ДМИТРИЙ\YANDEXDISK\WORK\!GAL_SOURCE\C_JOIN_FAKEL_9.1.44\VIP\ERROBALL.VPP(8), не был использован" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\ObedAccount.vip" SourceLine="837" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="В функции(процедуре) - m_OBEDALLEXAMPLE_iObedAll_JoinAll входящий параметр: wType:Word не используется." SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\ObedAll.vip" SourceLine="10" SourceColumn="1"/>
+					<CompileMessage MessageType="mtInfo" MessageText="В функции(процедуре) - m_OBEDALLEXAMPLE_iObedAll_JoinAll входящий параметр: cRec1:Comp не используется." SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\ObedAll.vip" SourceLine="10" SourceColumn="1"/>
+					<CompileMessage MessageType="mtInfo" MessageText="В функции(процедуре) - m_OBEDALLEXAMPLE_iObedAll_JoinAll входящий параметр: cRec2:Comp не используется." SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\ObedAll.vip" SourceLine="10" SourceColumn="1"/>
+					<CompileMessage MessageType="mtInfo" MessageText="В функции(процедуре) - m_OBEDALLEXAMPLE_iObedAll_JoinAll входящий параметр: sParam:String не используется." SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\ObedAll.vip" SourceLine="10" SourceColumn="1"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная NeedOrNoRunObBreak:Boolean интерфейса C_JOIN::JOINDOGROUPS, объявленная в C:\USERS\ДМИТРИЙ\YANDEXDISK\WORK\!GAL_SOURCE\C_JOIN_FAKEL_9.1.44\VIP\COR_KAU.VPP(11), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\obeddo.vip" SourceLine="715" SourceColumn="5"/>
+					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;ANALSXEM&quot;, включенная в главную логическую таблицу интерфейса &quot;JOINDOGROUPS&quot;, не была явно использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\obeddo.vip" SourceLine="715" SourceColumn="5"/>
+					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;CALCPRED&quot;, включенная в главную логическую таблицу интерфейса &quot;JOINDOGROUPS&quot;, не была явно использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\obeddo.vip" SourceLine="715" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная NeedOrNoRunObBreak:Boolean интерфейса C_JOIN::ISPOSOB, объявленная в C:\USERS\ДМИТРИЙ\YANDEXDISK\WORK\!GAL_SOURCE\C_JOIN_FAKEL_9.1.44\VIP\COR_KAU.VPP(11), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\ObedIsPos.vip" SourceLine="747" SourceColumn="5"/>
+					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;ANALSXEM&quot;, включенная в главную логическую таблицу интерфейса &quot;ISPOSOB&quot;, не была явно использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\ObedIsPos.vip" SourceLine="747" SourceColumn="5"/>
+					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;CALCPRED&quot;, включенная в главную логическую таблицу интерфейса &quot;ISPOSOB&quot;, не была явно использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\ObedIsPos.vip" SourceLine="747" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная NeedOrNoRunObBreak:Boolean интерфейса C_JOIN::KATSTROYOB, объявленная в C:\USERS\ДМИТРИЙ\YANDEXDISK\WORK\!GAL_SOURCE\C_JOIN_FAKEL_9.1.44\VIP\COR_KAU.VPP(11), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\obedKatStroy.vip" SourceLine="882" SourceColumn="5"/>
+					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;ANALSXEM&quot;, включенная в главную логическую таблицу интерфейса &quot;KATSTROYOB&quot;, не была явно использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\obedKatStroy.vip" SourceLine="882" SourceColumn="5"/>
+					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;CALCPRED&quot;, включенная в главную логическую таблицу интерфейса &quot;KATSTROYOB&quot;, не была явно использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\obedKatStroy.vip" SourceLine="882" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная NeedOrNoRunObBreak:Boolean интерфейса C_JOIN::USERANALIT, объявленная в C:\USERS\ДМИТРИЙ\YANDEXDISK\WORK\!GAL_SOURCE\C_JOIN_FAKEL_9.1.44\VIP\COR_KAU.VPP(11), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\ObedKau.vip" SourceLine="837" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Метод интерфейса &quot;USERANALIT.DelSpJoi&quot;, объявленный в C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\ObedKau.vip(121), не был использован" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\ObedKau.vip" SourceLine="837" SourceColumn="5"/>
+					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;ANALSXEM&quot;, включенная в главную логическую таблицу интерфейса &quot;USERANALIT&quot;, не была явно использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\ObedKau.vip" SourceLine="837" SourceColumn="5"/>
+					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;CALCPRED&quot;, включенная в главную логическую таблицу интерфейса &quot;USERANALIT&quot;, не была явно использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\ObedKau.vip" SourceLine="837" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная NeedOrNoRunObBreak:Boolean интерфейса C_JOIN::KATMCOB, объявленная в C:\USERS\ДМИТРИЙ\YANDEXDISK\WORK\!GAL_SOURCE\C_JOIN_FAKEL_9.1.44\VIP\COR_KAU.VPP(11), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\obedmc.vip" SourceLine="1952" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Метод интерфейса &quot;KATMCOB.LoadAmalgTransp&quot;, объявленный в C:\USERS\ДМИТРИЙ\YANDEXDISK\WORK\!GAL_SOURCE\Z_M_L_F_C_20230112\COMPSRC\M\M_TRANSP\VIP\AMALGTRANSP.VPP(28), не был использован" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\obedmc.vip" SourceLine="1952" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Метод интерфейса &quot;KATMCOB.UnLoadAmalgTransp&quot;, объявленный в C:\USERS\ДМИТРИЙ\YANDEXDISK\WORK\!GAL_SOURCE\Z_M_L_F_C_20230112\COMPSRC\M\M_TRANSP\VIP\AMALGTRANSP.VPP(53), не был использован" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\obedmc.vip" SourceLine="1952" SourceColumn="5"/>
+					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;ANALSXEM&quot;, включенная в главную логическую таблицу интерфейса &quot;KATMCOB&quot;, не была явно использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\obedmc.vip" SourceLine="1952" SourceColumn="5"/>
+					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;CALCPRED&quot;, включенная в главную логическую таблицу интерфейса &quot;KATMCOB&quot;, не была явно использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\obedmc.vip" SourceLine="1952" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная oSpNext:iSpNext интерфейса C_JOIN::KATMOLOB, объявленная в C:\GALAKTIKA\GAL\FRM\SRC\COMPSRC\L\L_COMMON\VIP\SPNEXT\SPNEXT.VAR(14), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\OBEDMOL.VIP" SourceLine="956" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная oModifSal:ModifSalV1 интерфейса C_JOIN::KATMOLOB, объявленная в C:\GALAKTIKA\GAL\FRM\SRC\COMPSRC\L\L_OSTATKI\VIP\MODIFSAL\MODIFSAL.VAR(14), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\OBEDMOL.VIP" SourceLine="956" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная oMTRFun:MTRFuncs интерфейса C_JOIN::KATMOLOB, объявленная в C:\GALAKTIKA\GAL\FRM\SRC\COMPSRC\L\L_SALDOMTR\VIP\MTRFUNCS\MTRFUNCS.VAR(13), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\OBEDMOL.VIP" SourceLine="956" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная oMtrCount:VipMtrCount интерфейса C_JOIN::KATMOLOB, объявленная в C:\GALAKTIKA\GAL\FRM\SRC\COMPSRC\L\L_SALDOMTR\VIP\MTRCOUNT.VAR(11), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\OBEDMOL.VIP" SourceLine="956" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная oSaldo_K:Saldo_K интерфейса C_JOIN::KATMOLOB, объявленная в C:\GALAKTIKA\GAL\FRM\SRC\COMPSRC\L\L_OSTATKI\VIP\SALDO_K\SALDO_K.VAR(14), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\OBEDMOL.VIP" SourceLine="956" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная oSaldoDei:iSaldoDei интерфейса C_JOIN::KATMOLOB, объявленная в C:\GALAKTIKA\GAL\FRM\SRC\COMPSRC\L\L_SKLAD\VIP\DOC\SALDODEI.VAR(10), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\OBEDMOL.VIP" SourceLine="956" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная oOrdLIFO:IOrdLIFO интерфейса C_JOIN::KATMOLOB, объявленная в C:\GALAKTIKA\GAL\FRM\SRC\COMPSRC\L\L_SKLAD\VIP\FUNC\ORDLIFO.VAR(10), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\OBEDMOL.VIP" SourceLine="956" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная oOrdHoz:IOrdHoz интерфейса C_JOIN::KATMOLOB, объявленная в C:\GALAKTIKA\GAL\FRM\SRC\COMPSRC\L\L_SKLAD\VIP\DOC\ORDHOZ.VAR(10), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\OBEDMOL.VIP" SourceLine="956" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная oCheckSpisBox:iCheckSpisBox интерфейса C_JOIN::KATMOLOB, объявленная в C:\GALAKTIKA\GAL\FRM\SRC\COMPSRC\L\L_SKLAD\VIP\DOC\CHECKSPISBOX.VAR(10), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\OBEDMOL.VIP" SourceLine="956" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная oConsRet:IConsRet интерфейса C_JOIN::KATMOLOB, объявленная в C:\GALAKTIKA\GAL\FRM\SRC\COMPSRC\L\L_SKLAD\VIP\FUNC\CONSRET.VAR(10), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\OBEDMOL.VIP" SourceLine="956" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная oCheckAvKol:ICheckAvKol интерфейса C_JOIN::KATMOLOB, объявленная в C:\GALAKTIKA\GAL\FRM\SRC\COMPSRC\L\L_SKLAD\VIP\FUNC\MAKEORDER\CHECKAVKOL.VAR(10), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\OBEDMOL.VIP" SourceLine="956" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная oCreateOrder:CreateOrder интерфейса C_JOIN::KATMOLOB, объявленная в C:\GALAKTIKA\GAL\FRM\SRC\COMPSRC\L\L_SKLAD\VIP\FUNC\MAKEORDER\CREATEORDER.VAR(8), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\OBEDMOL.VIP" SourceLine="956" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная oLFBase:LFBase интерфейса C_JOIN::KATMOLOB, объявленная в C:\GALAKTIKA\GAL\FRM\SRC\COMPSRC\L\L_SKLAD\VIP\FUNC\MAKEORDER\LFBASE.VAR(10), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\OBEDMOL.VIP" SourceLine="956" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная pSetSmeta:iSetSmeta интерфейса C_JOIN::KATMOLOB, объявленная в C:\GALAKTIKA\GAL\FRM\SRC\COMPSRC\L\L_SMETA\VIP\SETSMETA.VAR(9), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\OBEDMOL.VIP" SourceLine="956" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная oSetPriceNU:SetPriceNU интерфейса C_JOIN::KATMOLOB, объявленная в C:\GALAKTIKA\GAL\FRM\SRC\COMPSRC\L\L_SKLAD\VIP\FUNC\MAKEORDER\SETPRICENU.VAR(10), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\OBEDMOL.VIP" SourceLine="956" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная oSoprOrdB:iSoprOrdB интерфейса C_JOIN::KATMOLOB, объявленная в C:\GALAKTIKA\GAL\FRM\SRC\COMPSRC\L\L_SOPRDOC\VIP\SOPRORDB\SOPRORDB.VAR(14), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\OBEDMOL.VIP" SourceLine="956" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная oSald:IUksStoreSrPrice интерфейса C_JOIN::KATMOLOB, объявленная в C:\GALAKTIKA\GAL\FRM\SRC\COMPSRC\L\L_SALDOMTR\VIP\UKSSTORESRPRICE.VAR(10), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\OBEDMOL.VIP" SourceLine="956" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная NeedOrNoRunObBreak:Boolean интерфейса C_JOIN::KATMOLOB, объявленная в C:\USERS\ДМИТРИЙ\YANDEXDISK\WORK\!GAL_SOURCE\C_JOIN_FAKEL_9.1.44\VIP\COR_KAU.VPP(11), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\OBEDMOL.VIP" SourceLine="956" SourceColumn="5"/>
+					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;ANALSXEM&quot;, включенная в главную логическую таблицу интерфейса &quot;KATMOLOB&quot;, не была явно использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\OBEDMOL.VIP" SourceLine="956" SourceColumn="5"/>
+					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;CALCPRED&quot;, включенная в главную логическую таблицу интерфейса &quot;KATMOLOB&quot;, не была явно использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\OBEDMOL.VIP" SourceLine="956" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная oCache:CacheValues интерфейса C_JOIN::OBEDOBJREM, объявленная в C:\GALAKTIKA\GAL\FRM\SRC\COMPSRC\L\L_UKSPLANS\VIP\UTILS\CACHEVALUES.VAR(10), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\ObedObjRem.vip" SourceLine="988" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная oMtrCount:VipMtrCount интерфейса C_JOIN::OBEDOBJREM, объявленная в C:\GALAKTIKA\GAL\FRM\SRC\COMPSRC\L\L_SALDOMTR\VIP\MTRCOUNT.VAR(11), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\ObedObjRem.vip" SourceLine="988" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная NeedOrNoRunObBreak:Boolean интерфейса C_JOIN::OBEDOBJREM, объявленная в C:\USERS\ДМИТРИЙ\YANDEXDISK\WORK\!GAL_SOURCE\C_JOIN_FAKEL_9.1.44\VIP\COR_KAU.VPP(11), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\ObedObjRem.vip" SourceLine="988" SourceColumn="5"/>
+					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;ANALSXEM&quot;, включенная в главную логическую таблицу интерфейса &quot;OBEDOBJREM&quot;, не была явно использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\ObedObjRem.vip" SourceLine="988" SourceColumn="5"/>
+					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;CALCPRED&quot;, включенная в главную логическую таблицу интерфейса &quot;OBEDOBJREM&quot;, не была явно использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\ObedObjRem.vip" SourceLine="988" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная oSpNext:iSpNext интерфейса C_JOIN::KATPODROB, объявленная в C:\GALAKTIKA\GAL\FRM\SRC\COMPSRC\L\L_COMMON\VIP\SPNEXT\SPNEXT.VAR(14), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\OBEDPODR.VIP" SourceLine="1100" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная oModifSal:ModifSalV1 интерфейса C_JOIN::KATPODROB, объявленная в C:\GALAKTIKA\GAL\FRM\SRC\COMPSRC\L\L_OSTATKI\VIP\MODIFSAL\MODIFSAL.VAR(14), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\OBEDPODR.VIP" SourceLine="1100" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная oMTRFun:MTRFuncs интерфейса C_JOIN::KATPODROB, объявленная в C:\GALAKTIKA\GAL\FRM\SRC\COMPSRC\L\L_SALDOMTR\VIP\MTRFUNCS\MTRFUNCS.VAR(13), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\OBEDPODR.VIP" SourceLine="1100" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная oMtrCount:VipMtrCount интерфейса C_JOIN::KATPODROB, объявленная в C:\GALAKTIKA\GAL\FRM\SRC\COMPSRC\L\L_SALDOMTR\VIP\MTRCOUNT.VAR(11), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\OBEDPODR.VIP" SourceLine="1100" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная oSaldo_K:Saldo_K интерфейса C_JOIN::KATPODROB, объявленная в C:\GALAKTIKA\GAL\FRM\SRC\COMPSRC\L\L_OSTATKI\VIP\SALDO_K\SALDO_K.VAR(14), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\OBEDPODR.VIP" SourceLine="1100" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная oSaldoDei:iSaldoDei интерфейса C_JOIN::KATPODROB, объявленная в C:\GALAKTIKA\GAL\FRM\SRC\COMPSRC\L\L_SKLAD\VIP\DOC\SALDODEI.VAR(10), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\OBEDPODR.VIP" SourceLine="1100" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная oOrdLIFO:IOrdLIFO интерфейса C_JOIN::KATPODROB, объявленная в C:\GALAKTIKA\GAL\FRM\SRC\COMPSRC\L\L_SKLAD\VIP\FUNC\ORDLIFO.VAR(10), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\OBEDPODR.VIP" SourceLine="1100" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная oOrdHoz:IOrdHoz интерфейса C_JOIN::KATPODROB, объявленная в C:\GALAKTIKA\GAL\FRM\SRC\COMPSRC\L\L_SKLAD\VIP\DOC\ORDHOZ.VAR(10), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\OBEDPODR.VIP" SourceLine="1100" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная oCheckSpisBox:iCheckSpisBox интерфейса C_JOIN::KATPODROB, объявленная в C:\GALAKTIKA\GAL\FRM\SRC\COMPSRC\L\L_SKLAD\VIP\DOC\CHECKSPISBOX.VAR(10), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\OBEDPODR.VIP" SourceLine="1100" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная oConsRet:IConsRet интерфейса C_JOIN::KATPODROB, объявленная в C:\GALAKTIKA\GAL\FRM\SRC\COMPSRC\L\L_SKLAD\VIP\FUNC\CONSRET.VAR(10), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\OBEDPODR.VIP" SourceLine="1100" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная oCheckAvKol:ICheckAvKol интерфейса C_JOIN::KATPODROB, объявленная в C:\GALAKTIKA\GAL\FRM\SRC\COMPSRC\L\L_SKLAD\VIP\FUNC\MAKEORDER\CHECKAVKOL.VAR(10), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\OBEDPODR.VIP" SourceLine="1100" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная oCreateOrder:CreateOrder интерфейса C_JOIN::KATPODROB, объявленная в C:\GALAKTIKA\GAL\FRM\SRC\COMPSRC\L\L_SKLAD\VIP\FUNC\MAKEORDER\CREATEORDER.VAR(8), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\OBEDPODR.VIP" SourceLine="1100" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная oLFBase:LFBase интерфейса C_JOIN::KATPODROB, объявленная в C:\GALAKTIKA\GAL\FRM\SRC\COMPSRC\L\L_SKLAD\VIP\FUNC\MAKEORDER\LFBASE.VAR(10), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\OBEDPODR.VIP" SourceLine="1100" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная pSetSmeta:iSetSmeta интерфейса C_JOIN::KATPODROB, объявленная в C:\GALAKTIKA\GAL\FRM\SRC\COMPSRC\L\L_SMETA\VIP\SETSMETA.VAR(9), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\OBEDPODR.VIP" SourceLine="1100" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная oSetPriceNU:SetPriceNU интерфейса C_JOIN::KATPODROB, объявленная в C:\GALAKTIKA\GAL\FRM\SRC\COMPSRC\L\L_SKLAD\VIP\FUNC\MAKEORDER\SETPRICENU.VAR(10), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\OBEDPODR.VIP" SourceLine="1100" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная oSoprOrdB:iSoprOrdB интерфейса C_JOIN::KATPODROB, объявленная в C:\GALAKTIKA\GAL\FRM\SRC\COMPSRC\L\L_SOPRDOC\VIP\SOPRORDB\SOPRORDB.VAR(14), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\OBEDPODR.VIP" SourceLine="1100" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная oSald:IUksStoreSrPrice интерфейса C_JOIN::KATPODROB, объявленная в C:\GALAKTIKA\GAL\FRM\SRC\COMPSRC\L\L_SALDOMTR\VIP\UKSSTORESRPRICE.VAR(10), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\OBEDPODR.VIP" SourceLine="1100" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная NeedOrNoRunObBreak:Boolean интерфейса C_JOIN::KATPODROB, объявленная в C:\USERS\ДМИТРИЙ\YANDEXDISK\WORK\!GAL_SOURCE\C_JOIN_FAKEL_9.1.44\VIP\COR_KAU.VPP(11), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\OBEDPODR.VIP" SourceLine="1100" SourceColumn="5"/>
+					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;ANALSXEM&quot;, включенная в главную логическую таблицу интерфейса &quot;KATPODROB&quot;, не была явно использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\OBEDPODR.VIP" SourceLine="1100" SourceColumn="5"/>
+					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;CALCPRED&quot;, включенная в главную логическую таблицу интерфейса &quot;KATPODROB&quot;, не была явно использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\OBEDPODR.VIP" SourceLine="1100" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Локальная переменная tmpnRec:Comp, объявленная в C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\obedsch.vip(666), не используется." SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\obedsch.vip" SourceLine="722" SourceColumn="1"/>
+					<CompileMessage MessageType="mtInfo" MessageText="В функции (процедуре) InitShablon локальная переменная schetPr:String, объявленная в C:\USERS\ДМИТРИЙ\YANDEXDISK\WORK\!GAL_SOURCE\C_JOIN_FAKEL_9.1.44\VIP\OBEDSCH.VPP(1020), не используется." SourceFileName="C:\USERS\ДМИТРИЙ\YANDEXDISK\WORK\!GAL_SOURCE\C_JOIN_FAKEL_9.1.44\VIP\obedsch.vpp" SourceLine="1172" SourceColumn="1">
+						<StackIncludeList>
+							<StackInclude FileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\obedsch.vip" Line="931" Column="1"/>
+						</StackIncludeList>
+					</CompileMessage>
+					<CompileMessage MessageType="mtInfo" MessageText="В функции (процедуре) InitShablon локальная переменная subschetPr:String, объявленная в C:\USERS\ДМИТРИЙ\YANDEXDISK\WORK\!GAL_SOURCE\C_JOIN_FAKEL_9.1.44\VIP\OBEDSCH.VPP(1020), не используется." SourceFileName="C:\USERS\ДМИТРИЙ\YANDEXDISK\WORK\!GAL_SOURCE\C_JOIN_FAKEL_9.1.44\VIP\obedsch.vpp" SourceLine="1172" SourceColumn="1">
+						<StackIncludeList>
+							<StackInclude FileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\obedsch.vip" Line="931" Column="1"/>
+						</StackIncludeList>
+					</CompileMessage>
+					<CompileMessage MessageType="mtInfo" MessageText="В функции (процедуре) Obed локальная переменная n:Integer, объявленная в C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\obedsch.vip(1491), не используется." SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\obedsch.vip" SourceLine="1736" SourceColumn="1"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Локальная переменная tmpnRec:Comp, объявленная в C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\obedsch.vip(2091), не используется." SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\obedsch.vip" SourceLine="2141" SourceColumn="1"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Метод интерфейса &quot;OBEDSCH.SetFilialInNastrObed&quot;, объявленный в C:\USERS\ДМИТРИЙ\YANDEXDISK\WORK\!GAL_SOURCE\C_JOIN_FAKEL_9.1.44\VIP\FILIAL_FUNC.VPP(132), не был использован" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\obedsch.vip" SourceLine="2489" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Метод интерфейса &quot;OBSTATUS.GetMarkerMy&quot;, объявленный в C:\USERS\ДМИТРИЙ\YANDEXDISK\WORK\!GAL_SOURCE\C_JOIN_FAKEL_9.1.44\VIP\ERROBALL.VPP(8), не был использован" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\ObedStatus.vip" SourceLine="884" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная NeedOrNoRunObBreak:Boolean интерфейса C_JOIN::STERROB, объявленная в C:\USERS\ДМИТРИЙ\YANDEXDISK\WORK\!GAL_SOURCE\C_JOIN_FAKEL_9.1.44\VIP\COR_KAU.VPP(11), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\ObedsTerr.vip" SourceLine="819" SourceColumn="5"/>
+					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;ANALSXEM&quot;, включенная в главную логическую таблицу интерфейса &quot;STERROB&quot;, не была явно использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\ObedsTerr.vip" SourceLine="819" SourceColumn="5"/>
+					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;CALCPRED&quot;, включенная в главную логическую таблицу интерфейса &quot;STERROB&quot;, не была явно использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\ObedsTerr.vip" SourceLine="819" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная NeedOrNoRunObBreak:Boolean интерфейса C_JOIN::JOINUSLGROUPS, объявленная в C:\USERS\ДМИТРИЙ\YANDEXDISK\WORK\!GAL_SOURCE\C_JOIN_FAKEL_9.1.44\VIP\COR_KAU.VPP(11), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\obedusl.vip" SourceLine="712" SourceColumn="5"/>
+					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;ANALSXEM&quot;, включенная в главную логическую таблицу интерфейса &quot;JOINUSLGROUPS&quot;, не была явно использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\obedusl.vip" SourceLine="712" SourceColumn="5"/>
+					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;CALCPRED&quot;, включенная в главную логическую таблицу интерфейса &quot;JOINUSLGROUPS&quot;, не была явно использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\obedusl.vip" SourceLine="712" SourceColumn="5"/>
+					<CompileMessage MessageType="mtWarning" MessageText="Переменная cOtpEd не была инициализирована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\obeduslg.vip" SourceLine="1158" SourceColumn="1"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Переменная NeedOrNoRunObBreak:Boolean интерфейса C_JOIN::KATUSLGOB, объявленная в C:\USERS\ДМИТРИЙ\YANDEXDISK\WORK\!GAL_SOURCE\C_JOIN_FAKEL_9.1.44\VIP\COR_KAU.VPP(11), не была использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\obeduslg.vip" SourceLine="1579" SourceColumn="5"/>
+					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;ANALSXEM&quot;, включенная в главную логическую таблицу интерфейса &quot;KATUSLGOB&quot;, не была явно использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\obeduslg.vip" SourceLine="1579" SourceColumn="5"/>
+					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;CALCPRED&quot;, включенная в главную логическую таблицу интерфейса &quot;KATUSLGOB&quot;, не была явно использована" SourceFileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\obeduslg.vip" SourceLine="1579" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="ServKau.vih можно отключить (Contexts.vih скорее всего тоже)" SourceFileName="C:\GALAKTIKA\GAL\FRM\SRC\COMPSRC\F\F_GETAN\VIP\ServKau.vih" SourceLine="6" SourceColumn="1">
+						<StackIncludeList>
+							<StackInclude FileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\razdkau.vip" Line="21" Column="1"/>
+						</StackIncludeList>
+					</CompileMessage>
+					<CompileMessage MessageType="mtInfo" MessageText="ServKau.vih можно отключить (Contexts.vih скорее всего тоже)" SourceFileName="C:\GALAKTIKA\GAL\FRM\SRC\COMPSRC\F\F_GETAN\VIP\ServKau.vih" SourceLine="6" SourceColumn="1">
+						<StackIncludeList>
+							<StackInclude FileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\ReplKau.vip" Line="25" Column="1"/>
+						</StackIncludeList>
+					</CompileMessage>
+					<CompileMessage MessageType="mtInfo" MessageText="ServKau.vih можно отключить (Contexts.vih скорее всего тоже)" SourceFileName="C:\GALAKTIKA\GAL\FRM\SRC\COMPSRC\F\F_GETAN\VIP\ServKau.vih" SourceLine="6" SourceColumn="1">
+						<StackIncludeList>
+							<StackInclude FileName="C:\Users\Дмитрий\YandexDisk\Work\!Gal_Source\c_join_fakel_9.1.44\vip\ZamTab.vip" Line="21" Column="1"/>
+						</StackIncludeList>
+					</CompileMessage>
+					<CompileMessage MessageType="mtEndCompile" MessageText="16.01.2024 16:56:42"/>
+				</CompileMessageList>
+			</CompileMessenger>
+		</CompileMessengerList>
+	</ProjectManager>
+</Viper>

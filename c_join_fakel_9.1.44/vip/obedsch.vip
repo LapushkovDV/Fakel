@@ -1,0 +1,2508 @@
+//********************************************************************************
+//                                                        (c) корпорация Галактика
+// Галактика 7.12 - Настройка
+// Объединение счетов
+//********************************************************************************
+
+#include obedsch.vih
+#include Actualit.vih  // Объектный интерфейс Поддержки актуальности сальдо
+#include ShowKau.vpp
+#ifndef _ObedShchet
+#define _ObedShchet
+#end
+
+#doc
+Объединение счетов
+#end
+Interface ObedSch 'Объединение счетов' ('Объединение счетов',hcNastrIAdmServLinkBuhSch,sci1Esc) EscClose, Cyan;
+show at (,,100,);
+
+const
+  cg_Default= 0;
+  cg_Begin = 1;
+  cg_Break = 2;
+  cg_Finish = 3;
+  cg_FinishError = 4;
+end;
+
+  Table struct tmpDate (nRec : comp, dateBeg : Date)
+  With index
+  (
+    tmpDate01 = nRec (Unique, Surrogate, Journal),
+    tmpDate02 =  dateBeg
+  );
+
+  Table struct tmpNum (nRec : comp, num : word)
+  with index
+  (
+    tmpNum01 = nRec (Unique, Surrogate, Journal),
+    tmpNum02 = num (asc)
+  );
+
+  table struct TmpZamSch (nRec : comp, SchSr : string[21], SubSchSr : string[21],
+                                       SchPr : string[21], SubSchPr : string[21])
+  with index
+  ( TmpZamSch00 = nRec (Unique, Surrogate, Journal),
+    TmpZamSch01 = SchSr,
+    TmpZamSch02 = SchSr + SubSchSr,
+    TmpZamSch03 = SchPr,
+    TmpZamSch04 = SchPr + SubSchPr
+  );
+
+  table struct JoiHeadPlusInd
+       (NRec: Comp, Num : word,TypeEvent : word,
+        cRec      : comp,
+        Status    : byte,
+        cPlansSch : COMP
+      )
+  with index
+      (
+        JoiHeadP00 = Nrec ( Unique, Surrogate, Journal ),
+        JoiHeadP01 = Num (Asc),
+        JoiHeadP02 = cRec,
+        JoiHeadP04 = TypeEvent
+      );
+
+#include Actualit.var  // Переменная типа VipInterface SaldoActuality
+// функция возвращает название операции по индексу
+function GetNameOperation(wIndex : byte) : string; forward;
+// функция возвращает название статуса по коду
+function GetNameStatus(wStatus : byte) : string; forward;
+procedure DelJoiHead (cRec : comp); forward;
+procedure InitJoiHeadPlusInd; forward;
+procedure InitZarTable; forward;
+create view vwObedSch
+var
+// ───────── Для маркеров ─────────
+ MarkDown, MarkUp  : TPtr;// первый предназначен для пометки нижнего Browse второй для верхнего
+ IndexNo           : LongInt;
+///////////////////////////////////
+ nUpdateRes :longint;  // возвращение значения выполнения операции модифийирования(Update)
+ namefile, str : string;
+ RecPlsch, RecSpPlsch, oldRecPlsch, oldRecSpPlsch,
+ newRecPlsch, NewRecSpPlsch   : comp;
+ bRunOperationObedOrRazd : boolean;      // нужно ли выполнять одну из операций: разделения или объединения
+ NeedZarRun   : word; //нужна для проверки какие птички стоят для использования зарплатных таблиц
+                      // доступна только тогда когда План приемни=плану источнику = настройке плана счетат зарплаты
+ NeedZarRunBool : boolean;// проверяет действуют в данный момент птички или нет
+ FilterFullObed : word;
+ NameTable : string;
+ KodPlanSch: string[1];
+ wLevelKauRazd : word;//переменная для номера уровня аналитики для разделения
+ breaked : boolean;
+ defSchet, defAnalitika : word;
+ idef : integer;
+ FullObed : boolean; // все ли счета выбраны
+
+ nMarkers : string[30];
+ cKauRecForRazd : comp;
+as select
+    if(isValid(tnPlansSch), PlansSch.Name, '')                  (fieldname = nmplsch)
+  , if(isValid(tnSpPlansSch1), SpPlansSch1.Name, '')            (fieldname = nmplsch1)
+  , if(isValid(tnBuhSchet), BuhSchet.Schet, '')                 (fieldname = numsch)
+  , if(isValid(tnBuhSchet), BuhSchet.SubSch, '')                (fieldname = numsbsch)
+  , if(isValid(tnBuhSchet), BuhSchet.Name, '')                  (fieldname = nmsch)
+  , RTrim(  if (isValid(tnKatKau1), KatKau1.Name, '') + '\'
+          + if (isValid(tnKatKau2), KatKau2.Name, '') + '\'
+          + if (isValid(tnKatKau3), KatKau3.Name, '') + '\'
+          + if (isValid(tnKatKau4), KatKau4.Name, '') + '\'
+          + if (isValid(tnKatKau5),KatKau5.Name, '') + '\'
+          + if (isValid(tnKatKau6), KatKau6.Name, ''), '\')     (fieldname = Analitika)
+  , if(isValid(tnSpPlansSch), SpPlansSch.Name, '')              (fieldname = spnmplsch)
+  , if(isValid(tnSpPlansSch2), SpPlansSch2.Name, '')            (fieldname = spnmplsch1)
+  , if(isValid(tnSpBuhSchet), SpBuhSchet.Schet, '')             (fieldname = spnumsch)
+  , if(isValid(tnSpBuhSchet), SpBuhSchet.SubSch, '')            (fieldname = spnumsbsch)
+  , if(isValid(tnSpBuhSchet), SpBuhSchet.Name, '')              (fieldname = spnmsch)
+  , RTrim(  if (isValid(tnSpKatKau1), SpKatKau1.Name, '') + '\'
+          + if (isValid(tnSpKatKau2), SpKatKau2.Name, '') + '\'
+          + if (isValid(tnSpKatKau3), SpKatKau3.Name, '') + '\'
+          + if (isValid(tnSpKatKau4), SpKatKau4.Name, '') + '\'
+          + if (isValid(tnSpKatKau5), SpKatKau5.Name, '') + '\'
+          + if (isValid(tnSpKatKau6), SpKatKau6.Name, ''), '\') (fieldname = Analitika1)
+  , GetNameOperation(1)                                         (fieldname = opkau1)
+  , GetNameOperation(2)                                         (fieldname = opkau2)
+  , GetNameOperation(3)                                         (fieldname = opkau3)
+  , GetNameOperation(4)                                         (fieldname = opkau4)
+  , GetNameOperation(5)                                         (fieldname = opkau5)
+  , GetNameOperation(6)                                         (fieldname = opkau6)
+// статусы
+  , GetNameStatus(JoiHeadPlusInd.Status)                        (fieldname = strJoiStatus)
+  , if (isValid(tnRazdSchOperation), 'Разделение', 'Объединение') (fieldname = spStatusOperation)
+  , GetNameStatus(SpJoi.Status)                                 (fieldname = strSpJoiStatus)
+  , if (SearchMarker(MarkDown, SpJoi.NRec, IndexNo), 'V', ' ')  (fieldname = IsPick)
+  , if (SearchMarker(MarkUp, JoiHeadPlusInd.NRec, IndexNo), 'V', ' ') (fieldname = IsPick1)
+  , *
+from
+    JoiHeadPlusInd (JoiHeadP01)
+  , JoiHead
+  , SpJoi
+  , ZamTab
+  , ZamKau
+  , RazdSch
+  , SRazdSch
+  , BuhSchet
+  , KatKau
+  , PlansSch
+  , tmpZamSch
+  , SpJorn
+  , ProvRec
+  , tmpNum (tmpNum02)
+  , ProvRec ProvRecIns
+  , RazdSch RazdSchOperation
+  , PlansSch SpPlansSch
+  , PlansSch SpPlansSch1
+  , PlansSch SpPlansSch2
+  , BuhSchet SpBuhSchet
+  , KatKau KatKau1
+  , KatKau KatKau2
+  , KatKau KatKau3
+  , KatKau KatKau4
+  , KatKau KatKau5
+  , KatKau KatKau6
+  , KatKau SpKatKau1
+  , KatKau SpKatKau2
+  , KatKau SpKatKau3
+  , KatKau SpKatKau4
+  , KatKau SpKatKau5
+  , KatKau SpKatKau6
+  , BuhSchet TmpBuhSchet
+  , BuhSchet TmpBuhSchet1
+  , JoiHeadPlusInd TmpJoiHeadPlusInd
+  , SpJoi TmpSpJoi
+  , JoiHead TmpJoiHead
+  , SpJoi TmpSpJoi2
+  , SpJoi SpJoitmp
+  , ZamTab tmpZamTab
+  , ZamKau tmpZamKau
+  , SpJoi SpecSpJoi
+  , JoiHead SpecJoiHead
+  , TMPDATE
+  , FilialObjects
+  , Filials
+  , Filials LinkFilials
+  , FilialRights
+  , OBOROT, SALDDAY, GONEWPER, VALUT, JORNTUNE, SPCASH, SPBUHGT, SETBILL, SHTRAF, LSCHET
+  , XARPRED, KLVIDUD, KLVIDOPL, DOPLATA, SUMVIDOP, SUMVIDUD, BLISNET, OTPUSK, SCHPERE
+  , NORMTMR, RASOPER, RASDOP, NENACH, LSTAB, PEREXOD, PEREVOD, ZAROPER, KLFILTER, OTPDOP
+  , UCHRABVR, NACHISL, UDER, PRVIDOPL, SYS_MBF, ARHPEREX, PEREVODTEK, SYS_NAR, PRNARYAD, SALDMOUN
+  , SMNARYAD, NARDOP, HOZOBOR
+where
+     ((  word(cgObedPlanSch)      ==      JoiHead.TypeEvent and   // Объединение счетов
+         RecPlsch                 ==          PlansSch.nRec and   // План счетов для заголовка объединения
+         RecSpPlsch               ==        SpPlansSch.nRec and   // План счетов для спецификации объединения
+         NewRecPlsch              ==        SpPlansSch1.nRec and   // План счетов для заголовка объединения
+         NewRecSpPlsch            ==        SpPlansSch2.nRec and   // План счетов для спецификации объединения
+//        JoiHead.NRec             ==    JoiHeadPlusInd.Nrec and
+         JoiHeadPlusInd.nRec      ==         SpJoi.cJoiHead and   // Заголовок объединения-спецификация объединения
+         JoiHeadPlusInd.cRec      ==          BuhSchet.nRec and   // Заголовок объединения - счет
+         SpJoi.cRec               ==        SpBuhSchet.nRec and   // Спецификация объединения - счет
+         SpJoi.nRec               ==          ZamTab.cSpJoi and   // Спецификация объединения - заголовок таблицы замен
+         ZamTab.nRec              ==         ZamKau.cZamTab and   // Заголовок таблицы замен - спецификация таблицы замен
+         BuhSchet.KodTable[1]     ==       KatKau1.KodGroup and   //
+         BuhSchet.KodTable[2]     ==       KatKau2.KodGroup and   //
+         BuhSchet.KodTable[3]     ==       KatKau3.KodGroup and   // Аналитика для заголовка объединения
+         BuhSchet.KodTable[4]     ==       KatKau4.KodGroup and   //
+         BuhSchet.KodTable[5]     ==       KatKau5.KodGroup and   //
+         BuhSchet.KodTable[6]     ==       KatKau6.KodGroup and   // Аналитика для заголовка объединения
+         SpBuhSchet.KodTable[1]   ==     SpKatKau1.KodGroup and   //
+         SpBuhSchet.KodTable[2]   ==     SpKatKau2.KodGroup and   //
+         SpBuhSchet.KodTable[3]   ==     SpKatKau3.KodGroup and   // Аналитика для спецификации объединения
+         SpBuhSchet.KodTable[4]   ==     SpKatKau4.KodGroup and   //
+         SpBuhSchet.KodTable[5]   ==     SpKatKau5.KodGroup and   //
+         SpBuhSchet.KodTable[6]   ==     SpKatKau6.KodGroup and   // Аналитика для спецификации объединения
+         tmpJoiHeadPlusInd.nRec   ==     tmpSpJoi.cJoiHead and
+         ProvRec.NRec             ==     ProvRecIns.NRec    and
+         SpJoi.cRec               ==     RazdSchOperation.cSch
+     ))
+//order ByNum  by JoiHeadPlusInd.Num
+// Bounds OnlyUser =
+//      word(cgObedPlanSch) == JoiHead.TypeEvent and UserName() == JoiHead.UserName
+;
+File fStruct, ferrStruct;
+
+FORM frmObedsch('obedsch.out','obedsch') with novisual;
+FORM frmObedschD('OborotD.out','obedschp') with novisual;
+FORM frmObedschK('OborotK.out','obedschp') with novisual;
+FORM frmObedschSM('SaldMoun.out','obedschp') with novisual;
+FORM frmObedschSD('SaldDay.out','obedschp') with novisual;
+
+
+
+window SelNum 'Выбор порядкового номера' ('Выбор порядкового номера',,sci1Esc) Doaccept,EscClose,Cyan;
+Show At (10,5,50,15);
+browse brSelNum;
+Table TmpNum;
+fields
+   TmpNum.Num '№': [30],protect;
+end;//browse brSelNum
+end;//window SelNum
+
+panel pnHeader;
+show at (,,,6);
+table JoiHeadPlusInd;
+Screen scrPlanSch;
+show at (,1,,1);
+fields
+    'План счетов (приемник):' : {font={bold=true}},skip;
+    nmplsch ('План счетов - приемник',,sci13Esc): protect;
+<<
+ .@@@@@@@@@@@@@@@@@@@@@ .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+>>
+end;//screen scrPlanSch
+
+browse brHead ('Результирующий счёт',,sci1378InsPM);
+show at (,2,,6);
+fields
+    {Font = {Color = if (IsPick1 = 'V',ColorMark,0)}};
+    IsPick1          'V'    ('V - Помечен /Нет',,sci178InsPM) :[1], Protect, NoAutoSize,centered;
+    JoiHeadPlusInd.Num             '№'('№',hcNastrIAdmServLinkBuhSchPickNum,
+                                          sci1378InsPM) : [4], protect;
+    numsch                 'Счет' ('Счет',hcNastrIAdmServLinkBuhSchPickSch,
+                                          sci178InsPM) : [4],protect;
+    numsbsch         'Субсчет' ('Субсчет',,sci178InsPM) : [4],protect;
+    nmsch 'Наименование'  ('Наименование',,sci178InsPM) : [20],protect;
+    Analitika        'Аналитика' ('Аналитика',,sci178InsPM) : [26],protect;
+    strJoiStatus 'Статус' : [4], Protect;
+end;//browse brHead
+
+#include filial_func.vpp // проверка филиальности
+Function GiveMessageAboutNastrPlanSch : boolean;
+{
+  result := true;
+  if (RecPlsch = RecSpPlsch)
+    if (((NeedZarRun and 1) = 1)Or((NeedZarRun and 2) = 2))
+      result := not (Message(''#3'Вы установили опции для обработки таблиц модуля Заработная плата.'+
+                          ''#13#3'Уверены ли вы, что все операции в данном модуле велись в плане счетов "'+nmplsch+'". '+
+                          'Продолжить?', mfConfirmation + mfSwapButtons + YesNo) = No);
+}// procedure GiveMessageAboutNastrPlanSch
+
+Procedure InitZarTable;
+{
+   if (RecPlsch = RecSpPlsch)
+   {
+     SetFieldOption(#NeedZarRun, ofSelectable);
+     NeedZarRunBool := True;
+     KodPlanSch := PlansSch.Kod;
+   }
+   else
+   {
+     NeedZarRunBool := False;
+     set NeedZarRun := 0;
+     ClearFieldOption(#NeedZarRun, ofSelectable);
+     RescanPanel(#SpJoi);
+   }
+} // procedure InitzarTable
+
+Function maxNumForInsert:Word;
+{
+  if RecordsinTable(#tmpJoiHeadPlusInd) <> 0
+    maxNumForInsert := RecordsinTable(#tmpJoiHeadPlusInd) + 1
+  else
+    maxNumForInsert := 1;
+}
+
+function ShowKauName(TableKod : word; Nrec : comp): string;
+{
+  ShowKauName := #ShowKau(TableKod,Nrec);
+}
+
+function CheckSchet(tmpnRec : comp) : boolean;
+{
+  result := true;
+  if (GetFirst tmpJoiHeadPlusInd where ((tmpnRec == tmpJoiHeadPlusInd.cRec))=tsOk)
+  {
+    if (GetFirst TmpBuhSchet where ((tmpnRec == TmpBuhSchet.Nrec)) = tsOk)
+    {
+      if TmpBuhSchet.SubSch =''
+        message('Счет(субсчет) '+TmpBuhSchet.Schet+' уже выбран в качестве результата объединения.',error);
+      else
+        message('Счет(субсчет) '+TmpBuhSchet.Schet+'.'+TmpBuhSchet.SubSch+
+                ' уже выбран в качестве результата объединения.',error);
+      result := false;
+    }
+  }
+}
+
+Procedure FreeUsedPlansSch(cPlanSch : comp);
+{
+  while(true)
+  {
+    InitJoiHeadPlusInd;
+    InitZarTable;
+    if isUsedPlansSch(cPlanSch)
+      DelJoiHead(JoiHead.Nrec);
+    else
+      break;
+  }
+}
+
+Function isUsedPlansSch(cPlanSch : comp) : boolean;
+{
+  isUsedPlansSch := False;
+  if GetFirst JoiHead where ((word(cgObedPlanSch) == JoiHead.TypeEvent)) = tsOk
+  {
+    if GetFirst BuhSchet where ((JoiHead.cRec == BuhSchet.NRec)) = tsOk
+    {
+      if (BuhSchet.cPlansSch = cPlanSch)
+        isUsedPlansSch := true
+      else
+        if GetFirst SpJoi where ((JoiHead.Nrec == SpJoi.cJoiHead)) = tsOk
+        {
+          if GetFirst BuhSchet where ((SpJoi.cRec == BuhSchet.NRec)) = tsOk
+          {
+            if (BuhSchet.cPlansSch = cPlanSch)
+              isUsedPlansSch := true
+          }
+        }
+        else
+        if GetFirst SpJoi where ((word(cgObedPlanSch) == SpJoi.rWord (noindex))) = tsOk
+        {
+          if GetFirst BuhSchet where ((SpJoi.cRec == BuhSchet.NRec)) = tsOk
+          {
+            if (BuhSchet.cPlansSch = cPlanSch)
+              isUsedPlansSch := true
+          }
+        }
+    }
+  }
+}
+
+Function isUsedSubSch(Schet : tSchet3; SubSch : tSubSch) : boolean;
+{
+  isUsedSubSch := false;
+  If GetFirst BuhSchet where ((Schet  == BuhSchet.Schet and
+                               SubSch == BuhSchet.SubSch)) = tsOk
+  {
+    If (GetFirst JoiHead where ((BuhSchet.Nrec == JoiHead.cRec (noindex))) = tsOk)
+    {
+      DO
+      {
+        if (JoiHead.TypeEvent = word(cgObedPlanSch))
+        {
+          isUsedSubSch := true;
+          Break;
+        }
+      }
+      While (GetNext JoiHead where ((BuhSchet.Nrec == JoiHead.cRec (noindex))) = tsOk)
+    }
+    else
+      If (GetFirst SpJoi where ((BuhSchet.Nrec == SpJoi.cRec (noindex))) = tsOk)
+      {
+        DO
+        {
+          if (GetFirst JoiHead where ((SpJoi.cJoiHead == JoiHead.Nrec)) = tsOk)
+          {
+            if (JoiHead.TypeEvent = word(cgObedPlanSch))
+            {
+              isUsedSubSch := true;
+              Break;
+            }
+          }
+        }
+        While (GetNext SpJoi where ((BuhSchet.Nrec == SpJoi.cRec (noindex))) = tsOk)
+      }
+  }
+}
+
+Function isUsedSchet(Schet : tSchet3) : boolean;
+{
+  isUsedSchet := false;
+  _loop TmpBuhSchet where ((Schet  == TmpBuhSchet.Schet))
+  {
+    if isUsedSubSch(TmpBuhSchet.Schet, TmpBuhSchet.SubSch) = true
+    {
+      isUsedSchet := true;
+      Break;
+    }
+  }
+}
+
+procedure CheckRazdSchet(cRec : Comp;Nrec : Comp);//выполняет проверку разделения счета
+{
+   var i : integer;
+   var def : integer;
+   i := 0; def := 0;
+   _loop RazdSch where ((cRec == RazdSch.CSCH))
+   {
+     if RazdSch.CRESULTSCH = Nrec
+       def := 1;
+     i := i + 1;
+   }
+   if i >= 3
+   {
+     if Def = 1
+     {
+       delete all RazdSch where ((cRec == RazdSch.CSCH and
+                                  NREc == RazdSch.CRESULTSCH(noindex)));
+
+       if (GetFirst RazdSch where ((cRec == RazdSch.CSCH)) =TsOk)
+       {
+         delete all SRazdSch where ((RazdSch.NRec == SRAzdSch.cRadzSch));
+
+         RazdSch.DEFSCH := 1;
+         update current RazdSch;
+         exit;
+       }
+     }
+     else
+     {
+       delete all SRazdSch where ((RazdSch.NRec == SRAzdSch.cRadzSch));
+       delete all RazdSch where ((cRec == RazdSch.CSCH and
+                                  NREc == RazdSch.CRESULTSCH(noindex)));
+     }
+   }
+   else
+   {
+     _loop RazdSch where ((cRec == RazdSch.CSCH))
+     {
+       delete all SRazdSch where ((RazdSch.NRec == SRAzdSch.cRadzSch));
+     }
+     delete all RazdSch where ((cRec == RazdSch.CSCH));
+   }
+}
+
+Procedure PereschetNum(NrecJoiHeadP : Comp; NumOld,NumNew : word);
+{
+  var i : integer;
+  if (NumOld < NumNew)and(NumOld <> NumNew)
+  {
+    i := NumOld+1;
+    if (GetFirst JoiHeadPlusInd where ((word(i) == JoiHeadPlusInd.Num)) = tsOk)
+    {
+      Do
+      {
+        JoiHeadPlusInd.Num := i - 1;
+        update current JoiHeadPlusInd;
+        if (GetFirst JoiHead where ((JoiHeadPlusInd.NRec == JoiHead.NRec)) = tsOk)
+        {
+          JoiHead.rComp := JoiHeadPlusInd.Num;
+          update current JoiHead;
+        }
+        i := i + 1;
+      }
+      While (GetFirst JoiHeadPlusInd where ((word(i) == JoiHeadPlusInd.Num)) = tsOk) and
+            (i <= NumNew);
+      if (GetFirst JoiHeadPlusInd where ((NrecJoiHeadP == JoiHeadPlusInd.Nrec))=tsOk)
+      {
+        JoiHeadPlusInd.Num := NumNew;
+        update current JoiHeadPlusInd;
+        if (GetFirst JoiHead where ((JoiHeadPlusInd.NRec == JoiHead.NRec)) = tsOk)
+        {
+          JoiHead.rComp := JoiHeadPlusInd.Num;
+          update current JoiHead;
+        }
+      }
+    }
+  }
+  else
+    if (NumOld > NumNew)and(NumOld <> NumNew)
+    {
+      i := NumNew;
+      if (GetFirst JoiHeadPlusInd where ((word(i) == JoiHeadPlusInd.Num)) = tsOk)
+      {
+        Do
+        {
+          JoiHeadPlusInd.Num := i + 1;
+          update current JoiHeadPlusInd;
+          if (GetFirst JoiHead where ((JoiHeadPlusInd.NRec == JoiHead.NRec)) = tsOk)
+          {
+            JoiHead.rComp := JoiHeadPlusInd.Num;
+            update current JoiHead;
+          }
+          i := i+1;
+        }
+        While (GetFirst JoiHeadPlusInd where ((word(i) == JoiHeadPlusInd.Num)) = tsOk) and
+              (i < NumOld);
+
+        if (GetFirst JoiHeadPlusInd where ((NrecJoiHeadP == JoiHeadPlusInd.Nrec))=tsOk)
+        {
+          JoiHeadPlusInd.Num := NumNew;
+          update current JoiHeadPlusInd;
+          if (GetFirst JoiHead where ((JoiHeadPlusInd.NRec == JoiHead.NRec)) = tsOk)
+          {
+            JoiHead.rComp := JoiHeadPlusInd.Num;
+            update current JoiHead;
+          }
+        }
+      }
+    }
+};
+
+procedure DelJoiHead (cRec : comp);
+{
+  if (GetFirst TmpJoiHeadPlusInd where ((cRec == TmpJoiHeadPlusInd.nRec)) = tsOk)
+    {
+        _LOOP TmpSpJoi where ((cRec == TmpSpJoi.cJoiHead))
+        {
+            CheckRazdSchet(tmpSpJoi.cRec, TmpJoiHeadPlusInd.cRec);
+            _LOOP tmpZamTab where ((TmpSpJoi.nRec == tmpZamTab.cSpJoi))
+            delete all tmpZamKau where ((tmpZamTab.nRec == tmpZamKau.cZamTab));
+            delete all tmpZamTab where ((tmpSpJoi.nRec == tmpZamTab.cSpJoi));
+        }
+        delete all tmpSpJoi where ((cRec == tmpSpJoi.cJoiHead));
+        delete all JoiHead where ((cRec == JoiHead.nRec));
+        PereschetNum(crec, TmpJoiHeadPlusInd.Num, recordsintable(#tmpNum));
+        var wValue : word;
+        wValue := RecordsinTable(#tmpNum);
+        delete all tmpNum where ((wValue == tmpNum.Num));
+        delete current TmpJoiHeadPlusInd;
+    }
+}
+
+handleevent//panel pnHeader
+cmMarkUnmark:
+{
+   InvertMarker(MarkUp, JoiHeadPlusInd.NRec);
+            RedrawCurrentAndGo (GetCurrentFormat,true);
+   ReScanPanel(#JoiHeadPlusInd);
+}
+
+cmSelectAll:
+{
+  if (Message('Пометить все счета?', YesNo) = Yes)
+  {
+    StartNewVisual(vtRotateVisual, vfTimer + vfBreak + vfConfirm, 'Идет пометка', 1);
+    _loop JoiHeadPlusInd
+    {
+      NextVisual;
+      InsertMarker(MarkUp, JoiHeadPlusInd.NRec);
+    }
+    StopVisual('', 0);
+    ReScanPanel(#JoiHeadPlusInd);
+  }
+}
+
+cmUnselectAll:
+{
+  if (Message('Снять все пометки?', YesNo) = Yes)
+  {
+    ClearMarker(MarkUp);
+    ReScanPanel(#JoiHeadPlusInd);
+  }
+}
+
+cmPick:
+{
+  case CurField of
+  #nmplsch :
+  {
+    oldRecPlSch := RecPlSch;
+    if (RunInterface('GetPlansSch', RecPlSch) <> cmCancel)
+    {
+      if (RecPlSch <> oldRecPlSch) and (OldRecPlSch <> 0)
+        if (Message('При смене плана счетов будут потеряны настройки.' +
+                    'Вы хотите сделать смену плана счетов?', mfConfirmation + mfSwapButtons + YesNo) = Yes)
+        {
+          set NewRecPlSch := RecPlSch;
+          StartNewVisual(vtRotateVisual,vfTimer,'Идет удаление настройки Объединение счетов',0);
+          _loop tmpJoiHeadPlusInd
+          {
+            nextvisual;
+            DelJoiHead (tmpJoiHeadPlusInd.nRec);
+          }
+          ClearMarker(MarkUp);
+          ClearMarker(MarkDown);
+          StopVisual('', 0);
+        }
+        else Set RecPlSch := OldRecPlSch;
+
+        ReReadRecord(#JoiHeadPlusInd);
+        ReReadrecord(#RazdSchOperation);
+        InitZarTable;
+    }
+  }
+  #JoiHeadPlusInd.Num:
+  {
+    if (RunWindowModal(SelNum)<>cmCancel)
+    {
+      PereschetNum(JoiHeadPlusInd.Nrec,JoiHeadPlusInd.Num,tmpNum.Num);
+      ReScanPanel(#JoiHeadPlusInd);
+    }
+  }
+  end; // case
+}
+
+cmDeleteRecord:
+{
+  if (not(isValid(tnJoiHeadPlusInd)))
+  {
+    Abort;
+    Exit;
+  }
+
+  var sStr : string;
+  var iCount, iTmp : integer;
+  var cNrec : comp;
+
+  iCount := GetMarkerCount(MarkUp);
+  if ( iCount > 0) sStr := 'Вы действительно хотите удалить помеченные записи?';
+  else             sStr := 'Вы действительно хотите удалить эту запись?';
+
+  if (Message(sStr, YesNo) <> Yes)
+  {
+    Abort;
+    Exit;
+  }
+
+  if ( iCount > 0)
+  {
+    StartNewVisual(vtIndicatorVisual, vfTimer + vfBreak + vfConfirm,
+                    'Идет удаление помеченных настроек объединения счетов', iCount);
+    iTmp := 0;
+    while ((iTmp < iCount) and (NextVisual)) do
+    {
+      GetMarker(MarkUp, iTmp, cNrec);
+      DelJoiHead(cNrec);
+      iTmp := iTmp + 1;
+    }
+    StopVisual('', 0);
+    ClearMarker(MarkUp);
+  }
+  else DelJoiHead (JoiHeadPlusInd.nrec);
+}
+
+cmInsert:
+{
+    var tmpnRec  : comp;
+    var tmpSchet : tSchet3;
+    var tmpSubSch  : tSubSch;
+    if ( RecPlSch = 0)
+      if (RunInterface('GetPlansSch',RecPlSch)=cmCancel) { Abort; Stop; Exit; }
+    if (RunInterface('GetBuhSchet',cgiMulti,RecPlSch,tmpSchet,tmpSubSch)<>cmCancel)
+      {
+        var UnikMarker : TPtr;
+        var cRec : Comp;
+        nMarkers := 'gt' + lPadCh(string(cgPick_Schet),'0',2) + 'buhschet';
+        UnikMarker := InitMarker(nMarkers,8,200,100,false);
+        var i : integer;
+        FOR (i := 0; i <= GetMarkerCount(UnikMarker)-1; i:=i+1)
+        {
+          GetMarker(UnikMarker, i, cRec);
+          if (GetFirst TmpBuhSchet where ((cRec==TmpBuhSchet.NRec))=tsOk)
+          {
+            if not(CheckSchet(TmpBuhSchet.nRec))
+            {
+              // abort;  stop;//   exit;
+            }
+            else
+            {
+              clearBuffer (#JoiHead);
+              JoiHead.TypeEvent := word(cgObedPlanSch);
+              JoiHead.cRec := TmpBuhSchet.nRec;
+              JoiHead.Status := cg_Default;
+              JoiHead.UserName := UserName();
+              JoiHead.dDate := Cur_Date();
+              insert current JoiHead;
+              JoiHeadPlusInd.NRec := JoiHead.Nrec;
+              JoiHeadPlusInd.cRec := TmpBuhSchet.nRec;
+              JoiHeadPlusInd.TypeEvent := word(cgObedPlanSch);
+              JoiHeadPlusInd.Status := cg_Default;
+              JoiHeadPlusInd.Num := maxNumForInsert;
+              insert current JoiHeadPlusInd;
+              JoiHead.rComp := JoiHeadPlusInd.Num;
+              update current JoiHead;
+              clearbuffer(#tmpNum);
+              tmpNum.Num := JoiHead.rComp;
+              insert current tmpNum;
+
+              ReReadRecord(#JoiHeadPlusInd);
+//            ReDrawPanel(#JoiHeadPlusInd);
+              abort; stop;
+            }
+          }
+        }
+        clearmarker(unikMarker);
+        donemarker(unikMarker, nMarkers);
+        ClearMarker(MarkDown);
+      }
+      else
+      {
+        abort;  stop;  exit;
+      }
+}
+end;//Handlevent panel pnHeader
+end;//panel pnHeader
+
+Panel pnSpec;
+Show At (,6,,8);
+notablenavigation;
+Screen scrSpPlanSch1;
+show at (,7,,8) Fixed_Y;
+fields
+    'План счетов (источник):'  : {font={bold=true}}, skip;
+    spnmplsch ('План счетов - источник',,sci13Esc): protect;
+<<
+ .@@@@@@@@@@@@@@@@@@@@@ .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+>>
+end;//screen scrSpPlanSch1
+
+procedure DelSpJoi (cRec : comp);
+{
+  if (GetFirst SpJoiTmp where ((cRec == SpJoiTmp.nRec)) = tsOk)
+    {
+        CheckRazdSchet(SpJoiTmp.cRec, JoiHeadPlusInd.crec);
+        _LOOP tmpZamTab where ((cRec == tmpZamTab.cSpJoi))
+          delete all tmpZamKau where ((tmpZamTab.nRec == tmpZamKau.cZamTab));
+        delete all tmpZamTab where ((cRec == tmpZamTab.cSpJoi));
+        delete all SpJoiTmp where ((cRec == SpJoiTmp.nRec));
+    }
+}
+
+handleevent//panel pnHeader
+cmPick:
+  {
+  case CurField of
+    #spnmplsch :
+     {
+        oldRecSpPlSch := RecSpPlSch;
+
+        if (RunInterface('GetPlansSch',RecSpPlSch)<>cmCancel)
+        {
+
+          if (RecSpPlSch <> oldRecSpPlSch) and (oldRecSpPlSch<>0)
+            if Message('При смене плана счетов будут потеряны настройки.'+
+                       'Вы хотите сделать смену плана счетов?', mfConfirmation + mfSwapButtons + YesNo) = Yes
+            {
+              set NewRecSpPlSch := RecSpPlSch;
+              _loop JoiHeadPlusInd
+              {
+                if GetFirst SpJoi
+                         Where ((JoiHeadPlusInd.Nrec == SpJoi.cJoiHead)) = tsOk
+                  Do
+                  {
+                    DelSpJoi (SpJoi.nRec);
+                  }
+                  While (GetFirst SpJoi
+                           Where ((JoiHeadPlusInd.Nrec == SpJoi.cJoiHead)) = tsOk)
+              }
+            }
+            else set RecSpPlSch := OldRecSpPlSch;
+          Rereadrecord(#JoiHeadPlusInd);
+          ReReadRecord(#SpJoi);
+          ReReadrecord(#RazdSchOperation);
+          InitZarTable;
+        }
+     }
+  end; // case
+}
+
+end;
+end;
+
+Panel pnSpec1;
+Show At (,8,,);
+table SpJoi;
+Screen scrSpPlanSch;
+show at (,9,,11) Fixed_Y;
+fields
+    'Аналитика1' ('Операция с Аналитикой1',,sci1Esc): {font={bold=true}}, skip;
+    'Аналитика2' ('Операция с Аналитикой2',,sci1Esc): {font={bold=true}}, skip;
+    'Аналитика3' ('Операция с Аналитикой3',,sci1Esc): {font={bold=true}}, skip;
+    'Аналитика4' ('Операция с Аналитикой4',,sci1Esc): {font={bold=true}}, skip;
+    'Аналитика5' ('Операция с Аналитикой5',,sci1Esc): {font={bold=true}}, skip;
+    'Аналитика6' ('Операция с Аналитикой6',,sci1Esc): {font={bold=true}}, skip;
+    opkau1            : protect;
+    opkau2            : protect;
+    opkau3            : protect;
+    opkau4            : protect;
+    opkau5            : protect;
+    opkau6            : protect;
+<<
+ .@@@@@@@@@@ .@@@@@@@@@@ .@@@@@@@@@@ .@@@@@@@@@@ .@@@@@@@@@@ .@@@@@@@@@@
+ .@@@@@@@@@@ .@@@@@@@@@@ .@@@@@@@@@@ .@@@@@@@@@@ .@@@@@@@@@@ .@@@@@@@@@@
+>>
+end;//screen scrSpPlanSch
+
+browse brSpec ('Объединяемые счёта',,sci1478EscInsC8);
+show at (,12,,17);
+fields
+    {Font = {Color = if (IsPick = 'V',ColorMark,0)}};
+    IsPick           'V'    ('V - Помечен /Нет',,sci1478EscInsC8) :[1], Protect, NoAutoSize,centered;
+    spnumsch                 'Счет' ('Счет',,sci1478EscInsC8) : [4],protect;
+    spnumsbsch         'Субсчет' ('Субсчет',,sci1478EscInsC8) : [4],protect;
+    spnmsch 'Наименование'  ('Наименование',,sci1478EscInsC8) : [20],protect;
+    Analitika1          'Аналитика' ('Аналитика',,sci1478EscInsC8) : [29],protect;
+    spStatusOperation 'Операция': [7],protect;
+    strSpJoiStatus 'Статус' : [4], Protect;
+end;//browse brSpec
+
+screen scrButtons;
+show at (,18,,22);
+fields
+  NeedZarRun ('Изменяется при нажатии на <Пробел>',hcNastrAdmWOb,sci1Esc): noprotect;
+  FilterFullObed ('Изменяется при нажатии на <Пробел>') :noprotect;
+buttons
+  cmValue1;
+  cmValue2;
+  cmValue3;
+  cmCancel;
+<<
+   Включить в обработку таблицы модуля Заработная плата  Контроль полноты объединения
+   [.] таблицы с архивной информацией`                    [.] Включить`
+   [.] таблицы с текущей информацией`
+   <.~О~бъединить.>  <.Объединить ~в~се.>  <.Шаблоны замены Аналитик.> <. Закрыть .>
+>>
+end;//screen scrButtons
+
+// by LUDA /////////////////////////////////////////////////////////////////////////
+// Проверка принадлежности признака циклической обработки
+// списку КАУ основного и корр. счетов + подразделение(2) + валюта(10000) + аналитика зарплаты(12000)
+function GetDbSch : string;
+{
+  GetDbSch := #GetDbSch(BuhSchet.Schet);
+}
+
+Function DefineDefKau : word;
+{
+  DefineDefKau := 0;
+  if (GetFirst RazdSch where ((SpJoi.cRec          == RazdSch.cSch and
+                               JoiHeadPlusInd.cRec == RazdSch.CRESULTSCH(noindex))) = tsOk)
+  {
+    DefineDefKau := RazdSch.DefKau;
+  }
+}
+
+function SchetOnString(s : string) : string;
+{
+  SchetOnString := substr(s, 2, length(s));
+}
+
+function GetOperationRazd(wLevelKauRazd : word;
+                          cKauNrec,
+                          cSpJoiNRec, cJoiHeadNRec : comp) : boolean;
+var
+  wDefineTypeRazdSch : word;
+{
+  wDefineTypeRazdSch := 0;
+  result := false;
+  // находим тип разделения для объединяющего счета (ссылка счета cJoiHeadNRec)
+  // 1 - означает счет, который будет использоваться при разделении счета
+  // (ссылка cSpJoiNRec) как счет акаммулирующий значения по умолчанию
+  // 0 - означает счет, на который будут переносится записи, в которых указанны значения
+  // разделяющей аналитики для объединяющего счета (ссылка cJoiHeadNRec)
+  if (GetFirst RazdSch where ((    cSpJoiNRec   == RazdSch.cSch
+                               and cJoiHeadNRec == RazdSch.CRESULTSCH(noindex))) = tsOk)
+    wDefineTypeRazdSch := RazdSch.DefSch;
+
+  // позволяем разделение счета (cSpJoiNRec) при указанных ниже ситуациях:
+  // a) если нет аналитики в разделяющем счете, но тип объединяющего счета (cJoiHeadNRec) не равен 0
+  // b) задана аналитика, по которой проимходит разделение, в разделяющем счете;
+  //    тип объединяющего счета равен  0;
+  //    есть значение cKauNrec аналиитик, по которой происходит разделение счета на счет (cJoiHeadNRec)
+  // c) задана аналитика, по которой проимходит разделение, в разделяющем счете;
+  //    тип объединяющего счета равен  1 - счета для разделения по умолчанию
+  //    пробегаем по всем возможным счетам, на которые разделяется счет (cSpJoinRec)
+  //    и проверяем есть ли указанное значение (cKauRec) в списках настроек на разделение
+
+  // это условие a)
+  if (wLevelKauRazd = 0)
+  {
+    if (wDefineTypeRazdSch <> 0) result := True;
+    // обязательно завершаем обработку, даже если тип равен 0, ибо нельзя подругому
+    // установить разделение в данном случае
+    exit;
+  }
+  // это условие b)
+  if (wDefineTypeRazdSch = 0)
+  {
+
+    If (GetFirst SRazdSch where ((    RazdSch.Nrec == SRazdSch.cRadzSch
+                                  and cKauNrec     == SRazdSch.cKauValue(noindex))) = tsOk)
+      result := True;
+    // обязательно завершаем обработку, даже если тип равен 0, ибо нельзя подругому
+    // установить разделение в данном случае
+    exit;
+  }
+  // это условие c)
+  _Loop RazdSch where ((    cSpJoiNRec == RazdSch.cSch
+                        and word(0)    == RazdSch.DefSch(noindex)))
+  {
+     If (GetFirst SRazdSch where ((    RazdSch.Nrec == SRazdSch.cRadzSch
+                                   and cKauNrec == SRazdSch.cKauValue(noindex))) = tsOk)
+     {
+       result := True;
+       Break;
+     }
+  }
+  if (result = true) result := false
+  else               result := true;
+}
+
+#Include obedsch.vpp
+
+////////////////////////////////////////////////////////////////////////////////
+#declare ObedWithPlan(Tabl,Schet,SubSch,Plan,NoPlanSch,Tbl,Kau,ExistPlanSch,Summa)
+    _LOOP #Tabl where ((SpBuhSchet.Schet==#Tabl.#Schet and SpBuhSchet.SubSch==#Tabl.#SubSch))
+    {
+      Nextvisual;
+      bRunOperationObedOrRazd := true;
+      wLevelKauRazd := 0;
+      if (IsValid(tnRazdSchOperation))
+      {
+        bRunOperationObedOrRazd := false;
+        for(i := cFirstKau; i <= cLastKau; i := i + 1)
+          if (#Tabl.#Tbl[i] = RazdSchOperation.DEFKAU)
+          {
+            wLevelKauRazd := i;
+            break;
+          }
+        if (wLevelKauRazd = 0) cKauRecForRazd := 0;
+        else cKauRecForRazd := #Tabl.#Kau[wLevelKauRazd];
+        bRunOperationObedOrRazd := GetOperationRazd(wLevelKauRazd,
+                                                    cKauRecForRazd,
+                                                    SpJoi.cRec, JoiHeadPlusInd.cRec);
+      }
+
+      if bRunOperationObedOrRazd = true
+      {
+        #Tabl.#Schet     := BuhSchet.Schet;
+        #Tabl.#SubSch    := BuhSchet.SubSch;
+        if (#ExistPlanSch = 0) #Tabl.#Plan      := BuhSchet.cPlansSch;
+        #Tabl.#NoPlanSch := GetDbSch;
+
+        for(i := cFirstKau; i <= cLastKau; i := i + 1)
+        {
+          #Tabl.#Tbl[i]:=BuhSchet.KodTable[i];
+          arr[i] := #Tabl.#Kau[i];
+        }
+        for(kol := cFirstKau; kol <= cLastKau; kol := kol + 1)
+        { // в ZamTab.LevelOld хранится уровни новой аналитики
+          // используется это поле ибо не было другого способа реализовать
+          // объединение одной той же аналитики но на разные новые.
+          // в ZamTab.LevelNew хранится соответственно уровни новой аналитики
+          if (GetFirst ZamTab where ((    SpJoi.Nrec == ZamTab.cSpJoi
+                                      and word(kol)  == ZamTab.LevelOld (NoIndex))) = tsOk)
+          {
+            // присвоение новой аналитики значения по умолчанию
+            // ибо это настройка вида - что соответствия между старой и новой нет
+            // но надо присвоить значение по умолчанию
+            if (ZamTab.LevelNew = 0) and (ZamTab.TableNew = 0)
+            {
+              if (GetFirst ZamKau where ((    0           == ZamKau.KodOld
+                                          and ZamTab.nRec == ZamKau.cZamTab)) = tsOk)
+                #Tabl.#Kau[kol] := ZamKau.KodNew;
+            }
+            else
+            {
+              for(i := cFirstKau; i <= cLastKau; i := i + 1)
+                if (ZamTab.LevelNew = i)
+                {
+                  case SpJoi.IsKau[kol] of
+                  OPER_CHLEVEL, OPER_PERENOS : #Tabl.#Kau[kol] := arr[i];
+                  OPER_DELETE                : #Tabl.#Kau[kol] := 0;
+                  else
+                  {
+                    if (GetFirst ZamKau where ((    arr[i]      == ZamKau.KodOld
+                                                and ZamTab.nRec == ZamKau.cZamTab)) = tsOk)
+                      #Tabl.#Kau[kol] := ZamKau.KodNew
+                    else if (GetFirst ZamKau where ((    word(0)     == ZamKau.KodOld
+                                                     and ZamTab.nRec == ZamKau.cZamTab))=tsOk)
+                      #Tabl.#Kau[kol] := ZamKau.KodNew
+                    else #Tabl.#Kau[kol] := comp(0);
+                  }
+                  end;//case
+                  break;
+                }
+            }
+          }
+          else #Tabl.#Kau[kol]:=0;
+        } // for kol
+        for(kol := cFirstKau; kol <= cLastKau; kol := kol + 1)
+        {
+          if (#Tabl.#Kau[kol] = 0) #Tabl.#Tbl[kol] := 0;
+        }
+        update current #Tabl;
+        if ((NameTable = 'OborotD')Or
+            (NameTable = 'OborotK')Or
+            (NameTable = 'SaldMoun')Or
+            (NameTable = 'SaldDay'))
+        {
+          var tempstr, tempstr1, schetold, SchetNew : string;
+
+          if (SpBuhSchet.SubSch = '') schetOld := SchetOnString(SpBuhSchet.Schet)
+          else                        schetOld := SchetOnString(SpBuhSchet.Schet)+'.'+
+                                                  SpBuhSchet.SubSch;
+          if (BuhSchet.SubSch = '')   schetNew := SchetOnString(BuhSchet.Schet)
+          else                        schetNew := SchetOnString(BuhSchet.Schet)+'.'+
+                                                  BuhSchet.SubSch;
+          tempstr := ''; tempstr1:= '';
+          for(i:=cFirstKau; i<=cLastKau; i:=i+1)
+          {
+            if arr[i] <> 0
+              tempstr1 := tempstr1 + ',' + ShowKauName(SpBuhSchet.KodTable[i],arr[i]);
+            if #Tabl.#Kau[i] <> 0
+              tempstr := tempstr + ','+ ShowKauName(BuhSchet.KodTable[i],#Tabl.#Kau[i]);
+          }
+          SchetOld := SchetOld+' '+substr(tempstr1,2,length(tempstr1));
+          SchetNew := SchetNew+' '+substr(tempstr,2,length(tempstr));
+          case NameTable of
+          'OborotD':
+          {
+            frmObedschD.PutEventById (fedoLoop, fcObedschP_cyrcle);
+            frmObedschD.write(SchetOld);
+            frmObedschD.write(SchetNew);
+            frmObedschD.write(string(#Tabl.#Summa));
+            //frmObedschD.PutEventById (feBreak, fcObedschP_cyrcle);
+          }
+          'OborotK':
+          {
+            frmObedschK.PutEventById (fedoLoop, fcObedschP_cyrcle);
+            frmObedschK.write(SchetOld);
+            frmObedschK.write(SchetNew);
+            frmObedschK.write(string(#Tabl.#Summa));
+          }
+          'SaldMoun':
+          {
+            frmObedschSM.PutEventById (fedoLoop, fcObedschP_cyrcle);
+            frmObedschSM.write(SchetOld);
+            frmObedschSM.write(SchetNew);
+            frmObedschSM.write(string(#Tabl.#Summa));
+          }
+          'SaldDay':
+          {
+            frmObedschSD.PutEventById (fedoLoop, fcObedschP_cyrcle);
+            frmObedschSD.write(SchetOld);
+            frmObedschSD.write(SchetNew);
+            frmObedschSD.write(string(#Tabl.#Summa));
+          }
+          end;
+        }
+      }
+    }//Loop
+    NextVisual;
+#end
+//=============================================================================
+#declare ObedNoindex(Tabl,Schet,SubSch,Tbl,Kau)
+    _LOOP #Tabl where ((SpBuhSchet.Schet==#Tabl.#Schet(noindex) and SpBuhSchet.SubSch==#Tabl.#SubSch(noindex)))
+    {
+      NextVisual;
+      bRunOperationObedOrRazd := true;
+      wLevelKauRazd := 0;
+      if (IsValid(tnRazdSchOperation))
+      {
+        bRunOperationObedOrRazd := false;
+        for(i:=cFirstKau; i<=cLastKau; i:=i+1)
+          if (#Tabl.#Tbl[i] = RazdSchOperation.DefKau)
+          {
+            wLevelKauRazd := i;
+            break;
+          }
+        if (wLevelKauRazd = 0) cKauRecForRazd := 0;
+        else cKauRecForRazd := #Tabl.#Kau[wLevelKauRazd];
+        bRunOperationObedOrRazd := GetOperationRazd(wLevelKauRazd,
+                                                    cKauRecForRazd,
+                                                    SpJoi.cRec, JoiHeadPlusInd.cRec);
+      }
+
+      if bRunOperationObedOrRazd = true
+      {
+        #Tabl.#Schet  := BuhSchet.Schet;
+        #Tabl.#SubSch := BuhSchet.SubSch;
+
+        for(i := cFirstKau; i <= cLastKau; i := i + 1)
+        {
+          #Tabl.#Tbl[i] := BuhSchet.KodTable[i];
+          arr[i] := #Tabl.#Kau[i];
+        }
+
+        for(kol := cFirstKau; kol <= cLastKau; kol := kol + 1)
+        { // в ZamTab.LevelOld хранится уровни новой аналитики
+          // используется это поле ибо не было другого способа реализовать
+          // объединение одной той же аналитики но на разные новые.
+          // в ZamTab.LevelNew хранится соответственно уровни новой аналитики
+          if (GetFirst ZamTab where ((    SpJoi.Nrec == ZamTab.cSpJoi
+                                      and word(kol)  == ZamTab.LevelOld (NoIndex))) = tsOk)
+          {
+            // присвоение новой аналитики значения по умолчанию
+            // ибо это настройка вида - что соответствия между старой и новой нет
+            // но надо присвоить значение по умолчанию
+            if (ZamTab.LevelNew = 0) and (ZamTab.TableNew = 0)
+            {
+              if (GetFirst ZamKau where ((    0           == ZamKau.KodOld
+                                          and ZamTab.nRec == ZamKau.cZamTab)) = tsOk)
+                #Tabl.#Kau[kol] := ZamKau.KodNew;
+            }
+            else
+            {
+              for(i := cFirstKau; i <= cLastKau; i := i + 1)
+                if (ZamTab.LevelNew = i)
+                {
+                  case SpJoi.IsKau[kol] of
+                  OPER_CHLEVEL, OPER_PERENOS : #Tabl.#Kau[kol] := arr[i];
+                  OPER_DELETE                : #Tabl.#Kau[kol] := 0;
+                  else
+                  {
+                    if (GetFirst ZamKau where ((    arr[i]      == ZamKau.KodOld
+                                                and ZamTab.nRec == ZamKau.cZamTab)) = tsOk)
+                      #Tabl.#Kau[kol] := ZamKau.KodNew
+                    else if (GetFirst ZamKau where ((    word(0)     == ZamKau.KodOld
+                                                     and ZamTab.nRec == ZamKau.cZamTab))=tsOk)
+                      #Tabl.#Kau[kol] := ZamKau.KodNew
+                    else #Tabl.#Kau[kol] := comp(0);
+                  }
+                  end;//case
+                  break;
+                }
+            }
+          }
+          else #Tabl.#Kau[kol]:=0;
+        } // for kol
+        for(kol := cFirstKau; kol <= cLastKau; kol := kol + 1)
+        {
+          if (#Tabl.#Kau[kol] = 0) #Tabl.#Tbl[kol] := 0;
+        }
+        update current #Tabl;
+      }
+    }//Loop
+    NextVisual;
+#end
+//=============================================================================
+#declare ObedNoindexZarpl(Tabl,Schet,SubSch,Tbl,Kau)
+    _LOOP #Tabl where ((substr(SpBuhSchet.Schet,2,length(SpBuhSchet.Schet)-1)==#Schet(noindex) and SpBuhSchet.SubSch==#Tabl.#SubSch(noindex)))
+    {
+      NextVisual;
+      bRunOperationObedOrRazd := true;
+      wLevelKauRazd := 0;
+      if (IsValid(tnRazdSchOperation))
+      {
+        bRunOperationObedOrRazd := false;
+        for(i:=cFirstKau; i<=cLastKau; i:=i+1)
+          if (#Tabl.#Tbl[i] = RazdSchOperation.DefKau)
+          {
+            wLevelKauRazd := i;
+            break;
+          }
+        if (wLevelKauRazd = 0) cKauRecForRazd := 0;
+        else cKauRecForRazd := #Tabl.#Kau[wLevelKauRazd];
+        bRunOperationObedOrRazd := GetOperationRazd(wLevelKauRazd,
+                                                    cKauRecForRazd,
+                                                    SpJoi.cRec, JoiHeadPlusInd.cRec);
+      }
+
+      if bRunOperationObedOrRazd = true
+      {
+        #Tabl.#Schet  := substr(BuhSchet.Schet,2,length(BuhSchet.Schet)-1);//BuhSchet.Schet;
+        #Tabl.#SubSch := BuhSchet.SubSch;
+
+        for(i := cFirstKau; i <= cLastKau; i := i + 1)
+        {
+          #Tabl.#Tbl[i] := BuhSchet.KodTable[i];
+          arr[i]        := #Tabl.#Kau[i];
+        }
+
+        for(kol := cFirstKau; kol <= cLastKau; kol := kol + 1)
+        { // в ZamTab.LevelOld хранится уровни новой аналитики
+          // используется это поле ибо не было другого способа реализовать
+          // объединение одной той же аналитики но на разные новые.
+          // в ZamTab.LevelNew хранится соответственно уровни новой аналитики
+          if (GetFirst ZamTab where ((    SpJoi.Nrec == ZamTab.cSpJoi
+                                      and word(kol)  == ZamTab.LevelOld (NoIndex))) = tsOk)
+          {
+            // присвоение новой аналитики значения по умолчанию
+            // ибо это настройка вида - что соответствия между старой и новой нет
+            // но надо присвоить значение по умолчанию
+            if (ZamTab.LevelNew = 0) and (ZamTab.TableNew = 0)
+            {
+              if (GetFirst ZamKau where ((    0           == ZamKau.KodOld
+                                          and ZamTab.nRec == ZamKau.cZamTab)) = tsOk)
+                #Tabl.#Kau[kol] := ZamKau.KodNew;
+            }
+            else
+            {
+              for(i := cFirstKau; i <= cLastKau; i := i + 1)
+                if (ZamTab.LevelNew = i)
+                {
+                  case SpJoi.IsKau[kol] of
+                  OPER_CHLEVEL, OPER_PERENOS : #Tabl.#Kau[kol] := arr[i];
+                  OPER_DELETE                : #Tabl.#Kau[kol] := 0;
+                  else
+                  {
+                    if (GetFirst ZamKau where ((    arr[i]      == ZamKau.KodOld
+                                                and ZamTab.nRec == ZamKau.cZamTab)) = tsOk)
+                      #Tabl.#Kau[kol] := ZamKau.KodNew
+                    else if (GetFirst ZamKau where ((    word(0)     == ZamKau.KodOld
+                                                     and ZamTab.nRec == ZamKau.cZamTab))=tsOk)
+                      #Tabl.#Kau[kol] := ZamKau.KodNew
+                    else #Tabl.#Kau[kol] := comp(0);
+                  }
+                  end;//case
+                  break;
+                }
+            }
+          }
+          else #Tabl.#Kau[kol]:=0;
+        } // for kol
+        for(kol := cFirstKau; kol <= cLastKau; kol := kol + 1)
+        {
+          if (#Tabl.#Kau[kol] = 0) #Tabl.#Tbl[kol] := 0;
+        }
+        update current #Tabl;
+      }
+    }//Loop
+    NextVisual;
+#end
+//==============================================================================
+#declare ObedHozObor(Tabl,Schet,SubSch,flSub,NoPlanSch,Tbl,Kau,flKau)
+    _LOOP #Tabl where ((SpBuhSchet.Schet==#Tabl.#Schet and SpBuhSchet.SubSch==#Tabl.#SubSch))
+    {
+      NextVisual;
+
+      // авто-режим субсчета не обрабатываем
+      //if ((#Tabl.#flSub <> wFlSchSub_Manual) and (#Tabl.#flSub <> wFlSchSub_No))
+      //  continue;
+
+      bRunOperationObedOrRazd := true;
+      wLevelKauRazd := 0;
+      if (IsValid(tnRazdSchOperation))
+      {
+        bRunOperationObedOrRazd := false;
+        for(i:=cFirstKau; i<=cLastKau; i:=i+1)
+          if (SpBuhSchet.KodTable[i] = RazdSchOperation.Defkau)
+          {
+            wLevelKauRazd := i;
+            break;
+          }
+        if (wLevelKauRazd = 0) cKauRecForRazd := 0;
+        else cKauRecForRazd := #Tabl.#Kau[wLevelKauRazd];
+        bRunOperationObedOrRazd := GetOperationRazd(wLevelKauRazd,
+                                                    cKauRecForRazd,
+                                                    SpJoi.cRec, JoiHeadPlusInd.cRec);
+      }
+
+      if bRunOperationObedOrRazd = true
+      {
+        #Tabl.#Schet     := BuhSchet.Schet;
+        #Tabl.#SubSch    := BuhSchet.SubSch;
+        #Tabl.cPlansSch  := BuhSchet.cPlansSch;
+        #Tabl.#NoPlanSch := GetDbSch;
+
+        var arrTbl   : array [1..6] of word;
+        var arrFlKau : array [1..6] of word;
+
+        // сохраним начальные значения аналитик
+        for(i:=cFirstKAU; i<=cLastKAU; i:=i+1)
+        {
+          arrTbl[i]   := #Tabl.#Tbl[i];
+          arrFlKau[i] := #Tabl.#flKau[i];
+          arr[i]      := #Tabl.#Kau[i];
+          // по умолчанию wKau, flKau, cKau
+          #Tabl.#Tbl[i]   := BuhSchet.KodTable[i];
+          #Tabl.#flKau[i] := 0; // авто - по умолчанию, дальше идет замена
+          #Tabl.#Kau[i]   := 0;
+        }
+        // меняем cKau
+        for(kol := cFirstKau; kol <= cLastKau; kol := kol + 1)
+        {
+          // в ZamTab.LevelOld хранится уровни новой аналитики
+          // используется это поле ибо не было другого способа реализовать
+          // объединение одной той же аналитики но на разные новые.
+          // в ZamTab.LevelNew хранится соответственно уровни новой аналитики
+          if (GetFirst ZamTab where ((    SpJoi.Nrec == ZamTab.cSpJoi
+                                      and word(kol)  == ZamTab.LevelOld (NoIndex))) = tsOk)
+          {
+            // присвоение новой аналитики значения по умолчанию
+            // ибо это настройка вида - что соответствия между старой и новой нет
+            // но надо присвоить значение по умолчанию
+            if (ZamTab.LevelNew = 0) and (ZamTab.TableNew = 0)
+            {
+              if (GetFirst ZamKau where ((    word(0)     == ZamKau.KodOld
+                                          and ZamTab.nRec == ZamKau.cZamTab)) = tsOk)
+              {
+                //=============================================================
+                #Tabl.#Tbl[kol]   := BuhSchet.KodTable[kol];
+                #Tabl.#flKau[kol] := wFlKau_Manual;
+                #Tabl.#Kau[kol]   := ZamKau.KodNew;
+                //=============================================================
+              }
+            }
+            else
+            {
+              for(i := cFirstKau; i <= cLastKau; i := i + 1)
+                if (ZamTab.LevelNew = i)
+                {
+                  case SpJoi.IsKau[kol] of
+                  OPER_CHLEVEL, OPER_PERENOS :
+                  {
+                    //=============================================================
+                    // если новый каталог КАУ отличается от старого каталога КАУ
+                    if (BuhSchet.KodTable[kol] <> SpBuhSchet.KodTable[i])
+                    { // режим <явно> изменяем
+                      if (arrTbl[i] = SpBuhSchet.KodTable[i]) and (arrFlKau[i] = wFlKau_Manual)
+                      {
+                        #Tabl.#flKau[kol] := wFlKau_Manual;
+                        #Tabl.#Kau[kol]   := arr[i];
+                      }
+                    }
+                    else // если новый каталог КАУ совпадает со старым каталогом КАУ
+                    {
+                      #Tabl.#Tbl[kol]   := arrTbl[i];
+                      #Tabl.#flKau[kol] := arrFlKau[i];
+                      #Tabl.#Kau[kol]   := arr[i];
+                    }
+                    //=============================================================
+                  }
+                  OPER_DELETE : #Tabl.#Kau[kol] := 0;
+                  else
+                  {
+                    if (GetFirst ZamKau where ((    arr[i]      == ZamKau.KodOld
+                                                and ZamTab.nRec == ZamKau.cZamTab)) = tsOk)
+                    {
+                      //=============================================================
+                      if (BuhSchet.KodTable[kol] <> SpBuhSchet.KodTable[i])
+                      {
+                        if (arrTbl[i] = SpBuhSchet.KodTable[i]) and (arrFlKau[i] = wFlKau_Manual)
+                        {
+                          #Tabl.#flKau[kol] := wFlKau_Manual;
+                          #Tabl.#Kau[kol]   := ZamKau.KodNew;
+                        }
+                      }
+                      else
+                      {
+                        #Tabl.#Tbl[kol]   := arrTbl[i];
+                        #Tabl.#flKau[kol] := arrFlKau[i];
+                        #Tabl.#Kau[kol]   := ZamKau.KodNew;
+                      }
+                      //=============================================================
+                    }
+                    else if (GetFirst ZamKau where ((    word(0)     == ZamKau.KodOld
+                                                     and ZamTab.nRec == ZamKau.cZamTab)) = tsOk)
+                    {
+                      //=============================================================
+                      if (BuhSchet.KodTable[kol] <> SpBuhSchet.KodTable[i])
+                      {
+                        if (arrTbl[i] = SpBuhSchet.KodTable[i]) and (arrFlKau[i] = wFlKau_Manual)
+                        {
+                          #Tabl.#flKau[kol] := wFlKau_Manual;
+                          #Tabl.#Kau[kol]   := ZamKau.KodNew;
+                        }
+                      }
+                      else
+                      {
+                        #Tabl.#Tbl[kol]   := arrTbl[i];
+                        #Tabl.#flKau[kol] := arrFlKau[i];
+                        #Tabl.#Kau[kol]   := ZamKau.KodNew;
+                      }
+                      //=============================================================
+                    }
+                  }
+                  end;//case
+                  break;
+                }
+            }
+          }
+          else
+          {
+            #Tabl.#Kau[kol]   := 0;
+            #Tabl.#flKau[kol] := 0;
+          }
+        } // for kol
+
+        // если cKau = 0, то режим аналитики - авто
+        for(i:=cFirstKau; i<=cLastKau; i:=i+1)
+        {
+          if ((#Tabl.#flKau[i] = wFlKau_Manual) and (#Tabl.#Kau[i] = 0))
+            #Tabl.#flKau[i] := 0;
+        }
+
+        update current #Tabl;
+      }
+    }//Loop HozObor
+    NextVisual;
+#end
+//===============только для таблицы Provrec в других случаях не использовать==============================
+#declare ObedNoKau1(Tabl,Schet,Plan,NoPlanSch)
+    if (SpBuhSchet.SubSch='' and BuhSchet.SubSch='')
+    _LOOP #Tabl where ((SpBuhSchet.Schet==#Tabl.#Schet(noindex)))
+    {
+      #Tabl.#Schet     := BuhSchet.Schet;
+      #Tabl.#Plan      := BuhSchet.cPlansSch;
+      #Tabl.#NoPlanSch := GetDbSch;
+      _try
+      {
+        nUpdateRes := update current #Tabl;
+      }
+      _except
+        on ExDbDuplicateKey :{
+          delete current #Tabl;
+}
+      _finally  {} ;
+    }
+#end
+//------Копирование корреспондирующих счетов------------------------------------
+#declare CheckCorr(S1,S2,NoPS)
+  _LOOP ProvRec where ((SpBuhSchet.Schet==ProvRec.Schet#S1(noindex) and SpBuhSchet.SubSch==ProvRec.Sub#S1(noindex)))
+  {
+    _try
+    {
+      if (RecordExists ProvRecIns where ((BuhSchet.Schet == ProvRecIns.Schet#S1 and BuhSchet.SubSch == ProvRecIns.Sub#S1
+                                        and  ProvRec.Schet#S2 == ProvRecIns.Schet#S2    and  ProvRec.Sub#S2 == ProvRecIns.Sub#S2
+                                        and  BuhSchet.cPlansSch == ProvRecIns.cPlansSch(NoIndex)
+                                        and GetDbSch == ProvRecIns.#NoPS(NoIndex))) <> tsOk)
+      {
+        nUpdateRes := insert current ProvRecIns Set
+                        ProvRecIns.Nrec := cgNrec0,
+                        ProvRecIns.Schet#S1   := BuhSchet.Schet,
+                        ProvRecIns.Sub#S1     := BuhSchet.SubSch,
+                        ProvRecIns.cPlansSch:= BuhSchet.cPlansSch,
+                        ProvRecIns.#NoPS := GetDbSch;
+      }
+    }
+    _except
+      on ExDbDuplicateKey :
+        delete current ProvRec;
+
+    _finally  {} ;
+  }
+#end
+//==============================================================================
+#declare ObedNoKau2(Tabl,Schet,Plan)
+    if (SpBuhSchet.SubSch='' and BuhSchet.SubSch='')
+    _LOOP #Tabl where ((SpBuhSchet.Schet==#Tabl.#Schet(noindex)))
+    {
+      #Tabl.#Schet :=BuhSchet.Schet;
+      #Tabl.#Plan  :=BuhSchet.cPlansSch;
+      update current #Tabl;
+    }
+#end
+//==============================================================================
+// процедура пересчета остатков
+procedure My_Calc_NewSaldo;
+{
+  delete all tmpDate;
+  _loop SaldMoun where ((BuhSchet.SCHET  == SaldMoun.SchetO and
+                         BuhSchet.SUBSch == SaldMoun.Subossch))
+  {
+    if (GetFirst tmpDate where ((SaldMoun.DATESAL == tmpDate.DateBeg))<>tsOk)
+    {
+      clearbuffer(#tmpDate);
+      tmpDate.DateBeg := SaldMoun.DATESAL;
+      insert current tmpDate;
+    }
+  }
+  _Loop tmpDate ordered by tmpDate.DATEBeg
+  {
+    Calc_NewSaldo (0,RecPlSch,coSaldMoun,BuhSchet.SCHET,BuhSchet.SUBSch,0,0,0,0,0,0,0, tmpDate.DATEBeg,0);
+  }
+}
+
+function Obed(c1 : comp; bOnlyOne : boolean = true):boolean;
+{
+  var arr : array [1..6] of comp;
+  var i,n,kol : integer;
+
+  if (GetFirst JoiHeadPlusInd where ((c1==JoiHeadPlusInd.nRec))<>tsOk)
+  {
+    if (bOnlyOne)
+      message('Не найден заголовок объединения!',error);
+    exit;
+  }
+
+  if (JoiHeadPlusInd.Status = cg_Finish)
+    exit;
+
+  JoiHeadPlusInd.Status := cg_Begin;  // Делаем статус "Начата"
+  update current JoiHeadPlusInd;
+  if (GetFirst JoiHead where ((JoiHeadPlusInd.Nrec == JoiHead.Nrec))=tsOk)
+  {
+    JoiHead.Status := cg_Begin;
+    Update Current JoiHead;
+  }
+
+  //****************[Цикл по спецификации объединения]***************************
+  _LOOP SpJoi
+  {
+    if (SpJoi.Status = cg_Finish)
+      continue;
+
+    SpJoi.Status := cg_Begin;
+    Update current SpJoi;
+
+  //****************[Цикл по таблице OBOROT по основному счету]***************************
+      NameTable := 'OborotD';
+      #ObedWithPlan(Oborot,SchetO,SubOSSch,cPlansSch,DbSchetO,TblOs,KauOs,0,SUMOB)
+  //****************[Цикл по таблице OBOROT по корреспондентскому счету]***************************
+      NameTable := 'OborotK';
+      #ObedWithPlan(Oborot,SchetK,SubSchK,cPlansSch,KrSchetK,TblKs,KauKs,0,SUMOB)
+  //****************[Цикл по таблице SaldMoun]***************************
+      NameTable := 'SaldMoun';
+      #ObedWithPlan(SaldMoun,SchetO,SubOsSch,cPlansSch,DbSchetO,TblOs,KauOs,0,SUMS)
+  //****************[Цикл по таблице SaldDay]***************************
+      NameTable := 'SaldDay';
+      #ObedWithPlan(SaldDay,SchetO,SubOsSch,cPlansSch,DbSchetO,TblOs,KauOs,0,SUMS)
+  //****************[Цикл по таблице ProvRec по основному счету]**********************************
+      NameTable := '';
+    #CheckCorr(O,K, DbSchetO);
+  //****************[Цикл по таблице ProvRec по корреспондентскому счету]**********************************
+    #CheckCorr(K,O, KrSchetK);
+  //****************[Цикл по таблице GoNewPer]***************************
+      #ObedWithPlan(GoNewPer,SchetO,SubOsSch,cPlansSch,DbSchetO,TblOs,KauOs,0,cPlansSch)
+  //****************[Цикл по таблице Valut]***************************
+      #ObedWithPlan(Valut,SchetO,SubOsSch,cPlansSch,DbSchetO,TblOs,KauOs,0,cPlansSch)
+  //****************[Цикл по таблице Valut по корреспондентскому счёту]***************************
+      #ObedWithPlan(Valut,SchetK,SubSchK,cPlansSch,KrSchetK,TblKs,KauKs,0,cPlansSch)
+  //****************[Цикл по таблице Valut по корреспондентскому счёту1]***************************
+      #ObedWithPlan(Valut,SchetK1,SubSchK1,cPlansSch,KrSchetK1,TblKs1,KauKs1,0,cPlansSch)
+  //****************[Цикл по таблице JornTune]***************************
+      #ObedWithPlan(JornTune,Schet,SubOsSch,cPlansSch,DbSchet,TblOs,KauOs,0,cPlansSch)
+  //****************[Цикл по таблице SpJorn]***************************
+  //обработка шахматки
+      var NumPlan : string;
+      NumPlan := substr(SpBuhSchet.Schet,1,1);
+      if (GetFirst SpJorn where ((SpBuhSchet.Schet==SpJorn.Schet and SpBuhSchet.SubSch==SpJorn.SubOsSch)))=tsOk
+      {
+        var a : comp;
+        a := SpJorn.cJornTune;
+        var IsExistSchet : boolean; IsExistSchet := True;
+        #ObedWithPlan(SpJorn,Schet,SubOsSch,cJornTune,DbSchet,TblOs,KauOs,1,cJornTune)
+        _loop SpJorn where ((a == SpJorn.cJornTune))
+        {
+          if substr(SpJorn.Schet,1,1) = NumPlan
+          {
+            IsExistSchet := False;
+            Break;
+          }
+        }
+        if IsExistSchet = True
+        {
+          if (GetFirst JornTune where ((a == JornTune.Nrec))=tsOk)
+          {
+            JornTune.cPlansSch := BuhSchet.cPlansSch;
+            update current jornTune;
+          }
+        }
+      }
+  //****************[Цикл по таблице SpCash]***************************
+      #ObedWithPlan(SpCash,SchetO,SubOsSch,cPlansSch,DbSchetO,TblOs,KauOs,0,cPlansSch)
+  //****************[Цикл по таблице SpBuhgT]***************************
+      #ObedWithPlan(SpBuhgT,SchetO,SubOsSch,cPlansSch,DbSchetO,TblOs,KauOs,0,cPlansSch)
+  //****************[Цикл по таблице SetBill]***************************
+      #ObedNoindex(SetBill,SchetO,SubSchO,TblKauO,cKauO)
+  //****************[Цикл по таблице SetBill по корреспондентскому счёту]***************************
+      #ObedNoindex(SetBill,SchetK,SubSchK,TblKauK,cKauK)
+      if (NeedZarRunBool = true)
+      {
+        if((NeedZarRun and 1) = 1)   //архивная информация по зарплате
+        {
+  //****************[Цикл по таблице Shtraf по дебеторскому счёту]***************************
+          #ObedNoindexZarpl(SHTRAF,cSchetK,cSubSchK,TblK,cKauK)
+  //****************[Цикл по таблице LSchet по дебеторскому счёту]***************************
+          #ObedNoindexZarpl(LSchet,cSchetD,cSubSchD,TblD,cKauD)
+  //****************[Цикл по таблице LSchet по счёту для мин. окладов]***************************
+          #ObedNoindexZarpl(LSchet,cSchetMin,cSubSchMin,TblMin,cKauMin)
+  //****************[Цикл по таблице LSchet по кредитному счёту]***************************
+          #ObedNoindexZarpl(LSchet,cSchetK,cSubSchK,TblK,cKauK)
+  //****************[Цикл по таблице XarPred по кредитному счёту]***************************
+          #ObedNoindexZarpl(XarPred,cSchetK,cSubSchK,TblK,cKauK)
+  //****************[Цикл по таблице XarPred по счёту отнесения остатков]***************************
+          #ObedNoindexZarpl(XarPred,cSchetP,cSubSchP,TblKP,cKauP)
+  //****************[Цикл по таблице KlVidUd по дебеторскому счёту]***************************
+          #ObedNoindexZarpl(KlVidUd,cSchetD,cSubSchD,TblD,cKauD)
+  //****************[Цикл по таблице KlVidUd по кредитному счёту]***************************
+          #ObedNoindexZarpl(KlVidUd,cSchetK,cSubSchK,TblK,cKauK)
+  //****************[Цикл по таблице KlVidOpl по дебеторскому счёту]***************************
+          #ObedNoindexZarpl(KlVidOpl,cSchetD,cSubSchD,TblD,cKauD)
+  //****************[Цикл по таблице KlVidOpl по кредитному счёту]***************************
+          #ObedNoindexZarpl(KlVidOpl,cSchetK,cSubSchK,TblK,cKauK)
+  //****************[Цикл по таблице Doplata по дебеторскому счёту]***************************
+          #ObedNoindexZarpl(Doplata,cSchetD,cSubSchD,TblD,cKauD)
+  //****************[Цикл по таблице SumVidOp по дебеторскому счёту]***************************
+          #ObedNoindexZarpl(SumVidOp,cSchetD,cSubSchD,TblD,cKauD)
+  //****************[Цикл по таблице SumVidOp по кредитному счёту]***************************
+          #ObedNoindexZarpl(SumVidOp,cSchetK,cSubSchK,TblK,cKauK)
+  //****************[Цикл по таблице SumVidUd по дебеторскому счёту]***************************
+          #ObedNoindexZarpl(SumVidUd,cSchetD,cSubSchD,TblD,cKauD)
+  //****************[Цикл по таблице SumVidUd по кредитному счёту]***************************
+          #ObedNoindexZarpl(SumVidUd,cSchetK,cSubSchK,TblK,cKauK)
+  //****************[Цикл по таблице Blisnet по дебеторскому счёту]***************************
+          #ObedNoindexZarpl(Blisnet,cSchetD,cSubSchD,TblD,cKauD)
+  //****************[Цикл по таблице Otpusk по дебеторскому счёту]***************************
+          #ObedNoindexZarpl(Otpusk,cSchetD,cSubSchD,TblD,cKauD)
+  //****************[Цикл по таблице Otpusk по кредитному счёту]***************************
+          #ObedNoindexZarpl(Otpusk,cSchetK,cSubSchK,TblK,cKauK)
+  //****************[Цикл по таблице SchPere по дебеторскому счёту]***************************
+          #ObedNoindexZarpl(SchPere,cSchetD,cSubSchD,TblD,cKauD)
+  //****************[Цикл по таблице SchPere по дебеторскому счёту]***************************
+          #ObedNoindexZarpl(SchPere,cSchetDN,cSubSchDN,TblDN,cKauDN)
+  //****************[Цикл по таблице NormTmr по дебеторскому счёту]***************************
+          #ObedNoindexZarpl(NormTmr,cSchetD,cSubSchD,TblD,cKauD)
+  //****************[Цикл по таблице RasOper по дебеторскому счёту]***************************
+          #ObedNoindexZarpl(RasOper,cSchetD,cSubSchD,TblD,cKauD)
+  //****************[Цикл по таблице RasDop по дебеторскому счёту]***************************
+          #ObedNoindexZarpl(RasDop,cSchetD,cSubSchD,TblD,cKauD)
+  //****************[Цикл по таблице NeNach по дебеторскому счёту]***************************
+          #ObedNoindexZarpl(NeNach,cSchetD,cSubSchD,TblD,cKauD)
+  //****************[Цикл по таблице NeNach по кредитному счёту]***************************
+          #ObedNoindexZarpl(NeNach,cSchetK,cSubSchK,TblK,cKauK)
+  //****************[Цикл по таблице LSTab по дебеторскому счёту]***************************
+          #ObedNoindexZarpl(LSTab,cSchetD,cSubSchD,TblD,cKauD)
+  //****************[Цикл по таблице LSTab по кредитному счёту]***************************
+          #ObedNoindexZarpl(LSTab,cSchetK,cSubSchK,TblK,cKauK)
+  //****************[Цикл по таблице Perexod по дебеторскому счёту]***************************
+          #ObedNoindexZarpl(Perexod,cSchetD,cSubSchD,TblD,cKauD)
+  //****************[Цикл по таблице Perevod по дебеторскому счёту]***************************
+          #ObedNoindexZarpl(Perevod,cSchetD,cSubSchD,TblD,cKauD)
+  //****************[Цикл по таблице Perevod по кредитному счёту]***************************
+          #ObedNoindexZarpl(Perevod,cSchetK,cSubSchK,TblK,cKauK)
+  //****************[Цикл по таблице ZarOper по дебеторскому счёту]***************************
+          #ObedNoindexZarpl(ZarOper,cSchetD,cSubSchD,TblD,cKauD)
+  //****************[Цикл по таблице ZarOper по кредитному счёту]***************************
+          #ObedNoindexZarpl(ZarOper,cSchetK,cSubSchK,TblK,cKauK)
+  //****************[Цикл по таблице KlFilter по дебеторскому счёту]***************************
+          #ObedNoindexZarpl(KlFilter,cSchetD,cSubSchD,TblD,cKauD)
+  //****************[Цикл по таблице KlFilter по кредитному счёту]***************************
+          #ObedNoindexZarpl(KlFilter,cSchetK,cSubSchK,TblK,cKauK)
+  //****************[Цикл по таблице OtpDop по дебеторскому счёту]***************************
+          #ObedNoindexZarpl(OtpDop,cSchetD,cSubSchD,TblD,cKauD)
+        }
+        if((NeedZarRun and 2) = 2)   //текущая информация по зарплате
+        {
+  //****************[Цикл по таблице UchRabVr по дебеторскому счёту]***************************
+          #ObedNoindexZarpl(UchRabVr,cSchetD,cSubSchD,TblD,cKauD)
+  //****************[Цикл по таблице Nachisl по дебеторскому счёту]***************************
+          #ObedNoindexZarpl(Nachisl,cSchetD,cSubSchD,TblD,cKauD)
+  //****************[Цикл по таблице Nachisl по кредитному счёту]***************************
+          #ObedNoindexZarpl(Nachisl,cSchetK,cSubSchK,TblK,cKauK)
+  //****************[Цикл по таблице Uder по дебеторскому счёту]***************************
+          #ObedNoindexZarpl(Uder,cSchetD,cSubSchD,TblD,cKauD)
+  //****************[Цикл по таблице Uder по кредитному счёту]***************************
+          #ObedNoindexZarpl(Uder,cSchetK,cSubSchK,TblK,cKauK)
+  //****************[Цикл по таблице PrVidOpl по дебеторскому счёту]***************************
+          #ObedNoindexZarpl(PrVidOpl,cSchetD,cSubSchD,TblD,cKauD)
+  //****************[Цикл по таблице PrVidOpl по кредитному счёту]***************************
+          #ObedNoindexZarpl(PrVidOpl,cSchetK,cSubSchK,TblK,cKauK)
+  //****************[Цикл по таблице Sys_Mbf по кредитному счёту]***************************
+          #ObedNoindexZarpl(Sys_Mbf,cSchetK,cSubSchK,TblK,cKauK)
+  //****************[Цикл по таблице ARHPEREX по дебеторскому счёту]***************************
+          #ObedNoindexZarpl(ARHPEREX,cSchetD,cSubSchD,TblD,cKauD)
+  //****************[Цикл по таблице PerevodTek по дебеторскому счёту]***************************
+          #ObedNoindexZarpl(PerevodTek,cSchetD,cSubSchD,TblD,cKauD)
+  //****************[Цикл по таблице PerevodTek по кредитному счёту]***************************
+          #ObedNoindexZarpl(PerevodTek,cSchetK,cSubSchK,TblK,cKauK)
+  //****************[Цикл по таблице Sys_Nar по кредитному счёту]***************************
+          #ObedNoindexZarpl(Sys_Nar,cSchetK,cSubSchK,TblK,cKauK)
+  //****************[Цикл по таблице PrNaryad по дебеторскому счёту]***************************
+          #ObedNoindexZarpl(PrNaryad,cSchetD,cSubSchD,TblD,cKauD)
+  //****************[Цикл по таблице SmNaryad по дебеторскому счёту]***************************
+          #ObedNoindexZarpl(SmNaryad,cSchetD,cSubSchD,TblD,cKauD)
+  //****************[Цикл по таблице NarDop по дебеторскому счёту]***************************
+          #ObedNoindexZarpl(NarDop,cSchetD,cSubSchD,TblD,cKauD)
+        }
+      }
+  //****************[Цикл по таблице HozObor по основному счету]***************************
+      #ObedHozObor(HozObor,SchOs,SubOs,flSubOs,DbSchetO,TblOs,cKauOs,flKauOs)
+  //****************[Цикл по таблице HozObor по корреспондентскому счету]***************************
+      #ObedHozObor(HozObor,SchKs,SubKs,flSubKs,KrSchetK,TblKs,cKauKs,flKauKs)
+
+      NextVisual;
+      SpJoi.Status := cg_Finish;
+      Update current SpJoi;
+    }
+  //****************[Конец цикла по спецификации объединения]***************************
+    JoiHeadPlusInd.Status := cg_Finish;  // Делаем статус "завершена"
+    update current JoiHeadPlusInd;
+    if (GetFirst JoiHead where ((JoiHeadPlusInd.Nrec == JoiHead.Nrec))=tsOk)
+    {
+      JoiHead.Status := cg_Finish;
+      Update Current JoiHead;
+    }
+    // для филиальности обработка вызова расчета остатков по таблице SaldoMoun имеет другу реализацию
+    // ее нужно вызвать для каждого из филиала
+    if (ExistFilial)
+    {
+      _Loop Filials
+      {
+        // на основную таблицу по которой идет обработка(в данном случае SaldMoun)
+        // есть ли доступ у филиала с нреком Filials.nrec к данным других филиалов
+        // если есть то не запускаем обработку. ибо данные должны обрабатываться только по своему филиалу
+        SetLimit(m_arCodeTables, 1); m_arCodeTables[1] := coSaldMoun;
+        if (not CanMayBeUseThisFunction(m_arCodeTables, Filials.Atl_NRec)) continue;
+
+        SortedContainer_DeleteAll(m_lFilialMarkerTmp);
+        SortedContainer_Insert(m_lFilialMarkerTmp, Filials.Atl_NRec);
+        // устанавливаем по почереди каждый филиал
+        SetBranches(m_lFilialMarkerTmp, comp(0));
+        iSaldoActuality.DropActualityForPlansSch(0); // сброс актуальности сальдо для всех планов счетов
+        My_Calc_NewSaldo;
+      }
+      SetBranches(0, 0);// обычный режим
+    }
+    else
+    {
+      iSaldoActuality.DropActualityForPlansSch(0); // сброс актуальности сальдо для всех планов счетов
+      // обычный режим - не филиальный - расчет для остатков по всей таблице
+      My_Calc_NewSaldo;
+    }
+  result := true;
+}
+
+function CheckKau : boolean;
+{
+  CheckKau := true;
+  if (Analitika='')
+  {
+    CheckKau:=false;
+    exit;
+  }
+}
+
+Function CheckTmpKau : boolean;
+{
+  result := true;
+  if (Analitika1= '') result := false;
+}
+
+#declare SetDefaultOperation(NameTable)
+  var i : word;
+  for(i := cFirstKau; i <= cLastKau; i := i + 1)
+    #NameTable.IsKau[i] := OPER_DELETE;
+#end
+
+function CheckTmpSchet(tmpnRec : comp) : boolean;
+var
+  cSpJoiNRec : comp;
+{
+  result := true;
+  cSpJoiNRec := comp(0);
+  _Loop tmpSpJoi where ((tmpnRec == tmpSpJoi.cRec (noindex)))
+  {
+    if (GetFirst TmpJoiHead where ((tmpSpJoi.cJoiHead == TmpJoiHead.Nrec)) <> tsOk)continue;
+    if (TmpJoiHead.TypeEvent <> word(cgObedPlanSch)) continue;
+    cSpJoiNRec := tmpSpJoi.Nrec;
+    break;
+  }
+
+  if (GetFirst tmpSpJoi where ((cSpJoiNRec == tmpSpJoi.nRec)) = tsOk)
+  {
+    if (tmpSpJoi.cJoiHead = JoiHeadPlusInd.Nrec)
+    {
+      message('Счет(субсчет) уже участвует в этом объединении');
+      result := false;
+      exit;
+    }
+    if (message('Счет(субсчет) уже участвует в этом объединении.'+
+                'Вы хотите разделить данный счет (субсчет)?',
+                mfConfirmation + mfSwapButtons + YesNo) = No)
+    {
+      result := false;
+      exit;
+    }
+
+    if (tmpBuhSchet.KODTABLE[1] = 0)
+    {
+      Message('У выбранного счета нет аналитики, по которой его можно разделить.');
+      result := false;
+      exit;
+    }
+    var wDefKodKauForRazdSch : comp;// для хранения кода аналитики, по которой будет разделение счета
+    wDefKodKauForRazdSch := 1;
+    if (GetFirst RazdSch where ((    tmpnRec == RazdSch.cSch
+                                 and word(1) == RazdSch.defSch(noindex))) <> tsOk)
+    {
+      if (GetFirst tmpSpJoi where ((tmpnRec == tmpSpJoi.cRec(noindex))) = tsOk)
+      {
+        clearbuffer(#RazdSch);
+        var cJoiHeadNrec : comp; cJoiHeadNrec := tmpSpJoi.cJoiHead;
+        if (GetFirst TmpJoiHeadPlusInd where ((cJoiHeadNrec == TmpJoiHeadPlusInd.Nrec)) = tsOk)
+          RazdSch.CRESULTSCH := TmpJoiHeadPlusInd.cRec;
+        RazdSch.cSch := tmpNRec;
+        RazdSch.defkau := tmpBuhSchet.KODTABLE[1];
+        RazdSch.DefSch := 1;
+        wDefKodKauForRazdSch := tmpBuhSchet.KODTABLE[1];
+        insert current RazdSch;
+      }
+    }
+    else wDefKodKauForRazdSch := RazdSch.defkau;
+
+    ClearBuffer(#SpJoi);
+    SpJoi.cJoiHead := JoiHeadPlusInd.nRec;
+    SpJoi.cRec     := TmpBuhSchet.nRec;
+    SpJoi.Status   := cg_Default;
+    SpJoi.IsDel    := word(1);
+    #SetDefaultOperation(SpJoi)
+    Insert current SpJoi;
+    clearbuffer(#RazdSch);
+    RazdSch.cSch := TmpBuhSchet.nRec;
+    RazdSch.CRESULTSCH := JoiHeadPlusInd.cRec;
+    RazdSch.defkau := wDefKodKauForRazdSch;
+    RazdSch.DefSch := 0;
+    insert current RazdSch;
+
+    ReReadRecord(#SpJoi);
+    ReDrawPanel(#SpJoi);
+    if(RunInterface('ZamTab', SpJoi.nRec) = cmCancel)
+    {
+      #SetDefaultOperation(SpJoi)
+      update current SpJoi;
+    }
+    else ReReadRecord(#SpJoi);
+
+    result := false;
+    exit;
+  }
+  if (tmpnRec = JoiHeadPlusInd.cRec)
+  {
+    message('Счет(субсчет) не может быть объединен сам в себя.', error);
+    result := false;
+  }
+}
+
+procedure vizovotchetovend;
+{
+  frmObedschD.write('');frmObedschD.write('');frmObedschD.write('');
+  //frmObedschD.PutEventById (feBreak, fcObedschP_cyrcle);
+  frmObedschD.write('');
+  frmObedschD.ShowFile('Протокол по таблице Oborot(Дебет)');
+
+  frmObedschK.write('');  frmObedschK.write('');  frmObedschK.write('');
+  //frmObedschK.PutEventById (feBreak, fcObedschP_cyrcle);
+  frmObedschK.write('');
+  frmObedschK.ShowFile('Протокол по таблице Oborot(Кредит)');
+
+  frmObedschSM.write('');  frmObedschSM.write('');  frmObedschSM.write('');
+  //frmObedschSM.PutEventById (feBreak, fcObedschP_cyrcle);
+  frmObedschSM.write('');
+  frmObedschSM.ShowFile('Протокол по таблице SaldMoun');
+
+  frmObedschSD.write('');  frmObedschSD.write('');  frmObedschSD.write('');
+  //frmObedschSD.PutEventById (feBreak, fcObedschP_cyrcle);
+  frmObedschSD.write('');
+  frmObedschSD.ShowFile('Протокол по таблице SaldDay');
+}
+
+procedure vizovotchetovBeg;
+{
+  if (frmObedSchD.error)
+     { frmObedSchD.AbortForm;
+        message(''#3'Ошибка при формировании протокола.' +
+             ''#13#3'Возможно, формы ObedschP нет в ресурсе.',CancelButton);
+        Exit;
+     }
+
+  if (frmObedSchK.error)
+     { frmObedSchK.AbortForm;
+        message(''#3'Ошибка при формировании протокола.' +
+             ''#13#3'Возможно, формы ObedschP нет в ресурсе.',CancelButton);
+        Exit;
+     }
+
+  if (frmObedSchSM.error)
+     { frmObedSchSM.AbortForm;
+        message(''#3'Ошибка при формировании протокола.' +
+             ''#13#3'Возможно, формы ObedschP нет в ресурсе.',CancelButton);
+        Exit;
+     }
+
+  if (frmObedSchSD.error)
+     { frmObedSchSD.AbortForm;
+        message(''#3'Ошибка при формировании протокола.' +
+             ''#13#3'Возможно, формы ObedschP нет в ресурсе.',CancelButton);
+        Exit;
+     }
+
+  frmObedschD.write(nmplsch);
+  frmObedschD.write(spnmplsch);
+  frmObedschD.write('Oborot Дебет');
+//  frmObedschD.PutEventById (fedoLoop, fcObedschP_cyrcle);
+
+  frmObedschK.write(nmplsch);
+  frmObedschK.write(spnmplsch);
+  frmObedschK.write('Oborot Кредит');
+//  frmObedschK.PutEventById (fedoLoop, fcObedschP_cyrcle);
+
+  frmObedschSM.write(nmplsch);
+  frmObedschSM.write(spnmplsch);
+  frmObedschSM.write('SaldMoun');
+//  frmObedschSM.PutEventById (fedoLoop, fcObedschP_cyrcle);
+
+  frmObedschSD.write(nmplsch);
+  frmObedschSD.write(spnmplsch);
+  frmObedschSD.write('SaldDay');
+//  frmObedschSD.PutEventById (fedoLoop, fcObedschP_cyrcle);
+}
+// Проверка циклических замен
+function isNotCicle : boolean;
+{
+  result := true;
+  if (RecSpPlSch <> RecPlSch) exit;
+
+  var MarkerForCyrcle : TPtr;
+  var IndNRecInMarker : longint;
+  var str, str2 : string;
+  var cRec : comp = 0;
+
+  MarkerForCyrcle := initmarker('',8,100,10,false);
+  _LOOP tmpJoiHeadPlusInd
+    _Loop tmpSpJoi where ((tmpJoiHeadPlusInd.nRec == tmpSpJoi.cJoiHead))
+      if (tmpSpJoi.Status <> cg_Finish)
+        InsertMarker(MarkerForCyrcle, tmpSpJoi.cRec);
+
+  _LOOP tmpJoiHeadPlusInd
+  {
+    if (tmpJoiHeadPlusInd.Status = cg_Finish)
+      continue;
+    if (GetFirst tmpSpJoi where ((tmpJoiHeadPlusInd.nRec == tmpSpJoi.cJoiHead)) <> tsOk)
+      continue;
+
+    if (SearchMarker(MarkerForCyrcle, tmpJoiHeadPlusInd.cRec, IndNRecInMarker))
+    {
+        cRec := tmpJoiHeadPlusInd.cRec;
+        break;
+    }
+  }
+
+  if (cRec <> 0)
+  {
+    var sSpnumsch, sSpnumsbsch, sNumsch, sNumsbsch : string = 'Не определен';
+    if GetFirst TmpSpJoi2 where ((cRec == TmpSpJoi2.cRec(noIndex))) = tsOk
+      if GetFirst TmpJoiHeadPlusInd where ((TmpSpJoi2.cJoiHead == TmpJoiHeadPlusInd.nRec)) = tsOk
+      {
+        if (GetFirst TmpBuhSchet where ((TmpSpJoi2.cRec==TmpBuhSchet.NRec))=tsOk)
+        {
+          sSpnumsch := TmpBuhSchet.Schet;
+          sSpnumsbsch := TmpBuhSchet.SubSch;
+        }
+
+        if (GetFirst TmpBuhSchet where ((TmpJoiHeadPlusInd.cRec==TmpBuhSchet.NRec))=tsOk)
+        {
+          sNumsch := TmpBuhSchet.Schet;
+          sNumsbsch := TmpBuhSchet.SubSch;
+        }
+      }
+    str2 :=  sSpnumsch + if (sSpnumsbsch <> '', '.' + sSpnumsbsch, '') + ' -> ' + sNumsch + if (sNumsbsch <> '', '.' + sNumsbsch, '') + '.';
+
+    if (GetFirst JoiHeadPlusInd where ((cRec == JoiHeadPlusInd.cRec)) = tsOk)
+      str :=  spnumsch + if (spnumsbsch <> '', '.' + spnumsbsch, '') + ' -> ' + numsch + if (numsbsch <> '', '.' + numsbsch, '') + '.';
+    else
+    {
+      sSpnumsch := sSpnumsbsch := sNumsch := sNumsbsch := 'Не определен';
+      str :=  sSpnumsch + if (sSpnumsbsch <> '', '.' + sSpnumsbsch, '') + ' -> ' + sNumsch + if (sNumsbsch <> '', '.' + sNumsbsch, '') + '.';
+    }
+    result := not (Message ('Циклическая замена счетов. ' +  chr(13) +
+                 str + chr(13) + str2 + chr(13) +
+                 'Возможна потеря данных по счету ' + chr(13) +
+                 numsch + ' ' + numsbsch + '.' +chr(13) +
+                 'Прекратить объединение?', YesNO) = cmYes)
+  }
+
+  DoneMarker(MarkerForCyrcle, '');
+
+}
+
+handleEvent//panel pnSpec
+
+cmMarkUnmark:
+{
+  InvertMarker(MarkDown, SpJoi.NRec);
+  RedrawCurrentAndGo (GetCurrentFormat,true);
+  ReScanPanel(#SpJoi);
+}
+
+cmSelectAll:
+{
+     if Message('Пометить все счета?', YesNo) = Yes
+     {
+        StartNewVisual(vtRotateVisual, vfTimer + vfBreak + vfConfirm, 'Идет пометка', 1);
+    _loop SpJoi
+  {
+          NextVisual;
+          InsertMarker(MarkDown, SpJoi.NRec);
+    }
+    StopVisual('', 0);
+    ReScanPanel(#SpJoi);
+     }
+}
+
+cmUnselectAll:
+{
+     if Message('Снять все пометки?', YesNo) = Yes
+     {
+  ClearMarker(MarkDown);
+    ReScanPanel(#SpJoi);
+     }
+}
+
+cmDeleteRecord:
+{
+  if ( not(isValid(tnSpJoi)) )
+  {
+    abort;
+    stop;
+    exit;
+  }
+
+    var sStr : string;
+    var iCountReal, iCount, iTmp : longint;
+    var cNrec : comp;
+    iCount := GetMarkerCount(MarkDown);
+    iTmp := 0;
+    iCountReal := 0;
+    // считаем сколько реально нужно удалить
+    while ((iTmp < iCount)) do
+    {
+        GetMarker(MarkDown, iTmp, cNrec);
+    if (GetFirst SpJoiTmp where ((cNrec == SpJoiTmp.Nrec)) = tsOk)
+        {
+            if (SpJoiTmp.cJoiHead = JoiHeadPlusInd.Nrec)
+              iCountReal := iCountReal + 1;
+        }
+        iTmp := iTmp + 1;
+    }
+
+    if ( iCountReal > 0)
+      sStr := 'Вы действительно хотите удалить помеченные записи?';
+    else
+      sStr := 'Вы действительно хотите удалить эту запись?';
+    if (Message(sStr,YesNo) <> Yes)
+    {
+      Abort;
+      Stop;
+      Exit;
+    }
+
+    // если > 0 то значит что есть в нижней панели почеменные счета(видимые)
+    if ( iCountReal > 0)
+    {
+        StartNewVisual(vtIndicatorVisual, vfTimer + vfBreak + vfConfirm,
+                      'Идет удаление помеченных настроек объединения счетов', iCount);
+        iTmp := 0;
+        while ((iTmp < iCount) and (NextVisual)) do
+        {
+            GetMarker(MarkDown, iTmp, cNrec);
+            if (GetFirst SpJoiTmp where ((cNrec == SpJoiTmp.Nrec)) = tsOk)
+            {
+              // удалять помеченную запись при условии что помеченная запись в данном активна
+              if (SpJoiTmp.cJoiHead = JoiHeadPlusInd.Nrec)
+              {
+              DelSpJoi(cNrec);
+              DeleteMarker(MarkDown, cNrec);
+              iCount := iCount - 1;
+              iTmp := iTmp - 1;
+        }
+            }
+            iTmp := iTmp + 1;
+        }
+        StopVisual('', 0);
+    }
+    else DelSpJoi(SpJoi.nrec);
+}
+
+cmInsert:
+{
+  var tmpnRec   : comp;
+  var tmpSchet  : tSchet3;
+  var tmpSubSch : tSubSch;
+  if ( RecSpPlSch = 0)
+    if (RunInterface('GetPlansSch',RecSpPlSch) = cmCancel) {Abort; Stop; Exit;}
+  if (RunInterface('GetBuhSchet',cgiPick,RecSpPlSch,tmpSchet,tmpSubSch) <> cmCancel)
+  {
+//   var UnikMarker : LongInt;
+//   var cRec : Comp;
+//   nMarkers := 'gt' + lPadCh(string(cgPick_Schet),'0',2) + 'buhschet';
+//   UnikMarker := InitMarker(nMarkers,8,200,100,false);
+//   FOR (i := 0; i <= GetMarkerCount(UnikMarker)-1; i:=i+1)
+//   {
+//     GetMarker(UnikMarker, i, cRec);
+       if (GetFirst TmpBuhSchet where ((    tmpSchet  == TmpBuhSchet.Schet
+                                        and tmpSubSch == TmpBuhSchet.SubSch)) = tsOk)
+       {
+         if not(CheckTmpSchet(TmpBuhSchet.nRec))
+         {
+//         abort;  stop;   exit;
+         }
+         else
+         {
+           ClearBuffer (#SpJoi);
+           SpJoi.cJoiHead := JoiHeadPlusInd.nRec;
+           SpJoi.cRec     := TmpBuhSchet.nRec;
+           SpJoi.Status   := cg_Default;
+           SpJoi.IsDel    := word(1);
+           #SetDefaultOperation(SpJoi)
+           Insert current SpJoi;
+           ReReadRecord(#SpJoi);
+           ReDrawPanel(#SpJoi);
+           if (CheckKau() and CheckTmpKau())
+           {
+             if(RunInterface('ZamTab', SpJoi.nRec) = cmCancel)
+             {
+               #SetDefaultOperation(SpJoi)
+               update current SpJoi;
+             }
+             else ReReadRecord(#SpJoi);
+           }
+         }
+       }
+//     }
+//     clearmarker(unikMarker);
+//     donemarker(unikMarker, nMarkers);
+    stop;
+  }
+  else
+  { stop; exit; }
+}
+end;
+end;//panel pnSpec
+
+
+Window winViborPlanSchets 'Выбор планов-счетов' (,,sci1EnEsc) EscClose, DoAccept, Cyan;
+  Show at (,, 75, 6);
+
+Screen scrViborSpPlanSch;
+  table JoiHeadPlusInd;
+  fields
+    'План счетов (приемник):'  : {font={bold=true}}, skip;
+    nmplsch1 ('План счетов - приемник',,sci13Esc): protect;
+    'План счетов (источник):'  : {font={bold=true}}, skip;
+    spnmplsch1 ('План счетов - источник',,sci13Esc): protect;
+buttons
+  cmOk,Default;
+  cmCancel;
+<<
+
+ .@@@@@@@@@@@@@@@@@@@@@ .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ .@@@@@@@@@@@@@@@@@@@@@ .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+                           <.  Да  .> <. Нет  .>
+>>
+end;//screen scrViborSpPlanSch
+
+handleevent
+cmInit :
+{
+  set NewRecPlsch := RecPlSch;
+  set NewRecSpPlSch := RecSpPlSch;
+}
+
+cmPick:
+{
+  case CurField of
+  #nmplsch1 :
+  {
+    NewRecPlSch := RecPlSch;
+    RunInterface('GetPlansSch',NewRecPlSch)
+  }
+  #spnmplsch1 :
+  {
+    NewRecSpPlSch := RecSpPlSch;
+    RunInterface('GetPlansSch',NewRecSpPlSch)
+  }
+  end; // case
+}
+
+cmOk :
+{
+  if NewRecPlSch = 0
+  {
+    message('Не выбран план счетов (приемник)');
+    exit;
+  }
+  if NewRecSpPlSch = 0
+  {
+    message('Не выбран план счетов (источник)');
+    exit;
+  }
+  CloseWindow(winViborPlanSchets);
+  ZapolnenieStructFromFile;
+  InitZarTable;
+}
+
+end; // of HandleEvent Window winViborPlanSchets
+
+end; // of Window winViborPlanSchets
+
+
+HandleEvent//interface ObedSch
+
+cmValue1:
+{
+  _try
+  {
+    SetFilialBdToStandart;// обработка филиальности (перевод с филиальности в стандарт)
+    // увеличить счетчик открытий протокола ошибок, чтобы не выводился протокол сразу
+    //после одной пары объединения
+    BuhErrorOpen;
+    if (FilterFullObed = 0)
+    {
+      delete all tmpDate;
+      if (isNotCicle)
+      {
+        if (GiveMessageAboutNastrPlanSch)
+        {
+          Message('Система не контролирует запрет последовательного' +
+                  ''#13'запуска повторных замен');
+          vizovotchetovBeg;
+          StartNewVisual(vtRotateVisual,vfTimer+vfBreak+vfConfirm,'Объединение счетов',0);
+          obed(JoiHeadPlusInd.nRec);
+          StopVisual('', 0);
+          vizovotchetovend;
+          Message('Объединение счетов завершено.');
+        }
+      }
+      ReReadRecord (#JoiHeadPlusInd);
+      ReReadRecord (#SpJoi);
+    }
+    else message ('При включенной опции "Контроль полноты объединения"'+
+                  ''#13'данная операция невозможна.');
+  }
+  _finally
+  {
+    SetStandartBdToFilial;// обработка филиальности (перевод со стандартной в филиальную)
+    // уменьшаем счетчик ошибок и выводим протокол ошибок, если они были после пересчета сальдо пр. 180.4533
+    BuhErrorCloseAndShow;
+  }
+}
+
+cmValue2:
+{
+  _try
+  {
+    SetFilialBdToStandart;// обработка филиальности (перевод с филиальности в стандарт)
+    if (FilterFullObed = 1) ProverkaFull;
+    if (FullObed = true) exit;
+    // увеличить счетчик открытий протокола ошибок, чтобы не выводился протокол сразу
+    //после одной пары объединения
+    BuhErrorOpen;
+    if (isNotCicle)
+    {
+      if (GiveMessageAboutNastrPlanSch)
+      {
+        breaked := false;
+        if (RecPlsch = RecSpPlsch)
+          Message('Система не контролирует запрет последовательного' +
+                  ''#13'запуска повторных замен')
+        else
+        {
+          var i, k, n : integer;
+          k := 0;
+          StartNewVisual(vtIndicatorVisual, vfTimer, 'Проверка полноты', n);
+          _loop TmpBuhSchet where ((RecSpPlsch ==  TmpBuhSchet.cPlansSch))
+          {
+            i := 0;
+            nextvisual;
+            _Loop TmpSpJoi where ((TmpBuhSchet.Nrec == TmpSpJoi.cRec (noindex)))
+            {
+              i := i + 1;
+              if (getfirst TmpJoiHeadPlusInd where ((TmpSpJoi.cJoiHead == tmpJoiHeadPlusInd.Nrec)) = tsOk)
+              {
+                if tmpJoiHeadPlusInd.TypeEvent = word(cgObedPlanSch)
+                {
+                  i := -1;
+                  break;
+                }
+              }
+            }
+            if ((i = 0) Or (i <> -1))
+              k := k + 1;
+          }
+          StopVisual('', 0);
+          If (K <> 0)
+            message('Настройка объединения счетов не полна.' +
+                    ''#13'Система не контролирует запрет последовательного' +
+                    ''#13'запуска повторных замен')
+          else
+            message('Система не контролирует запрет последовательного' +
+                    ''#13'запуска повторных замен');
+        }
+        StartNewVisual(vtRotateVisual, vfTimer + vfBreak + vfConfirm, 'Объединение счетов', 0);
+        vizovotchetovBeg;
+        _LOOP tmpJoiHeadPlusInd
+        {
+          if ((not nextvisual) or breaked)
+          {
+            breaked := true;
+            break;
+          }
+          obed(tmpJoiHeadPlusInd.nRec, false);
+        }
+        StopVisual('', 0);
+        vizovotchetovend;
+        if (breaked = false) Message('Объединение счетов завершено.');
+        else                 Message('Объединение счетов прервано.');
+      }
+    }
+  }
+  _finally
+  {
+    SetStandartBdToFilial;// обработка Филлиальности (перевод со стандартной в филиальную)
+    // уменьшаем счетчик ошибок и выводим протокол ошибок, если они были после пересчета сальдо пр. 180.4533
+    BuhErrorCloseAndShow;
+  }
+  ReReadRecord (#JoiHeadPlusInd);
+  ReReadRecord (#SpJoi);
+}
+
+cmValue3:
+{
+  RunInterface('ReplaceKau', 0, 0, 0);
+}
+
+cmEdit:
+{
+  RunInterface('ZamTab', SpJoi.nRec);
+  ReReadRecord(#SpJoi);
+}
+
+cmValue5 :
+{
+  if Message('При чтении настроек из файла все текущие настройки будут потеряны.'+
+                          'Вы хотите сделать чтение из файла?', mfConfirmation + mfSwapButtons + YesNo) = Yes
+  {
+    RunWindowModal(winViborPlanSchets);
+  }
+}
+
+cmValue6:
+{
+  ZapolnenieStructToFile;
+}
+
+cmValue7:
+{
+  ProverkaFull;
+}
+
+cmValue8 :
+{  // если Беларусь то один шаблон перхода для остальных стран как для россии
+  if (wGetTune('COUNTRY') = 1)
+    InitMassivBel
+  else InitMassivRus;
+  InitShablon;
+}
+
+cmInit:
+{
+// функцию можно запускать при выборе режима одного филиала
+  if (not CanMayRunObedInFilialDb)
+  {
+    CloseInterface(cmCancel);
+    exit;
+  }
+
+// Инициализация маркеров
+   MarkDown := InitMarker('ObedSchPickDown', 8, 1000, 100);
+   ClearMarker(MarkDown);
+   MarkUp := InitMarker('ObedSchPickUp', 8, 1000, 100);
+   ClearMarker(MarkUp);
+   InitJoiHeadPlusInd;
+   InitZarTable;
+   var forDsk : boolean;
+   var bufDsk : string;
+   if (ReadMyDsk (bufDsk, 'FilterFullObed', forDsk) = true)
+     FilterFullObed := word(bufDsk);
+     FullObed := false;
+}
+
+cmValue9:
+{
+  StartNewVisual(vtRotateVisual,vfTimer,'Проверка настроек Объединение счетов',0);
+  ProverkavalidSchet;
+  StopVisual('',0);
+  rereadrecord(#JoiHeadPlusInd);
+  message('Операция завершена успешно.');
+}
+
+cmCheckField:
+{
+  case CurField of
+  #FilterFullObed :
+  {
+    if (FilterFullObed = 0)
+      FullObed := false;
+  }
+  end; // case
+}
+
+cmHotKeys :
+  PutHotCommand(RunMenu('ObedSch_HotKeys_Print'));
+
+cmPrintDoc :
+{
+  if (frmObedSch.error)
+     { frmObedSch.AbortForm;
+        message(''#3'Ошибка при формировании протокола.' +
+             ''#13#3'Возможно, формы Obedsch нет в ресурсе.',CancelButton);
+        Exit;
+     }
+  frmObedsch.write(nmplsch);
+  frmObedsch.write(spnmplsch);
+  var i:integer;
+  _loop JoiHeadPlusInd
+  {
+    i:=0;
+    _loop SpJoi
+    {
+      frmObedsch.PutEventById (fedoLoop, fcObedsch_cyrcle);
+      i := i + 1;
+      if i = 1
+      {
+        if BuhSchet.SubSch = ''
+          frmObedsch.write(SchetOnString(BuhSchet.Schet))
+        else
+          frmObedsch.write(SchetOnString(BuhSchet.Schet)+'.'+BuhSchet.SubSch);
+        frmObedsch.write(BuhSchet.Name);
+      }
+      else
+      {
+        frmObedsch.write('');
+        frmObedsch.write('');
+      }
+      if SpBuhSchet.SubSch = ''
+        frmObedsch.write(SchetOnString(SpBuhSchet.Schet))
+      else
+        frmObedsch.write(SchetOnString(SpBuhSchet.Schet)+'.'+SpBuhSchet.SubSch);
+      frmObedsch.write(SpBuhSchet.Name);
+      frmObedsch.write(opkau1);
+      frmObedsch.write(opkau2);
+      frmObedsch.write(opkau3);
+      frmObedsch.write(opkau4);
+      frmObedsch.write(opkau5);
+      frmObedsch.write(opkau6);
+    }
+  }
+  frmObedsch.PutEventById (feBreak, fcObedsch_cyrcle);
+  frmObedsch.write('');
+  frmObedsch.ShowFile('Протокол объединения');
+}
+cmdone:
+{
+   // Убийство объекта маркеров
+   DoneMarker(MarkDown, 'ObedSchPickDown');
+   DoneMarker(MarkUp, 'ObedSchPickUp');
+   SaveMyDsk (string(FilterFullObed), 'FilterFullObed');
+}
+
+cmSetCurTable :
+{
+  if (target = #SpJoi)
+  {
+    if (not IsValid(#JoiHeadPlusInd))
+    {
+      //  сообщение нужно из-за пр. 102.88793
+      Message('Переход невозможен, т.к.' + chr(13) +
+              'текущий документ не заполнен', Warning);
+      abort;
+    }
+  }
+}
+
+end;//HandleEvent interface ObedSch
+
+end.//interface ObedSch
+
+ObedSch_HotKeys_Print Menu
+{
+- 'Печать',cmPrintDoc,'Печать документа/каталога',
+  hcNastrLocMAdmServLinkBuhSch,'Ctrl-P',kbCtrlP,sci1Esc;
+- 'Загрузить данные из файла', cmValue5, 'Загрузить данными из файла',
+  hcNastrLocMAdmServLinkBuhSch,,,sci1Esc;
+- 'Выгрузить данные в файл',   cmValue6, 'Выгрузить данные в файл',
+  hcNastrLocMAdmServLinkBuhSch,,,sci1Esc;
+----------;
+- 'Проверка полноты', cmValue7, 'Проверить полноту замен счетов (субсчетов)',
+  hcNastrLocMAdmServLinkBuhSch,,,sci1Esc;
+- 'Шаблон перехода со СПС на НПС', cmValue8, 'Шаблон перехода со СПС на НПС',
+  hcNastrLocMAdmServLinkBuhSch,,,sci1Esc;
+----------;
+- 'Проверка корректности ссылок на бухгалтерские счета',cmValue9,
+  'Проверить корректность ссылок на бухгалтерские счета',
+  hcNastrLocMAdmServLinkBuhSch,,,sci1Esc;
+}

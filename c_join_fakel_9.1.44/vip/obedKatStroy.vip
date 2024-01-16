@@ -1,0 +1,887 @@
+//------------------------------------------------------------------------------
+//                                                      (c) корпорация Галактика
+// Галактика 7.12 - Настройка
+// Объединение объектов строительства
+//------------------------------------------------------------------------------
+#include ExtAttrClass.vih // подключение для удаления внешних атрибутуов и классификации
+                          // привязанных к обектам строительства
+#include countsal.vih
+#include MtrCount.vih
+#include CacheValues.vih  // Кэширование показателей плана
+#include marker.vih // описание объекта и объявление интерфейса
+                    // marker c реализацией по умолчанию
+
+#include exectime.dic     // таблица  для хранения результатов по времени объединения
+#include filial_macro.vpp // макросы для обработки филиальности
+#include MacOb.vpp        // макросы (для таблиц, не содержащих кау, и общие)
+
+#include obedAll.vih
+
+#define UseGetMarkerMy
+
+
+#doc
+Объединение объектов строительства
+#end
+Interface KatStroyOb 'Объединение объектов строительства'
+  ('Объединение объектов строительства', hcNastrAdmWOb, sci1Esc) EscClose, cyan;
+  show at (,, 80, 25);
+
+const
+  lMsgOdebdifferenceUser = 'Этим объединением занимается другой пользователь.';
+  lFilterByUserOb  = 'FilterByUserObKatStroy';
+  lNeedZarRunOb    = 'NeedZarRunObKatStroy';
+  lCheckTimeObedRepOb = 'CheckTimeObedRepObKatStroy';
+  lNotDefine = 'Удаленный объект строительства';
+end;
+
+  Table struct mtPV
+  (
+    cPlanVar: comp
+  )
+  With index
+  (
+    mtPV01 = cPlanVar
+  );
+
+  Table struct mtKill
+  (
+    cSpPlan: comp
+  );
+#include UksValue.inc
+
+#include CacheValues.var  // Кэширование показателей плана (oCache)
+
+Create View
+#INCLUDE obed.var //объявление переменных
+  i            : integer;
+  CountRecOrdInProcess :integer; //количество записей для визуализации vtDownVisual
+  myMarkerSpikokStroy : TPtr;     // Для работы с маркерами
+  cs: CountSal;
+as Select
+  #Strorka_sObName(KatStroy,lNotDefine,Name)
+  #Strorka_sOb1Name(KatStroy1,lNotDefine,Name)
+//----------------------------------------------------------------------------------
+  #InternalFields
+//----------------------------------------------------------------------------------
+  #InternalFieldsForShowFilial
+From
+    KatStroy
+  , ExecTime
+  , JoiHead
+  , SpJoi
+  , EvJoiHead
+  #TableForFilial
+  , KatStroy  KatStroy1
+  , KatStroy  KatStroyTmp
+  , JoiHead   tmpJoiHead
+  , SpJoi     tmpSpJoi
+  , EvJoiHead EvJoiHead1
+  // таблицы перечислены, чтобы работала функция recordsInTable
+  #include iTable.vpp
+  , KatSopr
+  , BookPrZk
+  , SPSCHF
+  , SPSCHEM
+  , SPPLAN
+  , SMETASTROY
+  , DOCPSD
+  , VVSTROY
+  , DOCSCHEM
+  , SpPlan SpPlan1
+  , TaskInfo
+  , TaskLink
+  , PLANJOB
+  , mtPV
+  , mtKill
+  , DocsZatr
+  , KatOS
+Where
+((
+  m_wCgObedValue == JoiHead.TypeEvent And    // Объекты  строительства
+  JoiHead.cRec     == KatStroy.nRec      And    // Объединение - Объекты  строительства
+  JoiHead.nRec     == SpJoi.cJoiHead     And    // Объединение - спецификация
+  SpJoi.cRec       == KatStroy1.nRec            // Спецификация - Объекты  строительства
+  #WhereForFilial
+))
+Bounds OnlyUser =
+      m_wCgObedValue == JoiHead.TypeEvent And UserName() == JoiHead.UserName;
+File MemoFile;
+
+Const
+  iCountTableStep1 = 12;
+  iCountTableStep3 = 6 * 40 + 70;
+end;
+
+var piExAttr : iExtAttrClass; // функции внешних классификаторов и атрибутов
+var m_pMarkerUp   : IMarker(marker) new;
+
+#include MTRCount.var
+var iObjMTO : iObedAll;
+
+form ErrObAll ('ErrObStroy.OUT', 'ErrObAll') with NoVisual;
+form frmObedAll('obedStroy.out', 'obedAll') with novisual;
+form TimeObAll ('TimeObStroy.OUT','TimeObAll') with NoVisual;
+form frmExchngTime('ExchngTime.out', 'ExchngTime') with novisual;
+Procedure ObBreak;  // Прерывание объединения
+var
+  lcount_out : longint;
+{
+  lcount_out := VisualCount();
+  message('Для прекращения объединения придется'
+          + chr(13) + 'подождать до окончания замены на'
+          + chr(13) + '"' + trim (KatStroyTmp.Name) + '".', Information + OkButton);
+
+  ReStartVisual('Идет замещение объекта строительства на'#13'' + '"' + trim(KatStroyTmp.Name)
+                +'"' + ''#13'', m_lcount_vis);
+  NNextVisual (lcount_out);
+  m_bBreak := true;
+}
+
+#include obedtime.vpp //процедуры и фукнции по работе с таблицей информации по времени объединения
+#include ErrObAll.vpp    // Пакет ошибок
+#include Cor_Kau.vpp   // KAU
+#include printrelat.vpp // отчет замен
+#include filial_func.vpp // проверка филиальности
+//процедуры и функции обрабатывающие приход реплики с объединеннями  из другого офиса
+#include ObFCorpo.vpp
+function GetPrintName(cRec : comp) : string;
+var
+  sResult : string;
+{
+  sResult := 'Удален';
+  If (GetFirst KatStroyTmp where ((cRec == KatStroyTmp.Nrec)) = tsOk)
+    sResult := KatStroyTmp.Name;
+  result := sResult;
+}
+
+Function CheckObj : boolean;
+{
+  #Check_Obj(KatStroyTmp)
+}
+
+Function FindExistObj(cNewStroy : comp) : boolean;  // Проверка не участвует ли уже
+                                                 // объект строительства  в объединении
+var
+  sObjUp, sObjDown : string[80];
+{
+  #FindObj(m_wCgObedValue, KatStroyTmp, Name, lNotDefine, 'Объект строительства ', cNewStroy, 0)
+}
+
+Function UpdateObj : boolean;
+var bMTO : boolean;
+{
+  m_bBreak    := False;
+  result := False;
+  m_bShowRepTime := true;
+  _nMsgFrm  := 0;          // Общее число ошибок
+  m_lErrOrJoi  := 0;
+  m_lErrOrSp   := 0;
+  m_lCount_vis := 0;
+  bMTO := false;
+  _try
+  {
+    bMTO := LoadVipRef(iObjMTO, 'L_UksMTO::ObedMTO');
+  }
+  _except
+    on ExObjIfcNoLoad : {}
+    else {}
+
+  _loop JoiHead where ((    m_wCgObedValue == JoiHead.TypeEvent
+                        and UserName() == JoiHead.UserName ))
+  {
+    case JoiHead.Status of
+    word(0) : if (m_wParamOb = word(1)) continue;
+    word(1) : {};
+    word(3) :  continue;
+    word(4) : if (m_wParamOb <> word(0)) continue;
+    end;
+
+    if (JoiHead.prCOrpo <> byte(0))
+      if (CheckObj)
+      {
+        message ('Одно из объединений, присланное по COrpo обмену'
+                 + chr(13) + 'будет отложено, поскольку не существует объект строительства,'
+                 + chr(13) + 'в которую необходимо производить объединение.');
+        continue;
+      }
+
+    _loop SpJoi where ((    JoiHead.nRec == SpJoi.cJoiHead
+                        and (word(3) <> SpJoi.Status) ))
+      m_lCount_vis := m_lCount_vis + iCountTableStep1 + ( 1 ) * iCountTableStep3;
+  }
+
+  if (m_lcount_vis <> 0)
+  {
+    if (message('Если Вы не сохранили данные, еще раз рекомендуем это сделать.' + chr(13)
+              + 'Запустить объединение объектов строительства?', YesNo + mfSwapButtons + Confirmation) = cmNo)
+    {
+      m_bShowRepTime := false;
+      exit;
+    }
+    StartNewVisual(vtIndicatOrVisual, vfTimer + vfbreak + vfConfirm,''#13#13#13'', m_lcount_vis);
+  }
+  else
+  {
+    message ('Нет заданий на объединение.');
+    m_bShowRepTime := false;
+    m_wParamOb := 0;
+    exit;
+  }
+  MyMarker:=InitMarker('', 8, 50, 50, false);
+                // Цикл по результирующей
+  If (GetFirst JoiHead Where ((m_wCgObedValue == JoiHead.TypeEvent
+                               And UserName() == JoiHead.UserName )) = tsOk )
+  do
+  {
+    case JoiHead.Status of
+    word(0) : if (m_wParamOb = word(1)) continue;
+    word(1) : {};
+    word(3) :  continue;
+    word(4) : if (m_wParamOb <> word(0)) continue;
+    end;
+
+    if (JoiHead.prCOrpo <> byte(0))
+      if (CheckObj) continue;
+                        // Пересылка если COrpo
+    if (    (m_bCOrpo)
+        and (JoiHead.prCOrpo = byte(0))
+        and (JoiHead.Status = word(0)))
+    {
+      ClearBuffer (#EvJoiHead);
+      EvJoiHead.FilialNo := OfficeNo();
+      EvJoiHead.TypeEvent := m_wCgObedValue;
+      EvJoiHead.cRec := JoiHead.cRec;
+      EvJoiHead.dDate := Cur_date();
+      MemoFile.OpenMemo (EvJoiHead.EvSp);
+      MemoFile.Write(JoiHead.rComp);
+      _loop SpJoi where ((JoiHead.nRec == SpJoi.cJoiHead))
+      {
+        MemoFile.Write(SpJoi.cRec);
+        MemoFile.Write(SpJoi.Num);
+        MemoFile.Write(SpJoi.isDel);
+/*
+        If (GetFirst KatStroytmp where ((SpJoi.cRec == KatStroytmp.nRec)) = tsOk)
+          MemoFile.Write(KatStroytmp.Name);
+        Else
+          MemoFile.Write(lNotDefine);
+*/
+      }
+      MemoFile.Close;
+      insert current EvJoiHead;
+    }
+
+    JoiHead.Status := wOrd(1);  // Делаем статус "Начата"
+    Update Current JoiHead;
+
+    If ( GetFirst KatStroyTmp where (( JoiHead.cRec == KatStroyTmp.nrec)) = tsOk ) {};
+
+    iNextVisual('Идет замещение объекта строительства на'#13''
+                + '"' + trim(KatStroyTmp.Name) + '"' + ''#13'');
+    m_bWriteInfoSpJoi := True;
+
+                //  Цикл по объединяемым
+    If (GetFirst SpJoi where ((JoiHead.nRec == SpJoi.cJoiHead And (wOrd(3) <> SpJoi.Status))) = tsOk)
+      do
+      {
+        SpJoi.Status := wOrd(1);
+        Update current SpJoi;
+
+        // table 3
+        #UpdateTableOneFieldNoIndex(KatSopr, cUKS, 'KatSopr')
+        // table 5
+        #UpdateTableOneFieldWithIndex(SpSchF, cObject, 'SpSchF')
+        // table 6
+        if Not(NextVisual) ObBreak;
+        m_tTimeBeg := cur_time;
+        if (GetFirst DocSchem where ((JoiHead.cRec == DocSchem.cDoc)) <> tsOk)
+        {
+          #UpdateTableOneFieldWithIndex(DocSchem, cDoc, 'DocSchem')
+        }
+        else
+        {
+          StartNewVisual(vtRotateVisual, vfTimer + vfScreenBottom , 'Обработка таблицы DocSchem', 1);
+          var cDocSchemNrec : comp;
+          cDocSchemNrec := DocSchem.Nrec;
+          _loop DocSchem where ((SpJoi.cRec == DocSchem.cDoc))
+          {
+            update SpSchem where ((DocSchem.Nrec == SpSchem.cSchem))
+            set SpSchem.cSchem := cDocSchemNrec;
+          }
+          delete DocSchem where ((SpJoi.cRec == DocSchem.cDoc));
+          StopVisual('', 0);
+        }
+        InsExecTime(SpJoi.cRec,JoiHead.cRec,'DocSchem', m_tTimeBeg,Cur_Time);
+
+        // хитрое объединение планов от Окуневича Руслана
+        if Not(NextVisual) ObBreak;
+        m_tTimeBeg := cur_time;
+        StartNewVisual(vtRotateVisual, vfTimer + vfScreenBottom , 'Обработка таблицы SpPlan', 1);
+        delete all mtKill;
+        delete all mtPV;
+        var rValue: TValue;
+        _loop SpPlan where ((m_wCodeTable == SpPlan.wTable
+                         and word(0)      == SpPlan.wKau
+                         and SpJoi.cRec   == SpPlan.cObject))
+        {
+          NextVisual;
+          if (GetFirst mtPV where (( SpPlan.cPlanVar == mtPV.cPlanVar )) <> tsOk)
+            insert mtPV set mtPV.cPlanVar := SpPlan.cPlanVar;
+
+          rValue.cRec := SpPlan.nRec;
+          if (GetFirst SpPlan1 where (( SpPlan.cPlanVar == SpPlan1.cPlanVar
+                                    and SpPlan.cNode    == SpPlan1.cNode
+                                    and SpPlan.wTable   == SpPlan1.wTable
+                                    and SpPlan.wKau     == SpPlan1.wKau
+                                    and JoiHead.cRec    == SpPlan1.cObject )) = tsOk)
+          { // Объединяемые объекты находятся в одной копии плана
+            oCache.LoadProject(SpPlan.cPlanVar);
+            oCache.LoadHier(cgiSpPlan, 0);
+            oCache.JoinValues(cgiSpPlan, SpPlan.nRec, SpPlan1.nRec);
+
+            _loop TaskInfo where (( coSpPlan    == TaskInfo.wTable
+                                and SpPlan.NRec == TaskInfo.cTable ))
+            {
+              delete all TaskLink where (( TaskInfo.NRec == TaskLink.cNext ));
+              delete all TaskLink where (( TaskInfo.NRec == TaskLink.cPrev ));
+            }
+            delete all TaskInfo where (( coSpPlan    == TaskInfo.wTable
+                                     and SpPlan.NRec == TaskInfo.cTable ));
+            insert mtKill set mtKill.cSpPlan := SpPlan.NRec;
+          }
+        }
+        _loop mtKill
+          delete SpPlan where (( mtKill.cSpPlan == SpPlan.NRec ));
+
+        _loop mtPV
+          update PlanJob where (( mtPV.cPlanVar == PlanJob.cPlanVar
+                              and SpJoi.cRec    == PlanJob.cObj ))
+          set PlanJob.cObj := JoiHead.cRec;
+        update all SpPlan where (( m_wCodeTable == SpPlan.wTable
+                               and word(0)      == SpPlan.wKau
+                               and SpJoi.cRec   == SpPlan.cObject ))
+        set SpPlan.cObject := JoiHead.cRec;
+        StopVisual('', 0);
+        InsExecTime(SpJoi.cRec,JoiHead.cRec,'SpPlan', m_tTimeBeg,Cur_Time);
+
+        #UpdateTableOneFieldWithIndex(DocsZatr, cUKS, 'DocsZatr')
+        // table 9
+        #UpdateTableOneFieldOnTwoFieldWithIndex2(SmetaStroy,cObj,coTable,0,'SmetaStroy')
+        // table 10
+        #UpdateTableOneFieldWithIndex(DocPsd, cKatStroy, 'DocPsd')
+        // table 11
+        #UpdateTableOneFieldWithIndex(Vvstroy, cKatStroy, 'Vvstroy')
+        // table 12
+        #UpdateTableOneFieldNoIndex(BookPrZk,cObject,'BookPrZk')
+        #UpdateTableOneFieldOnTwoFieldNoIndex(KatOs,CORIGDOC,WORIGTYPE,1,'KatOs')
+        // table 13
+        IF Not(NextVisual) ObBreak;
+        ClearMarker(MyMarker);
+        //KAU
+        updateKau(SpJoi.cRec, JoiHead.cRec, cgKau_ObjBuild, true, KatStroy.Name);
+
+        if (bMTO)
+        {
+          m_tTimeBeg := cur_time;
+          iObjMTO.JoinAll(cgObedStroy, SpJoi.cRec, JoiHead.cRec);
+          InsExecTime(SpJoi.cRec,JoiHead.cRec,'интерфейс MTO', m_tTimeBeg,Cur_Time);
+        }
+
+      // Если этап завершен без ошибок для одной рез. организации
+      if (_nMsgFrm = m_lErrOrSp) SpJoi.Status := word(3);
+      else                       SpJoi.Status := word(4);
+      update current SpJoi;
+      if (m_lErrorSp <> _nMsgFrm)
+      {
+        ErrObAll.PutEventById (febreak, fcCycleOfErrOrAll);
+        ErrObAll.write(_nMsgFrm - m_lErrorSp);
+      }
+      m_lErrorSp := _nMsgFrm;
+    } while (GetNext SpJoi where ((    JoiHead.nRec == SpJoi.cJoiHead
+                                   and (word(3)<>SpJoi.Status) )) = tsOk);
+    m_bWriteInfoSpJoi := false;
+
+    if (m_lErrorJoi <> _nMsgFrm)
+    {
+      ErrObAll.PutEventById (febreak, fcCycleOfObAll);
+      ErrObAll.write(_nMsgFrm - m_lErrorJoi);
+    }
+    // Если объединение без ошибок
+    if (_nMsgFrm = m_lErrorJoi) JoiHead.Status := word(3); // статус "Завершено"
+    else                        JoiHead.Status := word(4);// статус "Завершено с ошибками"
+    update Current JoiHead;
+
+    m_lErrorJoi := _nMsgFrm;
+    m_lErrOrSp := m_lErrorJoi;
+  } while (    (GetNext JoiHead where ((    m_wCgObedValue == JoiHead.TypeEvent
+                                        and UserName() == JoiHead.UserName )) = tsOk)
+           and (m_bBreak = false));
+
+  If (_nMsgFrm > 0)
+  {
+    ErrObAll.PutEventById (feBreak, fcCycleOfResAll);
+    ErrObAll.write(_nMsgFrm);
+  }
+
+  m_wParamOb := 0;
+  DoneMarker (MyMarker, '');
+  if (m_lcount_vis <> 0)
+  {
+    StopVisual('', 0);
+    if (_nMsgFrm > 0)  // Если были ошибки во время объединения
+    {
+      message('Во время объединения произошли ошибки !'
+              + chr(13) + 'Просмотрите протокол ошибок и если необходимо,'
+              + chr(13) + 'запустите процедуру объединения объектов строительства еще раз.' + chr(13));
+      ErrObAll.ShowFile;
+    }
+    Message('Объединение завершено.' + chr(13)
+          + 'Вам необходимо выполнить сервисную функцию ' + chr(13)
+          + '"Пересчет сумм в карточках объектов строительства"' + chr(13)
+          + 'в модуле Управление капитальными вложениями и строительством.');
+  }
+  Message('Объединение завершено.');
+}
+
+browse StroyJoi;
+show at (,,,6);
+Table JoiHead;
+    recMarker = m_pMarkerUp {JoiHead.Nrec};
+fields
+    sObName          'Наим. объектов строительства (рез.объединения)'
+                     ('', hcNastrAdmWOb, sci1378EscInsPMBrigadeDuty) : [32], Protect;
+    strFilial        'филиал','───────'('',hcNastrAdmWOb,sci1Esc) : [7], Protect;
+    strJoiStatus     'Статус'
+                     ('', hcNastrAdmWOb, sci1Esc) : [14], Protect;
+    JoiHead.UserName 'Пользователь'('', hcNastrAdmWOb, sci13Esc) : [12], Protect;
+    strJoiCOrpo      '№ офиса','───────'('',hcNastrAdmWOb,sci1Esc) : [7], Protect;
+end;
+
+TableEvent Table JoiHead;
+cmSetDefault :
+{
+  JoiHead.TypeEvent := m_wCgObedValue;
+  JoiHead.Status := word(0);
+  JoiHead.UserName := UserName();
+  JoiHead.dDate := Cur_Date;
+}
+
+cmInsertRecord : insert current JoiHead;
+cmUpdateRecord : update current JoiHead;
+
+cmInsert :
+{
+  case curfield of
+  #sObName :
+  {
+    m_cChoiceNrec := 0;
+    RunInterface('KatStroy', 0, TRUE, m_cChoiceNrec, FALSE, FALSE, FALSE);
+    if (m_cChoiceNrec <> 0)
+    {
+      if (not FindExistObj(m_cChoiceNrec)) putCommand(cmValue1);
+      else abort;
+    }
+    else abort;
+  }
+  end;
+}
+
+cmMarkDelete :
+{
+  if (curtable = #JoiHead)
+  {
+    m_bDeleteByMarker := false;
+    if (m_pMarkerUp.Count <> 0)
+    {
+      if (message('Удалить помеченные записи?', yesno + mfSwapButtons + confirmation) = cmYes)
+      {
+        m_bDeleteByMarker := true;
+        stop;
+      }
+      else abort;
+    }
+  }
+}
+
+cmdeleteRecord :
+{
+  if not(isValid(tnJoiHead)) exit;
+  if (not m_bDeleteByMarker) m_bExistDel := false; // инициализация переменной в случае когда пометки нет для случая обычного удаления
+
+  if (not m_bDeleteByMarker) m_bExistDel := false; // инициализация переменной в случае когда пометки нет для случая обычного удаления
+  //#5578 >>>>>>>>>>>>>>>>>
+  var _boDiffUser : boolean = (JoiHead.UserName <> UserName());
+  if _boDiffUser
+    if (not m_bDeleteByMarker)
+      if pr_CurUserAdmin
+      { if message(lMsgOdebdifferenceUser
+          +chr(13)+'Продолжить?' , YesNo)=cmYes
+        { _boDiffUser:=false
+
+        }
+      }
+  //#5578 <<<<<<<<<<<<<<<<<<<<<<<<<
+  if _boDiffUser
+  {
+    if (not m_bDeleteByMarker)
+      message(lMsgOdebdifferenceUser
+        +chr(13)+'обратитесь к администратору БД', Warning);
+    if (m_bExistDel and ((not m_bDeleteByMarker) or (m_bDeleteByMarker and m_pMarkerUp.Count = 0)))
+      message('Удаление из каталога МЦ произведено.', Information + OkButton);
+    exit;
+  }
+
+  var bRun : boolean; bRun := true;
+  if (not m_bDeleteByMarker)
+    bRun := message('Удалить запись?', yesno + mfSwapButtons + confirmation) = cmYes;
+
+  if (bRun)
+  {
+    if (    (JoiHead.Status = word(3))
+         Or (JoiHead.Status = word(4)))
+    {
+      if (getFirst SpJoi where ((    JoiHead.nRec == SpJoi.cJoiHead
+                                 and byte(1)      == SpJoi.isDel
+                                 and byte(4)      == SpJoi.Status )) = tsOk)
+      {
+        var bDelFromCatalog : boolean; bDelFromCatalog := false;
+        if (not m_bDeleteByMarker)
+          m_bDeleteByMarker := message('Удалять из каталога объекты строительства, объединение'
+                    + chr(13) + 'которых завершено с ошибками?',
+                    yesno + mfSwapButtons + Confirmation) = cmYes;
+        if (m_bDeleteByMarker)
+          update SpJoi where ((    JoiHead.nRec == SpJoi.cJoiHead
+                               and byte(1)      == SpJoi.isDel
+                               and byte(4)      == SpJoi.Status)) set Status := 3;
+      }
+
+      _loop SpJoi where ((    JoiHead.nRec == SpJoi.cJoiHead
+                          and byte(1)      == SpJoi.isDel
+                          and byte(3)      == SpJoi.Status))
+      {
+        piExAttr.DeleteAll(m_wCodeTable, SpJoi.cRec);
+        var iCount : longint;
+        iCount := 0;
+        var cNrecNode : comp;
+        cNrecNode := comp(0);
+        if (GetFirst KatStroyTmp where ((SpJoi.cRec == KatStroyTmp.nrec)) = tsOk)
+          cNrecNode := KatStroyTmp.cStroy;
+
+        _Loop KatStroyTmp where ((cNrecNode == KatStroyTmp.cStroy))
+          iCount := iCount + 1;
+
+        if (iCount <= 1)
+          update KatStroyTmp where ((cNrecNode == KatStroyTmp.nrec)) set LevelObj := 1;
+
+        oMtrCount.CheckValidMTRObj(Spjoi.cRec);
+        delete KatStroyTmp where ((SpJoi.cRec == KatStroyTmp.nrec));
+        m_bExistDel := true;
+      }
+    }
+    delete SpJoi where ((JoiHead.nRec == SpJoi.cJoiHead));
+    delete current JoiHead;
+    if (m_bExistDel and ((not m_bDeleteByMarker) or (m_bDeleteByMarker and m_pMarkerUp.Count = 0)))
+      message('Операция удаления завершена.', Information + OkButton);
+  } else Abort;
+}  //cmdeleteRecOrd :
+end;
+
+hAndleevent
+cmValue1 :
+{
+  set JoiHead.rComp := comp(1);
+  set JoiHead.cRec := m_cChoiceNrec;
+  UpdateTable;
+  SetFilialInNastrObed(coJoiHead, KatStroy.Name, KatStroy.Atl_Branch);
+  ReDrawPanel(#JoiHead);
+}
+
+cmPick :
+{
+  #Check_Pick(JoiHead)
+
+  case curfield of
+  //-----------
+  #sObName :
+  {
+    if (JoiHead.Status <> 0) exit;
+    m_cChoiceNrec := JoiHead.cRec;
+    RunInterface('KatStroy', 0, TRUE, m_cChoiceNrec, FALSE, FALSE, TRUE);
+
+    if (m_cChoiceNrec <> 0)
+    {
+      #CheckChoiceValueForJoiHeadOnPick
+      set JoiHead.rComp := comp(1);
+      UpDateTable;
+      SetFilialInNastrObed(coJoiHead, KatStroy.Name, KatStroy.Atl_Branch);
+      ReReadRecOrd(#JoiHead);
+      ReDrawPanel(#JoiHead);
+    }
+  }
+  end;
+}
+end; // hanldeevent
+
+
+browse StroySpJoi;
+show at (,7,,17);
+Table SpJoi;
+fields
+    sOb1Name        'Наим. объектов строительства, подлежащих объединению'
+                    ('', hcNastrAdmWOb, sci1378Esc): [41], Protect;
+    strFilial1      'филиал','───────'('',hcNastrAdmWOb, sci1Esc) : [7], Protect;
+    strSpJoiStatus  'Статус'
+                    ('', hcNastrAdmWOb, sci1Esc)   : [15], Protect;
+    cSpJoiDel       'Удалять'
+                    ('Изменяется при нажатии на <F3>', hcNastrAdmWOb, sci13Esc)
+                                                            : [7], #protectedcentered;
+end;
+
+tableEvent Table SpJoi;
+cmInsert:
+{
+  if (JoiHead.UserName <> UserName())
+  {
+    message (lMsgOdebdifferenceUser, Warning);
+    abort; exit;
+  }
+
+  if (JoiHead.Status <> 0) {abort; exit;}
+
+  RunInterface('KatStroy', 0, TRUE, m_cChoiceNrec, FALSE, TRUE, FALSE);
+  myMarkerSpikokStroy := InitMarker('MarkerKatStroy', 8, 200, 100);
+  if (GetMarkerCount(myMarkerSpikokStroy)<> 0)
+  {
+    for (i := 0; i < GetMarkerCount(myMarkerSpikokStroy); i := i + 1)
+    {
+      GetMarker(myMarkerSpikokStroy, i, m_cChoiceNrec);
+      if (FindExistObj(m_cChoiceNrec)) continue;
+
+      ClearBuffer (#SpJoi);
+      SpJoi.cJoiHead := JoiHead.nRec;
+      SpJoi.cRec := m_cChoiceNrec;
+      SpJoi.Status := word(0);
+      SpJoi.IsDel := word(1);
+      Insert current SpJoi;
+      SetFilialInNastrObed(coSpJoi, KatStroy1.Name, KatStroy1.Atl_Branch);
+    }
+    ReReadRecord(#SpJoi);
+    ReDrawPanel(#SpJoi);
+  }
+  ClearMarker(myMarkerSpikokStroy);
+  Donemarker(myMarkerSpikokStroy,'MarkerKatStroy');
+  abort;
+}
+
+cmdeleteRecord :
+{
+  if (JoiHead.UserName <> UserName())
+  {
+    message (lMsgOdebdifferenceUser, Warning);
+    exit;
+  }
+
+  if (JoiHead.Status = 0)
+    if (message('Удалить запись?', yesno + mfSwapButtons + Confirmation) = cmYes)
+      delete current SpJoi;
+}
+end;
+
+hAndleevent
+cmPick :
+{
+  #Check_Pick(SpJoi)
+
+  case curfield of
+  #sOb1Name :
+  {
+    if (JoiHead.Status <> 0) exit;
+    m_cChoiceNrec := SpJoi.cRec;
+    RunInterface('KatStroy', 0, TRUE, m_cChoiceNrec, FALSE, FALSE, FALSE);
+    if (m_cChoiceNrec <> 0)
+    {
+      #CheckChoiceValueForSpJoiOnPick
+      ClearBuffer (#SpJoi);
+      SpJoi.cJoiHead := JoiHead.nRec;
+      SpJoi.cRec := m_cChoiceNrec;
+      SpJoi.Status := word(0);
+      SpJoi.IsDel := word(1);
+      Insert current SpJoi;
+      SetFilialInNastrObed(coSpJoi, KatStroy1.Name, KatStroy1.Atl_Branch);
+      ReReadRecord(#SpJoi);
+      ReDrawPanel(#SpJoi);
+    }
+  }
+  #cSpJoiDel :
+  {
+    if (SpJoi.cRec <> comp(0))
+    {
+      if (SpJoi.IsDel = word(1)) SpJoi.IsDel := word(0);
+      else                       SpJoi.IsDel := word(1);
+      update current SpJoi;
+      RedrawPanel (#SpJoi);
+    }
+  }
+  end;
+}
+end;
+
+// Экран с кнопками
+screen ButtonsList;
+  show at (,18,,);
+  Fields
+    m_wFilterByUser ('Изменяется при нажатии на <Пробел>', hcNastrAdmWOb, sci1Esc) : , noprotect;
+    m_wNeedZarRun ('Изменяется при нажатии на <Пробел>',hcNastrAdmWOb,sci1Esc): noprotect;
+    m_wCheckTimeObedRep ('Изменяется при нажатии на <Пробел>',hcNastrAdmWOb,sci1Esc): noprotect;
+Buttons
+  cmObed, Default,,, hcNastrAdmWOb, sci1Esc;
+  cmCancel,,,, hcNastrAdmWOb, sci1Esc;
+
+<<
+  Показывать объединения         Включить в обработку таблицы модуля Заработная плата:
+  (.) всех пользователей`        [.] таблицы с архивной информацией`
+  (.) только свои       `        [.] таблицы с текущей информацией`
+
+                                 [.] Протокол по времени объединения`
+
+                      <.~О~бъединить .>         <. О~т~мена .>
+>>
+
+end; // screen
+
+handleevent
+
+cmCheckField :
+{
+  case curfield of
+  #m_wFilterByUser :
+  {
+    case m_wFilterByUser of
+    0 :  if (BoundActive(tbOnlyUser))     PopBounds (tbOnlyUser);
+    1 :  if (not BoundActive(tbOnlyUser)) PushBounds (tbOnlyUser);
+    end;
+    if (getFirst JoiHead = tsOk) {};
+
+    ReReadRecord(#JoiHead);
+    RescanPanel (#JoiHead);
+    RescanPanel (#SpJoi);
+    SelectPanel (#JoiHead);
+    SaveMyDsk (m_wFilterByUser, lFilterByUserOb);
+  }
+  #m_wNeedZarRun : SaveMyDsk (m_wNeedZarRun, lNeedZarRunOb);
+  #m_wCheckTimeObedRep : SaveMyDsk (m_wCheckTimeObedRep, lCheckTimeObedRepOb);
+  end; // case
+}
+
+
+cmInit:
+{
+  DisableCommand(cmFilterSave);
+  m_wCodeTable := coKatStroy;
+ // функцию можно запускать при выборе режима одного филиала
+  if (not CanMayRunObedInFilialDb)
+  {
+    CloseInterface(cmCancel);
+    exit;
+  }
+
+  bDBPlatformType := GetDBPlatformType;// читаем тип СУБД
+  m_wCgObedValue := cgObedStroy;// присвоение должно быть раньше кода, где используется переменная m_wCgObedValue
+  if (not ReadMyDsk (m_wNeedZarRun, lNeedZarRunOb, true)) m_wNeedZarRun := 3;
+  if (not ReadMyDsk (m_wFilterByUser, lFilterByUserOb, true)) m_wFilterByUser := 0;
+  if (not ReadMyDsk (m_wCheckTimeObedRep, lCheckTimeObedRepOb, true)) m_wCheckTimeObedRep := 0;
+  if (m_wFilterByUser = 1) PushBounds (tbOnlyUser);
+
+  m_wParamOb := 0;
+
+  m_bCOrpo := InCorpo(m_wCgObedValue);
+
+  if (m_bCOrpo)
+  {
+    DelOutCOrpo(m_wCgObedValue);
+    CorpoForUser(m_wCgObedValue);
+  }
+
+  if (getFirst tmpJoiHead where ((    m_wCgObedValue == tmpJoiHead.TypeEvent
+                                  and UserName()        == tmpJoiHead.UserName
+                                  and (word(1)=tmpJoiHead.Status) )) = tsOk )
+  {
+    m_wParamOb := word(1);
+    if (message('Обнаружено незавершенное объединение объектов строительства'
+                + chr(13) + 'рекомендуется немедленно продолжить это объединение.'
+                + chr(13) + chr(13) + 'Запустить незавершенное объединение?',yesno + Confirmation) = cmYes)
+      PutCommand(cmObed);
+    else
+      CloseInterface (cmCancel);
+  }
+}
+
+cmDefault:
+  AbOrt;
+
+cmHotKeys :
+  PutHotCommAnd(RunMenu('ObedStroy_HotKeys_Print'));
+
+cmPrintDoc :
+{
+  if (frmObedAll.errOr)
+  {
+    frmObedAll.abortform;
+    message('Ошибка при формировании протокола соответствия.' + chr(13)
+           +'Возможно, формы ObedAll нет в ресурсе.', CancelButton);
+    exit;
+  }
+  else
+    #PrintRelation(KatStroy1, KatStroy, Name, 'объектов строительства')
+}
+
+cmObed :
+{
+  _try
+  {
+    SetFilialBdToStandart;// обработка филиальности (перевод с филиальности в стандарт)
+    mtClear (#ExecTime,mfNormal);
+    if (m_wParamOb <> 1)
+    {
+      _loop tmpJoiHead where ((    m_wCgObedValue == tmpJoiHead.TypeEvent
+                               and UserName()        == tmpJoiHead.UserName))
+      {
+        if (getFirst tmpSpJoi where ((tmpJoiHead.nRec == tmpSpJoi.cJoiHead)) <> tsOk)
+        {
+          var sObjName : string; sObjName := lNotDefine;
+          If (GetFirst KatStroyTmp where (( tmpJoiHead.cRec == KatStroyTmp.nrec)) = tsOk )
+            sObjName := trim(KatStroyTmp.Name);
+          message ('Для результата объединения' + chr(13)
+                 + '"' + sObjName + '"' + chr(13)
+                 + 'не выбраны объекты строительства, которые необходимо объединять.', CancelButton);
+          SetStandartBdToFilial;// обработка филиальности (перевод со стандартной в филиальную)
+          exit;
+        }
+      }
+      if (getFirst tmpJoiHead where ((    m_wCgObedValue == tmpJoiHead.TypeEvent
+                                      and UserName()        == tmpJoiHead.UserName
+                                      and (word(4) = tmpJoiHead.Status) )) = tsOk )
+        if (message('Хотите повторять объединение для' + chr(13)
+                  + 'завершенных с ошибками объектов строительства?', YesNo + Confirmation) = cmNo)
+          m_wParamOb := 2;
+    }
+    if (IsNotExistNastroikiFromOtherFilials(m_wCgObedValue, m_wCodeTable)) UpdateObj;
+  }
+  _finally
+  {
+    SetStandartBdToFilial;// обработка филиальности (перевод со стандартной в филиальную)
+  }
+  ReReadRecOrd(#JoiHead);
+  ReDrawPanel(#JoiHead);
+  ReReadRecOrd(#SpJoi);
+  ReDrawPanel(#SpJoi);
+  If ((m_wCheckTimeObedRep=1) and m_bShowRepTime)
+    #MakeTimeProt('объектов строительства');
+}
+end;
+end.  // Interface
+
+ObedStroy_HotKeys_Print Menu
+{
+- 'Печать',cmPrintDoc,'Печать соответствия объединения',, 'Ctrl+P', kbCtrlP, scMenuCtx;
+}

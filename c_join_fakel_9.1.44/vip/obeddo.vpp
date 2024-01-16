@@ -1,0 +1,66 @@
+var summa   : double;
+var summaV  : double;
+var newdate : date;
+var dc      : boolean;
+If not(ReadMyDsk(TuneSumma,'TuneObedDOSumma',dc)) TuneSumma:=0;
+If not(ReadMyDsk(TuneDate,'TuneObedDODate',dc))  TuneDate:=0;
+summa:=GroupSch.sum;
+summaV:=GroupSch.sumV;
+newdate:=GroupSch.dFinish;
+_LOOP SpJoi
+{
+   if not (isValid(tnKatOrg))
+   {
+     if (isValid(tnKatOrg1))
+     {
+       GroupSch.cOrg:=KatOrg1.nRec;
+       update current GroupSch;
+       ReReadRecord(#GroupSch);
+     }
+   }
+
+   UpdateKau(SpJoi.cRec,JoiHead.cRec,word(12),false,GroupSch.Name);
+
+//****************Замена ссылок на ДО******
+  _LOOP SpGrSch where ((GroupSch1.nRec == SpGrSch.cGroupSch))
+  {
+    NextVisual();
+    var wList : word; wList := SpGrSch.wList;
+    var cRec : comp; cRec := SpGrSch.cBaseDoc;
+    // если есть уже такой ДО, ПКП, договоры то удаляем
+
+    if (GetFirst SpGrSchSyn where ((cRec          == SpGrSchSyn.cBaseDoc
+                                and wList         == SpGrSchSyn.wList
+                                and GroupSch.nRec == SpGrSchSyn.cGroupSch)) = tsOk)
+    {
+      cRec := SpGrSch.Nrec;
+      delete SpGrSchSyn where ((cRec == SpGrSchSyn.Nrec));
+    }
+    else
+    {
+      cRec := SpGrSch.Nrec;
+      update SpGrSchSyn where ((cRec == SpGrSchSyn.Nrec))
+      set SpGrSchSyn.cGroupSch := GroupSch.nRec;
+    }
+  }
+  NextVisual();
+  case TuneSumma of
+   0 : {
+     summa  := summa  + GroupSch1.sum;
+     summaV := summaV + GroupSch1.sumV;
+   }
+   1 : {
+     if (GroupSch1.sum  > summa)  summa  := GroupSch1.sum;
+     if (GroupSch1.sumV > summaV) summaV := GroupSch1.sumV;
+   }
+  end;
+  if (TuneDate=0) if (GroupSch1.dFinish<newdate) newdate:=GroupSch1.dFinish;
+//****************Конец замены ссылок на ДО******
+NextVisual();
+delete current GroupSch1;
+}
+GroupSch.sum:=summa;
+GroupSch.sumV:=summaV;
+GroupSch.dFinish:=newdate;
+update current GroupSch;
+delete all SpJoi;
