@@ -1,0 +1,691 @@
+/*************************************************************************************************\
+* Наименование: Ведение телефонного справочника                                                   *
+* Контур/Модуль: Кадры                                                                            *
+* Примечание:                                                                                     *
+*                                                                                                 *
+* Вид работы  |Номер         |Дата    |Исполнитель              |Проект                           *
+* ----------------------------------------------------------------------------------------------- *
+
+\*************************************************************************************************/
+
+
+
+//************************************************************
+const
+ co_statya_calc = 'Общепроизводственные расходы';
+end;
+Interface ImportOstatki_v2 'Импорт остатков. Факел v2';
+#include VarsTypes.var
+Table Struct tFiles
+(
+    nrec    : comp
+  , cFile   : string
+  , FlagErr : byte
+  , Descr   : string
+)
+with index
+(
+   Index1 = nrec (surrogate, unique)
+  ,Index2 = cFile
+)
+;
+Table Struct tInsertDocs
+(
+    nrec       : comp
+  , ctFiles    : comp
+  , NrecSKL    : comp
+  , nameSkl    : string
+  , NrecMOL    : comp
+  , nameMol    : string
+  , NameOtped  : string
+  , cOtped     : comp
+  , KOL        : double
+  , Summ       : double
+  , NDS        : double
+  , SchBY      : string
+  , cSchet     : comp
+  , NrecSpSopr : comp
+
+  , Descr      : string
+  , FlagErr    : byte
+  , filerow    : word
+)
+with index
+(
+   Index1 = nrec (surrogate, unique)
+  ,Index2 = ctFiles
+)
+;
+
+
+procedure MyLog(_log : string); forward;
+create view
+var
+  pMarker: IMarker(marker) new;
+  NameMarkerFiles : string;
+  dateformat : string = 'DD.MM.YYYY' ;
+  ListName   : string = 'TDSheet';
+
+    Folder_input
+  , File_input : string;
+  _logFile     : string= '';
+  typeTable    : word = 0;
+    mid
+  , MyMarkerDocs : longint;
+
+    _wTiDk_own
+  , _wTiDk_ext
+  , _wTiDkBS   : word;
+
+    _dateAktIzlishki : date;
+
+
+    _cCashBank_Own
+  , _cCashBank_Ext
+  , _cUsl
+  , _cGrNal20
+  , _cGrNal18
+  , _cGrNal10
+  , _cGrnal0
+  , _cGrNalWithout
+  , _cGrNalOther
+  , _cSaldTune
+  , _cpodr100
+  , _cpodrokbfakel
+  , _cGrPartyGOZ
+  , _cGrPartyCOM
+  , _cCashBankBS
+  , _cplanschetBU
+  , _cSoprHoz
+  , _cKauVR
+  , _cKauPR
+  , _cKauNU     : comp = 0;
+    _Schet000NU
+  , _Schet000BU  : String = '';
+
+from
+      dogovor
+    , katsopr
+    , KatOrg
+    , CalPlan
+    , usersdoc usersdoc_own
+    , usersdoc usersdoc_ext
+    , katusl Usl_akt
+    , KatOtpEd KatOtpEd_usl
+    , soprhoz
+    , spsopr
+    , spsopr spsopr_src
+    , plpor
+    , basefin
+    , katotped
+    , katmc
+    , katpodr
+    , kated
+    , katsopr katsopr1
+
+    , GrNal GrNal20
+    , GrNal GrNal18
+    , GrNal GrNal10
+    , Grnal Grnal0
+    , GrNal GrNalWithout
+    , GrNal GrNalOther
+    , katmol
+    , spgrnal
+    , soprordb
+    , spdocnal
+    , SaldTune
+    , SALDTUNE SALDTUNE1
+    , buhschet
+    , PLANSSCH planschetBU
+    , specmtr
+    , specmtr specmtr_src
+
+
+    , tFiles
+    , tFiles tFiles_br
+    , tInsertDocs
+    , tInsertDocs tInsertDocs_br
+
+ where ((
+                tFiles_br.nrec == tInsertDocs_br.ctFiles
+ and tInsertDocs_br.NrecSpSopr == spsopr_src.nrec
+         and spsopr_src.cmcusl == katmc.nrec
+                      and 1110 == specmtr_src.COTABLE
+           and spsopr_src.nrec == specmtr_src.CSPEC
+
+       and _cplanschetBU == planschetBU.nrec
+       ))
+;
+
+PROCEdURE ClearAll;
+{
+ delete all tFiles;
+ delete all tInsertDocs;
+ clearmarker(MyMarkerDocs);
+ if getfirst tFiles = tsOK {}
+ if getfirst tInsertDocs = tsOK {}
+ rereadrecord;
+} // PROCEdURE ClearAll;
+
+Function getColor(_FlagErr: byte) : word;
+{
+  case _FlagErr of
+   0 : Result := 0
+   1 : Result := ColorNeed
+   2 : Result := ColorError
+  else
+  {
+   Result := 0;
+  }
+  end;
+}
+
+function existplpor(_tipusers : word; _noDok: string; _datob: date) : boolean;
+{
+  var _result : boolean = false;
+ if getfirst plpor where ((_tipusers == plpor.tidk
+                          and _noDok == plpor.noDok (noindex)
+                          and _datob == plpor.datob(noindex)
+                         )) = tsOK
+      {
+        _result := True;
+      }
+ result := _result
+}
+
+PROCEdURE fillrecArrayByTypeTable(_type: byte);
+{
+    var _npp: byte;
+        _npp := 1;
+    SetLimit(_recArray, 0);
+    SetLimit(_recArray, 1);
+   case _type of
+     0 : {
+        _recArray[_npp].def := 'NrecSKL'    ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
+        _recArray[_npp].def := 'NrecMOL'    ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
+        _recArray[_npp].def := 'NameOtped'  ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
+        _recArray[_npp].def := 'KOL'        ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
+        _recArray[_npp].def := 'Summ'       ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
+        _recArray[_npp].def := 'NDS'        ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
+        _recArray[_npp].def := 'SchBY'      ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
+        _recArray[_npp].def := 'NrecSpSopr'
+     }
+   end;
+}
+Function getKatOrg ( _dogovor : comp) : comp;
+{
+  var _result : comp;
+  _result := 0h;
+  if getfirst dogovor where ((_dogovor == dogovor.nrec)) = tsOK
+   {
+    _result := dogovor.corg;
+   }
+
+/*
+  if getfirst fastfirstrow KatOrg Where (( _INNorg == KatOrg.unn (NOINDEX))) <> tsOK
+   then {
+         if getfirst fastfirstrow KatOrg Where (( _UIDorg == KatOrg.Unn (NOINDEX))) = tsOK
+           then _result := KatOrg.nrec
+    }
+   else {
+         _result := KatOrg.nrec
+   }
+*/
+  result := _result
+}
+
+Procedure CheckErrors;
+{
+    setvisualheader('определение ошибок -_- ');
+
+update tInsertDocs set tInsertDocs.FlagErr := 0, tInsertDocs.Descr := '';
+    _loop tInsertDocs
+     {
+        if tInsertDocs.nameSkl = ''
+         {
+          tInsertDocs.FlagErr := 2 ;
+          tInsertDocs.Descr   := tInsertDocs.Descr + '|не определили склад';
+         }
+         if tInsertDocs.nameMol = '' {
+          tInsertDocs.FlagErr := 2 ;
+          tInsertDocs.Descr   := tInsertDocs.Descr + '|не определен МОЛ';
+         }
+         if tInsertDocs.cOtped = 0h {
+          tInsertDocs.FlagErr := 2 ;
+          tInsertDocs.Descr   := tInsertDocs.Descr + '|не найдена отпускная единица ';
+          if getfirst spsopr_src = tsOK{
+            if getfirst katmc = tsOK {
+              tInsertDocs.Descr := tInsertDocs.Descr + ' для МЦ ' + katmc.name
+            }
+            else {
+             tInsertDocs.Descr := tInsertDocs.Descr + ' нет ТМЦ у позиции SPSOPR'
+            }
+          }
+          else {
+           tInsertDocs.Descr := tInsertDocs.Descr + ' не найдена позиция SPSOPR'
+          }
+         }
+         if tInsertDocs.KOL = 0 {
+          tInsertDocs.FlagErr := 2 ;
+          tInsertDocs.Descr   := tInsertDocs.Descr + '|количество = 0';
+         }
+         if tInsertDocs.Summ = 0 {
+          tInsertDocs.FlagErr := 2 ;
+          tInsertDocs.Descr   := tInsertDocs.Descr + '|сумма = 0';
+         }
+         if tInsertDocs.SchBY = '' {
+          tInsertDocs.FlagErr := 2 ;
+          tInsertDocs.Descr   := tInsertDocs.Descr + '|пустой счет';
+         }
+         else {
+          if tInsertDocs.cSchet = 0h {
+           tInsertDocs.FlagErr := 2 ;
+           tInsertDocs.Descr   := tInsertDocs.Descr + '|не найден счет в плане счетов';
+          }
+         }
+         if tInsertDocs.NrecSpSopr = 0h {
+          tInsertDocs.FlagErr := 2 ;
+          tInsertDocs.Descr   := tInsertDocs.Descr + '|не указана позиция SPSOPR';
+         }
+         else {
+          if getfirst spsopr_src <> tsOK{
+           tInsertDocs.Descr := tInsertDocs.Descr + ' не найдена позиция SPSOPR'
+          }
+         }
+
+         case tInsertDocs.flagErr of
+           0 : tInsertDocs.Descr := 'OK';
+           1 :  {
+                  if tFiles.FlagErr <> 2 then
+                    update current tFiles set
+                       tFiles.FlagErr := 1
+                     , tFiles.Descr   := 'Предупреждение'
+                    ;
+               }
+          else {
+            update current tFiles set
+               tFiles.FlagErr := 2
+             , tFiles.Descr   := 'Есть ошибки в файле';
+            ;
+          }
+          end;
+         update current tInsertDocs;
+     }
+}
+#include OpenFileExcelSearchCells.vpp
+
+function getschet(_SchetBU : string; _CPLANSSCH : comp) : comp;
+{
+  mylog('getschet _SchetBU  = ' + _SchetBU +'   _CPLANSSCH = ' + _CPLANSSCH);
+  result := 0h;
+//   var _CPLANSSCH : comp = cogettune('FIN.USER.CPLANSSCH') ;
+   if getfirst buhschet where (( _CPLANSSCH == buhschet.CPLANSSCH
+                               and _SchetBU == BuhSchet.code (noindex) )) = tsOK
+   {
+      result := buhschet.nrec;
+   }
+   mylog('result = '  + result);
+}
+
+Procedure prtInsertDocs(_nrow : longint; _file : string);
+{
+  var _i: byte;
+  if getfirst tFiles where ((_file == tFiles.cFile)) <> tsOK {
+    insert tFiles set
+      tFiles.cFile   := _file
+    , tFiles.FlagErr := 0
+    , tFiles.descr   := 'OK'
+    ;
+  }
+
+  clearBuffer(tntInsertDocs);
+  tInsertDocs.FileRow         := _nrow;
+  tInsertDocs.ctFiles := tFiles.nrec;
+  for(_i := 1; _I <= getLimit(_recArray); _i++)
+  {
+    case upcase(_recArray[_i].def) of
+      Upcase( 'NrecSKL'    ) : tInsertDocs.NrecSKL    := comp(Trim(_recArray[_i].value)); //'UID ТМЦ из 1С'
+      Upcase( 'NrecMOL'    ) : tInsertDocs.NrecMOL    := comp(Trim(_recArray[_i].value)); //'UID ТМЦ из 1С'
+      Upcase( 'NameOtped'  ) : tInsertDocs.NameOtped  := Trim(_recArray[_i].value); //'UID ТМЦ из 1С'
+      Upcase( 'KOL'        ) : tInsertDocs.KOL        := double(Trim(_recArray[_i].value)); //'UID ТМЦ из 1С'
+      Upcase( 'Summ'       ) : tInsertDocs.Summ       := double(Trim(_recArray[_i].value)); //'UID ТМЦ из 1С'
+      Upcase( 'NDS'        ) : tInsertDocs.NDS        := double(Trim(_recArray[_i].value)); //'UID ТМЦ из 1С'
+      Upcase( 'SchBY'      ) : tInsertDocs.SchBY      := Trim(_recArray[_i].value); //'UID ТМЦ из 1С'
+      Upcase( 'NrecSpSopr' ) : tInsertDocs.NrecSpSopr := comp(Trim(_recArray[_i].value)); //'UID ТМЦ из 1С'
+
+    end;
+  }
+
+//   if tInsertBaseDocSP.cMc <> 0h
+   if tInsertDocs.NrecSKL <> 0h
+    then
+     {
+      tInsertDocs.nameSkl := if(getfirst katpodr where ((tInsertDocs.NrecSKL == katpodr.nrec)) = tsOK,katpodr.name,'') ;
+      tInsertDocs.nameMol := if(getfirst katmol where ((tInsertDocs.NrecMOL == katmol.nrec)) = tsOK,katmol.name,'') ;
+      if getfirst spsopr_src where ((tInsertDocs.NrecSpSopr == spsopr_src.nrec)) = tsOK {
+        if getfirst katmc where ((spsopr_src.cmcusl == katmc.nrec)) = tsOK {
+          if(getfirst katotped where ((katmc.nrec == katotped.cmcusl
+                                            and 1 == katotped.prmc))
+                                            and (upcase(katotped.name) = upcase(tInsertDocs.NameOtped)
+                                              or upcase(katotped.ABBR) = upcase(tInsertDocs.NameOtped)
+                                          )
+            )= tsOK {
+               tInsertDocs.cOtped := katotped.nrec;
+            }
+        }
+      }
+
+      tInsertDocs.cSchet := getschet(tInsertDocs.SchBY,_cplanschetBU);
+
+      Insert Current tInsertDocs;
+     }
+}  // tInsertSaldoMC
+
+
+procedure MyLog(_log : string);
+{
+  if _logFile = '' then _logFile := GetStringParameter('Files', 'OutputFilesDirectory', 0) + 'ImportOstatki_'+DateToStr(Cur_date, 'YYYYMMDD') + '_' + timetostr(Cur_time, 'HH.MM.SS') + '_' + UserName + '.log';
+//  logstrtofile(_logFile,ShortStrToWin(_log));
+  logstrtofile(_logFile,_log);
+}
+
+PROCEdURE FillInsertTables(_nrow : longint; _file : string);
+{
+  Case typeTable of
+   0: prtInsertDocs(_nrow, _file)
+  end;
+} // PROCEdURE FillInsertTableeNaklSFO(_log: string);
+
+
+procedure InsertAktIzlishki;
+{
+   _loop tFiles where tFiles.FlagErr <> 2
+    if SearchMarker(MyMarkerDocs, tFiles.nrec, mid)
+      _loop tInsertDocs where ((tFiles.nrec == tInsertDocs.ctFiles))
+//        and (tInsertDocs.schetBU = '60.02' or tInsertDocs.schetBU = '62.02')
+        and tInsertDocs.FlagErr = 0
+       {
+         if(getfirst katsopr where ((611 == katsopr.vidsopr
+                                   ))
+               and KatSopr.cpodrto  = tInsertDocs.NrecSKL
+               and KatSopr.cmolto   = tInsertDocs.NrecMOL
+               and KatSopr.dsopr    = _dateAktIzlishki
+               and instr('Импорт остатков',KatSopr.NAME) = 1
+            ) <> tsOK {
+                                   insert KATSOPR set
+                                     KatSopr.NAME     := 'Импорт остатков'
+                                    ,KatSopr.DESCR    := sgettune('user.descr')
+                                    ,KatSopr.DESGR    := sgettune('user.desgr')
+                                    ,KatSopr.VHODNAL  := 1
+                                    ,KatSopr.STATUS   := 1
+//                                    ,KatSopr.CNOTE   :=
+//                                    ,katsopr.summa    := tInsertDocs.summa
+                                    ,KatSopr.TIPSOPR  := 0
+                                    ,KatSopr.DSOPR    := _dateAktIzlishki
+                                    ,KatSopr.DPRICE   := _dateAktIzlishki
+                                    ,KatSopr.YEARSOPR := year(_dateAktIzlishki)
+                                    ,KatSopr.NSOPR    := '1'
+                                    ,KatSopr.VIDSOPR  := 611
+                                    ,KatSopr.cpodrto  := tInsertDocs.NrecSKL
+                                    ,KatSopr.cmolto   := tInsertDocs.NrecMOL
+//                                    ,KatSopr.CCALPLAN := tInsertDocs.ccalplan
+                                  ;
+                                   Insert soprhoz set
+                                     soprhoz.CDOGOVOR := katsopr.cDogovor
+                                   , soprhoz.CSOPRDOC := katsopr.nrec
+                                   , soprhoz.DATOB    := katsopr.dsopr
+                                   , soprhoz.TIPDOC   := katsopr.vidsopr
+                                   , soprhoz.TIDKGAL  := katsopr.vidsopr
+                                   , soprhoz.NODOC    := katsopr.nsopr
+                                   , soprhoz.DESCR    := katsopr.descr
+                                   , soprhoz.DESGR    := katsopr.desgr
+                                   , soprhoz.SUMMA    := katsopr.summa
+                                   , soprhoz.DIRECT   := 1
+                                   , soprhoz.VHSUMHOZ := '+'
+                                   , soprhoz.CORG     := katsopr.corg
+                                 ;
+                                 mylog('Сформирован акт об излишках ' + KatSopr.nsopr +' от '+ KatSopr.dsopr);
+                              }
+             if getfirst spsopr_src <> tsOK then continue;
+
+              Insert spsopr set
+                 spsopr.CSOPR     := katsopr.nrec
+               , spsopr.DSOPR     := katsopr.dsopr
+               , spsopr.NPP       := 1
+               , spsopr.PRMC      := 1
+               , spsopr.CMCUSL    := spsopr_src.CMCUSL
+               , spsopr.COTPED    := tInsertDocs.cotped
+               , spsopr.KOL       := tInsertDocs.kol
+               , spsopr.KOLOPL    := tInsertDocs.kol
+               , spsopr.KOLFACT   := tInsertDocs.kol
+               , spsopr.PRICE     := tInsertDocs.Summ/tInsertDocs.kol
+               , spsopr.RPRICE    := tInsertDocs.Summ/tInsertDocs.kol
+               , spsopr.PRICEN    := tInsertDocs.Summ/tInsertDocs.kol
+               , spsopr.CGRNAL    := 0h
+               , spsopr.VIDSOPR   := katsopr.vidsopr
+               , spsopr.MANUALTAX := 1
+               , spsopr.SUMNDS    := tInsertDocs.NDS
+               , spsopr.cParty    := spsopr_src.cParty
+              ;
+
+
+              coSetAttr(cospsopr, spsopr.nrec,'.Счет МЦ', tInsertDocs.cSchet, tInsertDocs.SchBY) ;
+              if getfirst specmtr_src = tsOK {
+                specmtr.buffer :=  specmtr_src.buffer;
+                specmtr.CSPEC := spsopr.nrec;
+                specmtr.nrec  := 0;
+                Insert current specmtr;
+              }
+
+       }
+}
+
+Procedure CreateDocs;
+{
+   StartNewVisual(vtIndicatorVisual,vfTimer,'Формирование документов',getmarkercount(MyMarkerDocs));
+
+  InsertAktIzlishki;
+
+ if visualizationactive  StopVisual('The End',vfTimer);
+}
+
+
+Screen scrImportOstatki ;
+  show at (,,, 4);
+  Fields
+
+    Folder_input :  Protect, PickButton,{Font = {backcolor = if(Folder_input = '', colorneed,0);}};
+    ListName     : NoProtect,{Font = {backcolor = if(ListName = '', colorneed,0);}};
+    planschetBU.name : Protect,PickButton,{Font = {backcolor = if(not isvalidall(tnplanschetBU), colorneed,0);}};
+    _dateAktIzlishki : NoProtect,{Font = {backcolor = if(_dateAktIzlishki = 0, colorneed,0);}};
+
+  buttons
+    cmOK,,,;
+    cmCreateDocs,,,;
+    cmCancel,,,;
+<<'Импорт заказов от покупателей'
+Папка с файлами данных .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+Наименование листа в книге EXCEL.@@@@@@@@@@@@@@@@@@@@@@@
+План счетов БУ .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+Дата актов об излишках .@@@@@@@@@@@
+
+  <.Получить файлы.>                          <.Сформировать документы.>                              <. Отмена .>
+>>
+end;
+
+browse brow1('',,sci1EscIns);
+ show at(,5, ,10);
+table tFiles_br;
+ recMarker=pMarker{tFiles_br.nrec}; // по умолчанию итак nrec юзается...
+fields
+  tFiles_br.cFile 'Файл' headerAlign = centered:protect,[15];
+  tFiles_br.Descr 'Описание' headerAlign = centered:protect,[2] , {Font = {backcolor = getColor(tFiles_br.FlagErr);}};
+end;
+
+browse brow6062('',,sci1Esc);
+ show at(,11,,);
+table tInsertDocs_br;
+fields
+ {Font = {
+          backcolor = getColor(tInsertDocs_br.FlagErr);
+         }
+ };
+
+  tInsertDocs_br.filerow     'Строка','в файле' headerAlign = centered:protect,[4];
+  tInsertDocs_br.NrecSKL     'Склад','nrec' headerAlign = centered:protect,[4];
+  tInsertDocs_br.nameSkl     'Склад','наименование' headerAlign = centered:protect,[4];
+  tInsertDocs_br.NrecMOL     'МОЛ','nrec' headerAlign = centered:protect,[4];
+  tInsertDocs_br.nameMol     'МОЛ','наименование' headerAlign = centered:protect,[4];
+  tInsertDocs_br.NameOtped   'Отд.ед.','наименование' headerAlign = centered:protect,[4];
+  tInsertDocs_br.cOtped      'Отд.ед.','nrec' headerAlign = centered:protect,[4];
+  tInsertDocs_br.KOL         'кол-во','' headerAlign = centered:protect,[4];
+  tInsertDocs_br.Summ        'Сумма','' headerAlign = centered:protect,[4];
+  tInsertDocs_br.NDS         'НДС','' headerAlign = centered:protect,[4];
+  tInsertDocs_br.SchBY       'Счет','' headerAlign = centered:protect,[4];
+  tInsertDocs_br.NrecSpSopr  'SpSopr','Nrec' headerAlign = centered:protect,[4];
+//  if(isvalidall(tnSpSopr_src),'Ок','-') 'SpSopr','валидна' headerAlign = centered:protect,[4];
+  tInsertDocs_br.Descr       'Ошибка','описание' headerAlign = centered:protect,[4];
+end;
+
+
+
+handleevent
+cminit:{
+ typeTable := 0;
+ Folder_input := '';
+ ReadMyDSK(Folder_input, 'importOstatki2_Folder_input', TRUE);
+ ReadMyDSK(ListName , 'importOstatki2_ListName', TRUE);
+
+ ReadMyDSK( _dateAktIzlishki, 'importOstatki2___dateOpr', True);
+ ReadMyDSK( _cplanschetBU, 'importOstatki2____cplanschetBU', True);
+
+ if NameMarkerFiles = '' then NameMarkerFiles := 'ImarkerNameMarkerFiles_SelectDoc_importostatki2'; // если по какой то причине передали пустое наименование.. зададим по умолчанию
+ MyMarkerDocs := InitMarker(NameMarkerFiles, 8, 10, 100, true);
+ pMarker.Caption   := ('Отмечено [%d] записей.'); // для заголовка
+ pMarker.ImportFrom(MyMarkerDocs);
+
+ _dateAktIzlishki := cur_date;
+ rereadrecord;
+}
+
+cmpick:{
+  case curfield of
+   #Folder_input: {
+        Folder_input := GetDirName('Выберите каталог');
+        If ( Folder_input <> '' ) Set Folder_input := Folder_input +'\';
+    }
+  #planschetBU.name: {
+    if runinterface('F_PLANSSCH::GETPLANSSCHEX',_cplanschetBU,2)=cmDefault
+    { set _cplanschetBU := _cplanschetBU ;
+      rescanpanel(#planschetBU)
+    }
+  }
+  end;
+rereadrecord;
+}
+cmOK: {
+    /*if _cChanel = 0h
+     {
+      message('Выберите канал сбыта',error) ;
+      Stop; abort; exit
+     }
+    */
+
+     SaveMyDsk(Folder_input, 'importOstatki2_Folder_input');
+     SaveMyDsk(ListName , 'importOstatki2_ListName');
+     SaveMyDsk( _dateAktIzlishki, 'importOstatki2___dateOpr');
+     SaveMyDsk( _cplanschetBU, 'importOstatki2____cplanschetBU');
+    if Folder_input = '' {
+     message('не выбрана директория с файлами',error) ;
+     stop;abort;exit;
+    }
+
+    if ListName = '' {
+     message('не указан EXCEL лист',error);
+     stop;abort;exit;
+    }
+
+    if _cplanschetBU = 0h {
+     message('не указан план счетов БУ',error);
+     stop;abort;exit;
+    }
+
+    ClearAll;
+    fillrecArrayByTypeTable(typeTable);
+    Folder_input := AddSlashToPath(Folder_input);
+    startnewvisual(vtRotateVisual,vftimer+vfbreak+vfconfirm,'Поиск файлов...',0);
+    var _isError : boolean = false;
+    if FindFirstFile(Folder_input+'*.*', File_input)
+     do{
+       File_input:=upcase(File_input);
+        if(MatchesMask(File_input,'*|.;..;~*') )
+        if(MatchesMask(File_input,'*.xls*') )
+         if not IsDirectory(Folder_input+File_input)
+         {
+            MyLog( '***********************************************************************');
+          _isError := _isError and (not CheckFileFillValues(Folder_input+File_input));
+         }
+       } while FindNextFile(File_input);
+
+    if _isError then {
+      ProcessText(_logFile, vfEscable or vfNewTitle or vfMacroSize, 'Протокол обработки файлов и загрузки данных');
+    }
+  CheckErrors;
+ if visualizationactive  StopVisual('The End',vfTimer);
+
+  rereadrecord(tntFiles_br);
+  rereadrecord(tntInsertDocs_br);
+  rereadrecord(tntInsertDocs_br);
+} // cmOK
+cmCreateDocs: {
+    case typeTable of
+      0 : {
+            if _dateAktIzlishki = 0 {
+              Message('не указана дата формирования актов об излишках',error);
+              stop; abort; exit;
+            }
+        }
+    end;
+
+
+  ClearMarker(MyMarkerDocs);
+  pMarker.ExportTo(MyMarkerDocs);
+  if getMarkercount(MyMarkerDocs) = 0
+  {
+    Message('Не выбран ни один файл',error);
+    stop; abort; exit;
+  }
+
+  var _isError : boolean = false;
+
+ _loop tFiles
+   if SearchMarker(MyMarkerDocs, tFiles.nrec, mid)
+   {
+      if tFiles.FlagErr = 2 {
+         Mylog('Файл ' +tFiles.cFile + ' содержит ошибки. Пропускаем');
+        _isError := true;
+       }
+       else {
+         Mylog('Файл ' +tFiles.cFile + ' OK. Будет обработан');
+       }
+   }
+
+  if _isError
+   then
+    {
+     message('Создание документов прервано:'
+     +''#13''+'выбранные файлы содержат ошибки',error);
+    }
+    else
+    {
+      CASE typeTable of
+       0 : CreateDocs
+       //  CopyMoveFile(_fileFrom,_fileto, true,ecmfClientFrom  + ecmfClientTo )
+      end;
+    } ;
+    ProcessText(_logFile, vfEscable or vfNewTitle or vfMacroSize, 'Протокол работы');
+    rereadrecord(tntFiles_br);
+    rereadrecord(tntInsertDocs_br);
+}
+end;
+end.

@@ -109,3 +109,4 @@ var iSF : viSchFunc;
 
 
 #make "Source\ImportOstatki.vip"
+#make "Source\ImportOstatki_2.0.vip"
