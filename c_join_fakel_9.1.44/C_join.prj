@@ -20,6 +20,10 @@
 #include Getkau.vih
 #include RplHash.VIH
 #include KatStroy.vih
+#params
+[vip]
+LicenseControlInclude=""
+#end
 
 
 #component "C_JOIN"

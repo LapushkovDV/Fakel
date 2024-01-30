@@ -115,6 +115,8 @@ from
     , soprhoz
     , spsopr
     , spsopr spsopr_src
+    , spsopr spsopr_src_br
+    , katmc katmc_br
     , plpor
     , basefin
     , katotped
@@ -148,7 +150,10 @@ from
 
  where ((
                 tFiles_br.nrec == tInsertDocs_br.ctFiles
- and tInsertDocs_br.NrecSpSopr == spsopr_src.nrec
+    and tInsertDocs_br.NrecSpSopr == spsopr_src_br.nrec
+         and spsopr_src_br.cmcusl == katmc_br.nrec
+
+    and tInsertDocs.NrecSpSopr == spsopr_src.nrec
          and spsopr_src.cmcusl == katmc.nrec
                       and 1110 == specmtr_src.COTABLE
            and spsopr_src.nrec == specmtr_src.CSPEC
@@ -252,7 +257,7 @@ update tInsertDocs set tInsertDocs.FlagErr := 0, tInsertDocs.Descr := '';
          }
          if tInsertDocs.cOtped = 0h {
           tInsertDocs.FlagErr := 2 ;
-          tInsertDocs.Descr   := tInsertDocs.Descr + '|не найдена отпускная единица ';
+          tInsertDocs.Descr   := tInsertDocs.Descr + '|не найдена единица измерения в каталоге ЕИ ( НЕ ОТПУСКНАЯ), а ЕИ';
           if getfirst spsopr_src = tsOK{
             if getfirst katmc = tsOK {
               tInsertDocs.Descr := tInsertDocs.Descr + ' для МЦ ' + katmc.name
@@ -327,6 +332,7 @@ function getschet(_SchetBU : string; _CPLANSSCH : comp) : comp;
    mylog('result = '  + result);
 }
 
+
 Procedure prtInsertDocs(_nrow : longint; _file : string);
 {
   var _i: byte;
@@ -347,9 +353,9 @@ Procedure prtInsertDocs(_nrow : longint; _file : string);
       Upcase( 'NrecSKL'    ) : tInsertDocs.NrecSKL    := comp(Trim(_recArray[_i].value)); //'UID ТМЦ из 1С'
       Upcase( 'NrecMOL'    ) : tInsertDocs.NrecMOL    := comp(Trim(_recArray[_i].value)); //'UID ТМЦ из 1С'
       Upcase( 'NameOtped'  ) : tInsertDocs.NameOtped  := Trim(_recArray[_i].value); //'UID ТМЦ из 1С'
-      Upcase( 'KOL'        ) : tInsertDocs.KOL        := double(Trim(_recArray[_i].value)); //'UID ТМЦ из 1С'
-      Upcase( 'Summ'       ) : tInsertDocs.Summ       := double(Trim(_recArray[_i].value)); //'UID ТМЦ из 1С'
-      Upcase( 'NDS'        ) : tInsertDocs.NDS        := double(Trim(_recArray[_i].value)); //'UID ТМЦ из 1С'
+      Upcase( 'KOL'        ) : tInsertDocs.KOL        := Double(replace(replace(Trim(_recArray[_i].value),',','.'),' ',''));
+      Upcase( 'Summ'       ) : tInsertDocs.Summ       := Double(replace(replace(Trim(_recArray[_i].value),',','.'),' ',''));
+      Upcase( 'NDS'        ) : tInsertDocs.NDS        := Double(replace(replace(Trim(_recArray[_i].value),',','.'),' ',''));
       Upcase( 'SchBY'      ) : tInsertDocs.SchBY      := Trim(_recArray[_i].value); //'UID ТМЦ из 1С'
       Upcase( 'NrecSpSopr' ) : tInsertDocs.NrecSpSopr := comp(Trim(_recArray[_i].value)); //'UID ТМЦ из 1С'
 
@@ -362,15 +368,32 @@ Procedure prtInsertDocs(_nrow : longint; _file : string);
      {
       tInsertDocs.nameSkl := if(getfirst katpodr where ((tInsertDocs.NrecSKL == katpodr.nrec)) = tsOK,katpodr.name,'') ;
       tInsertDocs.nameMol := if(getfirst katmol where ((tInsertDocs.NrecMOL == katmol.nrec)) = tsOK,katmol.name,'') ;
-      if getfirst spsopr_src where ((tInsertDocs.NrecSpSopr == spsopr_src.nrec)) = tsOK {
-        if getfirst katmc where ((spsopr_src.cmcusl == katmc.nrec)) = tsOK {
+      if getfirst spsopr_src = tsOK {
+        if getfirst katmc = tsOK {
           if(getfirst katotped where ((katmc.nrec == katotped.cmcusl
                                             and 1 == katotped.prmc))
-                                            and (upcase(katotped.name) = upcase(tInsertDocs.NameOtped)
-                                              or upcase(katotped.ABBR) = upcase(tInsertDocs.NameOtped)
-                                          )
+                        and (upcase(katotped.name) = upcase(tInsertDocs.NameOtped)
+                          or upcase(katotped.ABBR) = upcase(tInsertDocs.NameOtped)
+                            )
             )= tsOK {
                tInsertDocs.cOtped := katotped.nrec;
+            }
+            else {
+              if(getfirst kated where (upcase(kated.name) = upcase(tInsertDocs.NameOtped)
+                                     or upcase(kated.ABBR) = upcase(tInsertDocs.NameOtped)
+                                     )) = tsOK {
+                                       insert KatOtpEd set
+                                          KatOtpEd.prmc    := 1
+                                        , KatOtpEd.name    := kated.name
+                                        , KatOtpEd.cMcUsl  := katmc.nrec
+                                        , KatOtpEd.CKATED  := kated.nrec
+                                        , KatOtpEd.KOEF    := 1
+                                        , KatOtpEd.DISKRET := kated.DISKRET
+                                        , KatOtpEd.ABBR    := kated.ABBR
+                                        , KatOtpEd.ps3     := '01.01.2024'
+                                       ;
+                                      tInsertDocs.cOtped := katotped.nrec;
+                                     }
             }
         }
       }
@@ -430,6 +453,8 @@ procedure InsertAktIzlishki;
                                     ,KatSopr.cmolto   := tInsertDocs.NrecMOL
 //                                    ,KatSopr.CCALPLAN := tInsertDocs.ccalplan
                                   ;
+                                coSetAttr(coKatSopr, KatSopr.nrec,'Интеграция остатков ЕРП АММ', 000A00000000101Dh, 'Корректировка только в ERP') ;
+
                                    Insert soprhoz set
                                      soprhoz.CDOGOVOR := katsopr.cDogovor
                                    , soprhoz.CSOPRDOC := katsopr.nrec
@@ -467,7 +492,8 @@ procedure InsertAktIzlishki;
                , spsopr.SUMNDS    := tInsertDocs.NDS
                , spsopr.cParty    := spsopr_src.cParty
               ;
-
+              update current KatSopr set katsopr.summa := katsopr.summa + spsopr.KOL*spsopr.PRICE;
+              update current soprhoz set soprhoz.summa := soprhoz.summa + spsopr.KOL*spsopr.PRICE;
 
               coSetAttr(cospsopr, spsopr.nrec,'.Счет МЦ', tInsertDocs.cSchet, tInsertDocs.SchBY) ;
               if getfirst specmtr_src = tsOK {
@@ -543,6 +569,7 @@ fields
   tInsertDocs_br.NDS         'НДС','' headerAlign = centered:protect,[4];
   tInsertDocs_br.SchBY       'Счет','' headerAlign = centered:protect,[4];
   tInsertDocs_br.NrecSpSopr  'SpSopr','Nrec' headerAlign = centered:protect,[4];
+  katmc_br.name              'SpSopr','MC' headerAlign = centered:protect,[4];
 //  if(isvalidall(tnSpSopr_src),'Ок','-') 'SpSopr','валидна' headerAlign = centered:protect,[4];
   tInsertDocs_br.Descr       'Ошибка','описание' headerAlign = centered:protect,[4];
 end;
@@ -634,7 +661,6 @@ cmOK: {
  if visualizationactive  StopVisual('The End',vfTimer);
 
   rereadrecord(tntFiles_br);
-  rereadrecord(tntInsertDocs_br);
   rereadrecord(tntInsertDocs_br);
 } // cmOK
 cmCreateDocs: {
