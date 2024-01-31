@@ -206,7 +206,7 @@ PROCEdURE fillrecArrayByTypeTable(_type: byte);
     SetLimit(_recArray, 1);
    case _type of
      0 : {
-        _recArray[_npp].def := 'NrecSKL'    ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
+//        _recArray[_npp].def := 'NrecSKL'    ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
         _recArray[_npp].def := 'NrecMOL'    ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
         _recArray[_npp].def := 'NameOtped'  ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
         _recArray[_npp].def := 'KOL'        ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
@@ -350,7 +350,7 @@ Procedure prtInsertDocs(_nrow : longint; _file : string);
   for(_i := 1; _I <= getLimit(_recArray); _i++)
   {
     case upcase(_recArray[_i].def) of
-      Upcase( 'NrecSKL'    ) : tInsertDocs.NrecSKL    := comp(Trim(_recArray[_i].value)); //'UID ТМЦ из 1С'
+//      Upcase( 'NrecSKL'    ) : tInsertDocs.NrecSKL    := comp(Trim(_recArray[_i].value)); //'UID ТМЦ из 1С'
       Upcase( 'NrecMOL'    ) : tInsertDocs.NrecMOL    := comp(Trim(_recArray[_i].value)); //'UID ТМЦ из 1С'
       Upcase( 'NameOtped'  ) : tInsertDocs.NameOtped  := Trim(_recArray[_i].value); //'UID ТМЦ из 1С'
       Upcase( 'KOL'        ) : tInsertDocs.KOL        := Double(replace(replace(Trim(_recArray[_i].value),',','.'),' ',''));
@@ -363,10 +363,14 @@ Procedure prtInsertDocs(_nrow : longint; _file : string);
   }
 
 //   if tInsertBaseDocSP.cMc <> 0h
-   if tInsertDocs.NrecSKL <> 0h
+   if tInsertDocs.NrecMOL <> 0h
     then
      {
-      tInsertDocs.nameSkl := if(getfirst katpodr where ((tInsertDocs.NrecSKL == katpodr.nrec)) = tsOK,katpodr.name,'') ;
+      tInsertDocs.nameMol := if(getfirst katmol where ((tInsertDocs.NrecMOL == katmol.nrec)) = tsOK,katmol.name,'') ;
+      IF tInsertDocs.nameMol <> '' {
+        tInsertDocs.NrecSKL := katmol.CSKL
+        tInsertDocs.nameSkl := if(getfirst katpodr where ((tInsertDocs.NrecSKL == katpodr.nrec)) = tsOK,katpodr.name,'') ;
+        }
       tInsertDocs.nameMol := if(getfirst katmol where ((tInsertDocs.NrecMOL == katmol.nrec)) = tsOK,katmol.name,'') ;
       if getfirst spsopr_src = tsOK {
         if getfirst katmc = tsOK {
@@ -453,8 +457,6 @@ procedure InsertAktIzlishki;
                                     ,KatSopr.cmolto   := tInsertDocs.NrecMOL
 //                                    ,KatSopr.CCALPLAN := tInsertDocs.ccalplan
                                   ;
-                                coSetAttr(coKatSopr, KatSopr.nrec,'Интеграция остатков ЕРП АММ', 000A00000000101Dh, 'Корректировка только в ERP') ;
-
                                    Insert soprhoz set
                                      soprhoz.CDOGOVOR := katsopr.cDogovor
                                    , soprhoz.CSOPRDOC := katsopr.nrec
