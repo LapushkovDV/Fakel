@@ -270,6 +270,7 @@ update tInsertDocs set tInsertDocs.FlagErr := 0, tInsertDocs.Descr := '';
            tInsertDocs.Descr := tInsertDocs.Descr + ' не найдена позиция SPSOPR'
           }
          }
+/*
          if tInsertDocs.KOL = 0 {
           tInsertDocs.FlagErr := 2 ;
           tInsertDocs.Descr   := tInsertDocs.Descr + '|количество = 0';
@@ -278,6 +279,7 @@ update tInsertDocs set tInsertDocs.FlagErr := 0, tInsertDocs.Descr := '';
           tInsertDocs.FlagErr := 2 ;
           tInsertDocs.Descr   := tInsertDocs.Descr + '|сумма = 0';
          }
+*/
          if tInsertDocs.SchBY = '' {
           tInsertDocs.FlagErr := 2 ;
           tInsertDocs.Descr   := tInsertDocs.Descr + '|пустой счет';
