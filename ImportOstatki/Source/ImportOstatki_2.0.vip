@@ -181,6 +181,8 @@ from
 
  where ((
                 tFiles_br.nrec == tInsertDocs_br.ctFiles
+            and tFiles_br.nrec == tInsertDocs20_br.ctFiles
+
     and tInsertDocs_br.NrecSpSopr == spsopr_src_br.nrec
          and spsopr_src_br.cmcusl == katmc_br.nrec
 
@@ -190,7 +192,6 @@ from
            and spsopr_src.nrec == specmtr_src.CSPEC
 
 
-                 and tFiles_br.nrec == tInsertDocs20_br.ctFiles
     and tInsertDocs20_br.NrecSpSopr == spsopr20_src_br.nrec
          and if (tInsertDocs20_br.KatmcNrec <> 0h
                , tInsertDocs20_br.KatmcNrec
@@ -527,14 +528,23 @@ procedure prtInsertDocsImportOstatki; {
 }
 
 procedure prtInsertDocsImportOstatki20; {
- if tInsertDocs20.NrecMOL <> 0h
-    then
-     {
+  MyLog('--------------------');
+  MyLog('tInsertDocs20.NrecSKL    ='+ tInsertDocs20.NrecSKL);
+  MyLog('tInsertDocs20.NrecMOL    ='+ tInsertDocs20.NrecMOL);
+  MyLog('tInsertDocs20.NameOtped  ='+ tInsertDocs20.NameOtped);
+  MyLog('tInsertDocs20.KOL        ='+ tInsertDocs20.KOL);
+  MyLog('tInsertDocs20.Summ       ='+ tInsertDocs20.Summ);
+  MyLog('tInsertDocs20.NDS        ='+ tInsertDocs20.NDS );
+  MyLog('tInsertDocs20.SchBY      ='+ tInsertDocs20.SchBY);
+  MyLog('tInsertDocs20.NrecSpSopr ='+ tInsertDocs20.NrecSpSopr);
+  MyLog('tInsertDocs20.KatmcNrec  ='+ tInsertDocs20.KatmcNrec );
+  MyLog('tInsertDocs20.MnplanNrec ='+ tInsertDocs20.MnplanNrec);
+
+ if tInsertDocs20.NrecMOL <> 0h then {
       tInsertDocs20.nameMol := if(getfirst katmol where ((tInsertDocs20.NrecMOL == katmol.nrec)) = tsOK,katmol.name,'') ;
       tInsertDocs20.nameSkl := if(getfirst katpodr where ((tInsertDocs20.NrecSKL == katpodr.nrec)) = tsOK,katpodr.name,'') ;
 
       if getfirst spsopr20_src = tsOK {
-
         if getfirst katmc20 = tsOK {
           if(getfirst katotped where ((katmc20.nrec == katotped.cmcusl
                                               and 1 == katotped.prmc))
@@ -567,7 +577,8 @@ procedure prtInsertDocsImportOstatki20; {
       tInsertDocs20.cSchet := getschet(tInsertDocs20.SchBY,_cplanschetBU);
 
       Insert Current tInsertDocs20;
-     }
+      mylog('      Insert Current tInsertDocs20;');
+   }
 }
 
 Procedure prtInsertDocs(_nrow : longint; _file : string);
@@ -582,8 +593,16 @@ Procedure prtInsertDocs(_nrow : longint; _file : string);
   }
 
   clearBuffer(tntInsertDocs);
-  tInsertDocs.FileRow         := _nrow;
-  tInsertDocs.ctFiles := tFiles.nrec;
+     case typeTable of
+       0 : {
+              tInsertDocs.FileRow         := _nrow;
+              tInsertDocs.ctFiles := tFiles.nrec;
+           }
+       1 : {
+              tInsertDocs20.FileRow         := _nrow;
+              tInsertDocs20.ctFiles := tFiles.nrec;
+           }
+     end;
   for(_i := 1; _I <= getLimit(_recArray); _i++)
   {
      case typeTable of
