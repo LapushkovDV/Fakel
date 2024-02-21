@@ -470,7 +470,7 @@ Procedure CheckErrors;
 
 function getschet(_SchetBU : string; _CPLANSSCH : comp) : comp;
 {
-  mylog('getschet _SchetBU  = ' + _SchetBU +'   _CPLANSSCH = ' + _CPLANSSCH);
+//  mylog('getschet _SchetBU  = ' + _SchetBU +'   _CPLANSSCH = ' + _CPLANSSCH);
   result := 0h;
 //   var _CPLANSSCH : comp = cogettune('FIN.USER.CPLANSSCH') ;
    if getfirst buhschet where (( _CPLANSSCH == buhschet.CPLANSSCH
@@ -478,7 +478,7 @@ function getschet(_SchetBU : string; _CPLANSSCH : comp) : comp;
    {
       result := buhschet.nrec;
    }
-   mylog('result = '  + result);
+//   mylog('result = '  + result);
 }
 
 procedure prtInsertDocsImportOstatki; {
@@ -528,17 +528,6 @@ procedure prtInsertDocsImportOstatki; {
 }
 
 procedure prtInsertDocsImportOstatki20; {
-  MyLog('--------------------');
-  MyLog('tInsertDocs20.NrecSKL    ='+ tInsertDocs20.NrecSKL);
-  MyLog('tInsertDocs20.NrecMOL    ='+ tInsertDocs20.NrecMOL);
-  MyLog('tInsertDocs20.NameOtped  ='+ tInsertDocs20.NameOtped);
-  MyLog('tInsertDocs20.KOL        ='+ tInsertDocs20.KOL);
-  MyLog('tInsertDocs20.Summ       ='+ tInsertDocs20.Summ);
-  MyLog('tInsertDocs20.NDS        ='+ tInsertDocs20.NDS );
-  MyLog('tInsertDocs20.SchBY      ='+ tInsertDocs20.SchBY);
-  MyLog('tInsertDocs20.NrecSpSopr ='+ tInsertDocs20.NrecSpSopr);
-  MyLog('tInsertDocs20.KatmcNrec  ='+ tInsertDocs20.KatmcNrec );
-  MyLog('tInsertDocs20.MnplanNrec ='+ tInsertDocs20.MnplanNrec);
 
  if tInsertDocs20.NrecMOL <> 0h then {
       tInsertDocs20.nameMol := if(getfirst katmol where ((tInsertDocs20.NrecMOL == katmol.nrec)) = tsOK,katmol.name,'') ;
@@ -577,7 +566,7 @@ procedure prtInsertDocsImportOstatki20; {
       tInsertDocs20.cSchet := getschet(tInsertDocs20.SchBY,_cplanschetBU);
 
       Insert Current tInsertDocs20;
-      mylog('      Insert Current tInsertDocs20;');
+//      mylog('      Insert Current tInsertDocs20;');
    }
 }
 
