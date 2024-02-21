@@ -66,6 +66,7 @@ Table Struct tInsertDocs20
   , nameMol    : string
   , NameOtped  : string
   , cOtped     : comp
+  , ced        : comp
   , KOL        : double
   , Summ       : double
   , NDS        : double
@@ -212,7 +213,7 @@ PROCEdURE ClearAll;
 {
  delete all tFiles;
  delete all tInsertDocs;
-  delete all tInsertDocs20;
+ delete all tInsertDocs20;
  clearmarker(MyMarkerDocs);
  if getfirst tFiles = tsOK {}
  if getfirst tInsertDocs = tsOK {}
@@ -550,7 +551,7 @@ procedure prtInsertDocsImportOstatki20; {
                                        insert KatOtpEd set
                                           KatOtpEd.prmc    := 1
                                         , KatOtpEd.name    := kated.name
-                                        , KatOtpEd.cMcUsl  := katmc.nrec
+                                        , KatOtpEd.cMcUsl  := katmc20.nrec
                                         , KatOtpEd.CKATED  := kated.nrec
                                         , KatOtpEd.KOEF    := 1
                                         , KatOtpEd.DISKRET := kated.DISKRET
