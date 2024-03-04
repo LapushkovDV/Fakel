@@ -94,7 +94,7 @@
 			<File Name="..\..\..\..\Users\Дмитрий\YandexDisk\Work\!Gal_Source\Z_M_L_F_C_20230112\CompSrc\L\L_KatParty\vip\MakeParty\MkParty.vip" PosX="47" PosY="733" OpenEditor="True"/>
 			<File Name="vih\GP_MakeMove.vih" PosX="31" PosY="16" OpenEditor="True"/>
 			<File Name="Source\VarsTypes.var" PosX="1" PosY="1" OpenEditor="True"/>
-			<File Name="Source\ImportOstatki_2.0.vip" PosX="131" PosY="1065" OpenEditor="True" Active="True"/>
+			<File Name="Source\ImportOstatki_2.0.vip" PosX="183" PosY="666" OpenEditor="True" Active="True"/>
 		</FileList>
 		<DebugOptions StopOnStartup="False"/>
 		<MarkerList>
@@ -136,7 +136,7 @@
 			<Marker FileName="Source\SHK_InOut.vip" Caption="Нумерованная закладка 2" Line="1083" NumIndex="2" MarkerType="mtNumBookmark" Comment="if _pIdent = co_BatchMode and"/>
 			<Marker FileName="Source\ImportOstatki.vip" Caption="Нумерованная закладка 2" Line="2225" NumIndex="2" MarkerType="mtNumBookmark" Comment="show at (,5,, 9);"/>
 			<Marker FileName="Source\ImportOstatki.vip" Caption="Нумерованная закладка 1" Line="1659" NumIndex="1" MarkerType="mtNumBookmark" Comment="if getfirst buhschet where ((tInsertDocs020.cSchetNU == buhschet.nrec)) = tsOK {"/>
-			<Marker FileName="Source\ImportOstatki_2.0.vip" Caption="Нумерованная закладка 1" Line="531" NumIndex="1" MarkerType="mtNumBookmark" Comment="tInsertDocs20.NrecSKL"/>
+			<Marker FileName="Source\ImportOstatki_2.0.vip" Caption="Нумерованная закладка 1" Line="533" NumIndex="1" MarkerType="mtNumBookmark" Comment="tInsertDocs20.NrecSKL"/>
 		</MarkerList>
 		<BreakPointList>
 			<BreakPoint FileName="Vip.prj" Line="90"/>
@@ -145,7 +145,7 @@
 			<BreakPoint FileName="Source\ImportOstatki.vip" Line="2182"/>
 		</BreakPointList>
 		<CompileMessengerList>
-			<CompileMessenger Name="C:\Galaktika\_git\Fakel\ImportOstatki\ImportOstatki.prj" DateTimeStart="45343,7026710417" DateTimeCompile="0,000361365739081521" StateHistory="False">
+			<CompileMessenger Name="C:\Galaktika\_git\Fakel\ImportOstatki\ImportOstatki.prj" DateTimeStart="45355,4457998611" DateTimeCompile="0,000299675928545184" StateHistory="False">
 				<CompileMessageList>
 					<CompileMessage MessageType="mtInfo" MessageText="Компиляция ведется без файла контроля лицензий!" SourceFileName="C:\GALAKTIKA\_GIT\FAKEL\IMPORTOSTATKI\SOURCE\VarsTypes.var" SourceLine="1" SourceColumn="1">
 						<StackIncludeList>
@@ -158,24 +158,24 @@
 							<StackInclude FileName="C:\Galaktika\_git\Fakel\ImportOstatki\SOURCE\ImportOstatki_2.0.vip" Line="18" Column="1"/>
 						</StackIncludeList>
 					</CompileMessage>
-					<CompileMessage MessageType="mtInfo" MessageText="Метод интерфейса &quot;IMPORTOSTATKI_V2.existplpor&quot;, объявленный в C:\Galaktika\_git\Fakel\ImportOstatki\SOURCE\ImportOstatki_2.0.vip(237), не был использован" SourceFileName="C:\Galaktika\_git\Fakel\ImportOstatki\SOURCE\ImportOstatki_2.0.vip" SourceLine="1087" SourceColumn="5"/>
-					<CompileMessage MessageType="mtInfo" MessageText="Метод интерфейса &quot;IMPORTOSTATKI_V2.getKatOrg&quot;, объявленный в C:\Galaktika\_git\Fakel\ImportOstatki\SOURCE\ImportOstatki_2.0.vip(282), не был использован" SourceFileName="C:\Galaktika\_git\Fakel\ImportOstatki\SOURCE\ImportOstatki_2.0.vip" SourceLine="1087" SourceColumn="5"/>
-					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;KATORG&quot;, включенная в главную логическую таблицу интерфейса &quot;IMPORTOSTATKI_V2&quot;, не была явно использована" SourceFileName="C:\Galaktika\_git\Fakel\ImportOstatki\SOURCE\ImportOstatki_2.0.vip" SourceLine="1087" SourceColumn="5"/>
-					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;KATOTPED_USL&quot;, включенная в главную логическую таблицу интерфейса &quot;IMPORTOSTATKI_V2&quot;, не была явно использована" SourceFileName="C:\Galaktika\_git\Fakel\ImportOstatki\SOURCE\ImportOstatki_2.0.vip" SourceLine="1087" SourceColumn="5"/>
-					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;KATSOPR1&quot;, включенная в главную логическую таблицу интерфейса &quot;IMPORTOSTATKI_V2&quot;, не была явно использована" SourceFileName="C:\Galaktika\_git\Fakel\ImportOstatki\SOURCE\ImportOstatki_2.0.vip" SourceLine="1087" SourceColumn="5"/>
-					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;SALDTUNE1&quot;, включенная в главную логическую таблицу интерфейса &quot;IMPORTOSTATKI_V2&quot;, не была явно использована" SourceFileName="C:\Galaktika\_git\Fakel\ImportOstatki\SOURCE\ImportOstatki_2.0.vip" SourceLine="1087" SourceColumn="5"/>
-					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;SOPRORDB&quot;, включенная в главную логическую таблицу интерфейса &quot;IMPORTOSTATKI_V2&quot;, не была явно использована" SourceFileName="C:\Galaktika\_git\Fakel\ImportOstatki\SOURCE\ImportOstatki_2.0.vip" SourceLine="1087" SourceColumn="5"/>
-					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;SPDOCNAL&quot;, включенная в главную логическую таблицу интерфейса &quot;IMPORTOSTATKI_V2&quot;, не была явно использована" SourceFileName="C:\Galaktika\_git\Fakel\ImportOstatki\SOURCE\ImportOstatki_2.0.vip" SourceLine="1087" SourceColumn="5"/>
-					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;SPGRNAL&quot;, включенная в главную логическую таблицу интерфейса &quot;IMPORTOSTATKI_V2&quot;, не была явно использована" SourceFileName="C:\Galaktika\_git\Fakel\ImportOstatki\SOURCE\ImportOstatki_2.0.vip" SourceLine="1087" SourceColumn="5"/>
-					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;USERSDOC_EXT&quot;, включенная в главную логическую таблицу интерфейса &quot;IMPORTOSTATKI_V2&quot;, не была явно использована" SourceFileName="C:\Galaktika\_git\Fakel\ImportOstatki\SOURCE\ImportOstatki_2.0.vip" SourceLine="1087" SourceColumn="5"/>
-					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;USERSDOC_OWN&quot;, включенная в главную логическую таблицу интерфейса &quot;IMPORTOSTATKI_V2&quot;, не была явно использована" SourceFileName="C:\Galaktika\_git\Fakel\ImportOstatki\SOURCE\ImportOstatki_2.0.vip" SourceLine="1087" SourceColumn="5"/>
-					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;USL_AKT&quot;, включенная в главную логическую таблицу интерфейса &quot;IMPORTOSTATKI_V2&quot;, не была явно использована" SourceFileName="C:\Galaktika\_git\Fakel\ImportOstatki\SOURCE\ImportOstatki_2.0.vip" SourceLine="1087" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Метод интерфейса &quot;IMPORTOSTATKI_V2.existplpor&quot;, объявленный в C:\Galaktika\_git\Fakel\ImportOstatki\SOURCE\ImportOstatki_2.0.vip(238), не был использован" SourceFileName="C:\Galaktika\_git\Fakel\ImportOstatki\SOURCE\ImportOstatki_2.0.vip" SourceLine="1094" SourceColumn="5"/>
+					<CompileMessage MessageType="mtInfo" MessageText="Метод интерфейса &quot;IMPORTOSTATKI_V2.getKatOrg&quot;, объявленный в C:\Galaktika\_git\Fakel\ImportOstatki\SOURCE\ImportOstatki_2.0.vip(284), не был использован" SourceFileName="C:\Galaktika\_git\Fakel\ImportOstatki\SOURCE\ImportOstatki_2.0.vip" SourceLine="1094" SourceColumn="5"/>
+					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;KATORG&quot;, включенная в главную логическую таблицу интерфейса &quot;IMPORTOSTATKI_V2&quot;, не была явно использована" SourceFileName="C:\Galaktika\_git\Fakel\ImportOstatki\SOURCE\ImportOstatki_2.0.vip" SourceLine="1094" SourceColumn="5"/>
+					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;KATOTPED_USL&quot;, включенная в главную логическую таблицу интерфейса &quot;IMPORTOSTATKI_V2&quot;, не была явно использована" SourceFileName="C:\Galaktika\_git\Fakel\ImportOstatki\SOURCE\ImportOstatki_2.0.vip" SourceLine="1094" SourceColumn="5"/>
+					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;KATSOPR1&quot;, включенная в главную логическую таблицу интерфейса &quot;IMPORTOSTATKI_V2&quot;, не была явно использована" SourceFileName="C:\Galaktika\_git\Fakel\ImportOstatki\SOURCE\ImportOstatki_2.0.vip" SourceLine="1094" SourceColumn="5"/>
+					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;SALDTUNE1&quot;, включенная в главную логическую таблицу интерфейса &quot;IMPORTOSTATKI_V2&quot;, не была явно использована" SourceFileName="C:\Galaktika\_git\Fakel\ImportOstatki\SOURCE\ImportOstatki_2.0.vip" SourceLine="1094" SourceColumn="5"/>
+					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;SOPRORDB&quot;, включенная в главную логическую таблицу интерфейса &quot;IMPORTOSTATKI_V2&quot;, не была явно использована" SourceFileName="C:\Galaktika\_git\Fakel\ImportOstatki\SOURCE\ImportOstatki_2.0.vip" SourceLine="1094" SourceColumn="5"/>
+					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;SPDOCNAL&quot;, включенная в главную логическую таблицу интерфейса &quot;IMPORTOSTATKI_V2&quot;, не была явно использована" SourceFileName="C:\Galaktika\_git\Fakel\ImportOstatki\SOURCE\ImportOstatki_2.0.vip" SourceLine="1094" SourceColumn="5"/>
+					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;SPGRNAL&quot;, включенная в главную логическую таблицу интерфейса &quot;IMPORTOSTATKI_V2&quot;, не была явно использована" SourceFileName="C:\Galaktika\_git\Fakel\ImportOstatki\SOURCE\ImportOstatki_2.0.vip" SourceLine="1094" SourceColumn="5"/>
+					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;USERSDOC_EXT&quot;, включенная в главную логическую таблицу интерфейса &quot;IMPORTOSTATKI_V2&quot;, не была явно использована" SourceFileName="C:\Galaktika\_git\Fakel\ImportOstatki\SOURCE\ImportOstatki_2.0.vip" SourceLine="1094" SourceColumn="5"/>
+					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;USERSDOC_OWN&quot;, включенная в главную логическую таблицу интерфейса &quot;IMPORTOSTATKI_V2&quot;, не была явно использована" SourceFileName="C:\Galaktika\_git\Fakel\ImportOstatki\SOURCE\ImportOstatki_2.0.vip" SourceLine="1094" SourceColumn="5"/>
+					<CompileMessage MessageType="mtWarning" MessageText="Таблица &quot;USL_AKT&quot;, включенная в главную логическую таблицу интерфейса &quot;IMPORTOSTATKI_V2&quot;, не была явно использована" SourceFileName="C:\Galaktika\_git\Fakel\ImportOstatki\SOURCE\ImportOstatki_2.0.vip" SourceLine="1094" SourceColumn="5"/>
 					<CompileMessage MessageType="mtWarning" MessageText="Не найден объект" SourceLine="-1" SourceColumn="-1"/>
 					<CompileMessage MessageType="mtWarning" MessageText="и еще" SourceFileName="C:\G" SourceLine="2506" SourceColumn="91"/>
 					<CompileMessage MessageType="mtWarning" MessageText="и еще" SourceFileName="C:\G" SourceLine="2550" SourceColumn="87"/>
 					<CompileMessage MessageType="mtWarning" MessageText="Не найден объект" SourceLine="-1" SourceColumn="-1"/>
 					<CompileMessage MessageType="mtWarning" MessageText="и еще" SourceFileName="C:\G" SourceLine="2543" SourceColumn="65"/>
-					<CompileMessage MessageType="mtWarning" MessageText="и еще" SourceFileName="C:\GA" SourceLine="965" SourceColumn="65"/>
+					<CompileMessage MessageType="mtWarning" MessageText="и еще" SourceFileName="C:\GA" SourceLine="972" SourceColumn="65"/>
 					<CompileMessage MessageType="mtWarning" MessageText="Не найден объект" SourceLine="-1" SourceColumn="-1"/>
 					<CompileMessage MessageType="mtWarning" MessageText="Не найден объект" SourceLine="-1" SourceColumn="-1"/>
 					<CompileMessage MessageType="mtWarning" MessageText="и еще" SourceFileName="C:\G" SourceLine="2520" SourceColumn="54"/>
@@ -185,7 +185,7 @@
 					<CompileMessage MessageType="mtWarning" MessageText="и еще" SourceFileName="C:\G" SourceLine="2524" SourceColumn="54"/>
 					<CompileMessage MessageType="mtWarning" MessageText="Не найден объект" SourceLine="-1" SourceColumn="-1"/>
 					<CompileMessage MessageType="mtWarning" MessageText="и еще" SourceFileName="C:\G" SourceLine="2532" SourceColumn="65"/>
-					<CompileMessage MessageType="mtEndCompile" MessageText="21.02.2024 16:52:22"/>
+					<CompileMessage MessageType="mtEndCompile" MessageText="04.03.2024 10:42:23"/>
 				</CompileMessageList>
 			</CompileMessenger>
 		</CompileMessengerList>

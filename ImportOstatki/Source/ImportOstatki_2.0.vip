@@ -60,6 +60,7 @@ Table Struct tInsertDocs20
 (
     nrec       : comp
   , ctFiles    : comp
+  , NPP        : string
   , NrecSKL    : comp
   , nameSkl    : string
   , NrecMOL    : comp
@@ -265,6 +266,7 @@ PROCEdURE fillrecArrayByTypeTable(_type: byte);
         _recArray[_npp].def := 'NrecSpSopr' ;
      }
      1 : {
+        _recArray[_npp].def := 'NPP'        ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
         _recArray[_npp].def := 'NrecSKL'    ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
         _recArray[_npp].def := 'NrecMOL'    ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
         _recArray[_npp].def := 'NameOtped'  ; SetLimit(_recArray, GetLimit(_recArray) + 1); _npp++;
@@ -609,6 +611,7 @@ Procedure prtInsertDocs(_nrow : longint; _file : string);
         }
        1: {
          case upcase(_recArray[_i].def) of
+          Upcase( 'NPP'        ) : tInsertDocs20.NPP        := Trim(_recArray[_i].value); //'UID ’Œ– ¨§ 1‘'
           Upcase( 'NrecSKL'    ) : tInsertDocs20.NrecSKL    := comp(Trim(_recArray[_i].value)); //'UID ’Œ– ¨§ 1‘'
           Upcase( 'NrecMOL'    ) : tInsertDocs20.NrecMOL    := comp(Trim(_recArray[_i].value)); //'UID ’Œ– ¨§ 1‘'
           Upcase( 'NameOtped'  ) : tInsertDocs20.NameOtped  := Trim(_recArray[_i].value); //'UID ’Œ– ¨§ 1‘'
@@ -655,7 +658,7 @@ procedure InsertAktIzlishki20; {
 //        and (tInsertDocs.schetBU = '60.02' or tInsertDocs.schetBU = '62.02')
         and tInsertDocs20.FlagErr = 0
        {
-         if(getfirst katsopr where ((611 == katsopr.vidsopr
+         if(getfirst katsopr where ((505 == katsopr.vidsopr
                                    ))
                and KatSopr.cpodrto  = tInsertDocs20.NrecSKL
                and KatSopr.cmolto   = tInsertDocs20.NrecMOL
@@ -670,14 +673,17 @@ procedure InsertAktIzlishki20; {
                                     ,KatSopr.STATUS   := 1
 //                                    ,KatSopr.CNOTE   :=
 //                                    ,katsopr.summa    := tInsertDocs20.summa
-                                    ,KatSopr.TIPSOPR  := 0
-                                    ,KatSopr.DSOPR    := _dateAktIzlishki
-                                    ,KatSopr.DPRICE   := _dateAktIzlishki
-                                    ,KatSopr.YEARSOPR := year(_dateAktIzlishki)
-                                    ,KatSopr.NSOPR    := '1'
-                                    ,KatSopr.VIDSOPR  := 611
-                                    ,KatSopr.cpodrto  := tInsertDocs20.NrecSKL
-                                    ,KatSopr.cmolto   := tInsertDocs20.NrecMOL
+                                    ,KatSopr.TIPSOPR   := 0
+                                    ,KatSopr.DSOPR     := _dateAktIzlishki
+                                    ,KatSopr.DPRICE    := _dateAktIzlishki
+                                    ,KatSopr.YEARSOPR  := year(_dateAktIzlishki)
+                                    ,KatSopr.NSOPR     := '1'
+                                    ,KatSopr.VIDSOPR   := 505
+                                    ,KatSopr.cpodrto   := tInsertDocs20.NrecSKL
+                                    ,KatSopr.cmolto    := tInsertDocs20.NrecMOL
+                                    ,KatSopr.cpodrfrom := tInsertDocs20.NrecSKL
+                                    ,KatSopr.cmolfrom  := tInsertDocs20.NrecMOL
+
 //                                    ,KatSopr.CCALPLAN := tInsertDocs20.ccalplan
                                   ;
                                    Insert soprhoz set
@@ -722,6 +728,7 @@ procedure InsertAktIzlishki20; {
               update current soprhoz set soprhoz.summa := soprhoz.summa + spsopr.KOL*spsopr.PRICE;
 
               coSetAttr(cospsopr, spsopr.nrec,'.‘ç¥â Œ–', tInsertDocs20.cSchet, tInsertDocs20.SchBY) ;
+              sSetAttr(cospsopr, spsopr.nrec,'.Š®¬¬¥­â à¨©', tInsertDocs20.NPP) ;
               if getfirst specmtr20_src = tsOK {
                 specmtr.buffer := specmtr20_src.buffer;
                 specmtr.CSPEC  := spsopr.nrec;
