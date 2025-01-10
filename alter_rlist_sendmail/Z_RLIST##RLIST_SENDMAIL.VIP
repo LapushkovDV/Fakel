@@ -1,0 +1,138 @@
+#component "Z_RLIST"
+#include PsnFuncs.vih // Функции работы с таблицей Persons
+Alter Interface vRList_SendMail;
+OverLoad
+//  function RenameRL(oldName: string): string;
+  function PasswordProtection(_protect: boolean; resfile: string; seMail: s100): string;
+end;//OverLoad
+
+var _log : string;
+procedure mylog(_str : string); {
+  if _log = '' {
+    _log := GetStringParameter('Files','OutputFilesDirectory',0)+ '\send_email_'+DateToStr(cur_date,'YYYYMMDD')+'_'+timetostr(cur_time,'HHMMSS-SSS') +'.log';
+  }
+  LogStrToFile(_log, DateToStr(cur_date,'YYYYMMDD')+'_'+timetostr(cur_time,'HHMMSS') + ': ' + _str);
+}
+/*
+function RenameRL(oldName: string): string; {
+  result := oldName;
+  var newName: string;
+
+  if GetFirst lschet where ((comp(FCH) == lschet.nRec)) = tsOk
+    if (GetFirst FastFirstRow Persons where ((lschet.tPerson == Persons.Nrec)) = tsOk)
+    {
+      //newName := if (wGetTune('Country') = ccKaz, GetStrTabn(Lschet.TabN, Lschet.strTabN), replace(Persons.FIO,' ','_'));
+      newName := OleGenerateGUID;
+      newName := replace(oldName, 'CURRENT_MAIL', newName);
+
+      if (wGetTune('COUNTRY') = ccKaz)
+        CopyMoveFile(oldName, newName, true, ecmfServerFrom + ecmfServerTo )
+      else
+        ConvertFileToCoding(oldName, newName, cpOEMCP, cpUTF8, true, ecmfClientFrom + ecmfClientTo);
+
+      result := newName;
+    }
+}
+
+*/
+function PasswordProtection(_protect: boolean; resfile: string; seMail: s100): string;
+var
+  retCode
+ ,aErrorCode: integer;
+
+  wParArch  : word;
+
+  code
+ ,FilePath: string;
+
+  sNmArch : s10;
+{
+  retCode := 0;
+  PasswordProtection := resfile;
+
+  FilePath := Path;
+
+  if (_protect)
+  {
+    code := GetPasByPerson(comp(FCH), seMail);
+    if trim(code) = ''
+    {
+     PasswordProtection := '';  // чтоб не произошло отправление в открытом виде без архивации! 101.63908
+     abort;
+     exit;
+    }
+
+    if ( not ReadMyDsk(wParArch, 'Rlist_wParArch', false) )
+      wParArch := 0;
+
+    if ( IfDefServerApp ) // трехуровневая архитектура
+    {
+      var fileServer: string = GetDefaultUserPath + ExtractFileName(resfile);
+      var fileClient: string = Path + ExtractFileName(resfile);
+
+      resfile := fileClient;
+
+      if ( PutSrvFileToClient(ConvertClientPathToSrv(fileServer), fileClient, false) ) <> 0
+      {
+        message('Ошибка при получении файла ['+ fileServer +'] от сервера',Error);
+        abort;
+        exit;
+      }
+    }
+
+    if ( wParArch = 0 )
+    {
+      sNmArch := 'mail.rar';
+
+      if ( IfDefServerApp ) // трехуровневая архитектура
+        DeleteFileEx(FilePath + sNmArch)
+      else
+        DeleteFile(FilePath + sNmArch);
+
+      // проверка на результат удаления временного файла. Иначе возможна рассылка чужого расчетного
+      if ExistFile(FilePath + sNmArch)
+      {
+        message('Временный файл ['+ FilePath + sNmArch +'] не удален. Продолжение рассылки невозможно!',Error);
+        abort;
+        exit;
+      }
+
+      retCode :=  ExecProgram ('rar.exe ','m -sco -ep -o+ -hp'+ code + ' ' + FilePath + sNmArch + ' ' + resfile,
+                               'Идет архивация данных!', pfSilent, aErrorCode);
+    }
+    else
+    {
+      sNmArch := 'mail.7z';
+
+      if ( IfDefServerApp ) // трехуровневая архитектура
+        DeleteFileEx(FilePath + sNmArch)
+      else
+        DeleteFile(FilePath + sNmArch);
+
+      // проверка на результат удаления временного файла. Иначе возможна рассылка чужого расчетного
+      if ExistFile(FilePath + sNmArch)
+      {
+        message('Временный файл ['+ FilePath + sNmArch +'] не удален. Продолжение рассылки невозможно!',Error);
+        abort;
+        exit;
+      }
+
+      var strprogram : string = 'C:\Program Files\7-Zip\7z.exe' ;
+      var str_parameter : string = 'a '+FilePath +sNmArch+' -p'+code+' '+resfile;
+
+      retCode :=  ExecProgram (strprogram,str_parameter,'Идет архивация данных!', pfSilent, aErrorCode);
+    }
+
+    if (retCode = 0)
+    {
+      PasswordProtection := Path + sNmArch;
+    }
+    else
+    {
+      PasswordProtection := '';  // чтоб не произошло отправление в открытом виде без архивации! 101.63908
+      abort;
+      exit;
+    }
+  } // if (protect)
+} // function PasswordProtection: string;
+end.
